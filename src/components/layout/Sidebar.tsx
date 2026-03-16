@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HiHome, HiCalendar, HiCamera, HiUserGroup, HiChartBar, HiDocumentReport, HiCog, HiX } from "react-icons/hi";
+import { HiHome, HiCalendar, HiCamera, HiUserGroup, HiChartBar, HiDocumentReport, HiCog, HiX, HiClock } from "react-icons/hi";
 
 interface SidebarProps {
   role: string;
@@ -22,6 +22,7 @@ const navItems: NavItem[] = [
   { label: "Mi Calendario", href: "/tecnico/calendario", icon: HiCalendar, roles: ["TECNICO"] },
   { label: "Fotos / Foráneos", href: "/tecnico/fotos", icon: HiCamera, roles: ["TECNICO"] },
   { label: "Dashboard Equipo", href: "/coordinador", icon: HiUserGroup, roles: ["COORDINADOR"] },
+  { label: "Turnos Equipo", href: "/coordinador/turnos", icon: HiClock, roles: ["COORDINADOR"] },
   { label: "Mi Equipo", href: "/coordinador/equipo", icon: HiUserGroup, roles: ["COORDINADOR"] },
   { label: "Malla de Turnos", href: "/coordinador/malla", icon: HiCalendar, roles: ["COORDINADOR"] },
   { label: "Reportes", href: "/manager/reportes", icon: HiDocumentReport, roles: ["COORDINADOR", "MANAGER", "ADMIN"] },

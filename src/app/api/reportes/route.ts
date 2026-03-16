@@ -43,7 +43,14 @@ export async function GET(req: NextRequest) {
     select: {
       id: true, nombre: true, cedula: true, email: true, zona: true, role: true,
       turnos: {
-        where: { fecha: { gte: fechaInicio, lte: fechaFin }, horaSalida: { not: null } },
+        where: {
+          fecha: { gte: fechaInicio, lte: fechaFin },
+          horaSalida: { not: null },
+          OR: [
+            { observaciones: null },
+            { observaciones: { not: { startsWith: "Cancelado" } } },
+          ],
+        },
         orderBy: { fecha: "asc" },
       },
       disponibilidades: {
