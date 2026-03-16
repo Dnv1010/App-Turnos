@@ -1,9 +1,9 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useState, useEffect, useCallback } from "react";
-import { format, startOfMonth, endOfMonth, addDays, eachDayOfInterval, getDay, isSameDay } from "date-fns";
-import { es } from "date-fns/locale";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay } from "date-fns";
+import { HiChevronDown } from "react-icons/hi";
 
 const OPCIONES_TURNO = ["8-17", "6-14", "14-22", "22-6", "8-14"];
 const OPCIONES_NOVEDAD = ["Disponible", "Descanso", "Vacaciones", "Día de la familia", "Semana Santa", "Medio día cumpleaños", "Keynote"];
@@ -17,12 +17,12 @@ interface MallaItem {
 interface Tecnico {
   id: string;
   nombre: string;
+  email?: string;
 }
 
 export default function CoordinadorMallaPage() {
   const { data: session } = useSession();
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
-  const [tecnicoId, setTecnicoId] = useState("");
   const [mes, setMes] = useState(format(new Date(), "yyyy-MM"));
   const [malla, setMalla] = useState<MallaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,28 +32,53 @@ export default function CoordinadorMallaPage() {
   const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
   const [lastClicked, setLastClicked] = useState<string | null>(null);
   const [mallaModalOpen, setMallaModalOpen] = useState(false);
+  const [selectedTecnicos, setSelectedTecnicos] = useState<Set<string>>(new Set());
+  const [showTecnicoDropdown, setShowTecnicoDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const primaryTecnico = selectedTecnicos.size > 0 ? Array.from(selectedTecnicos)[0] : null;
 
   const cargarTecnicos = useCallback(async () => {
     if (!session?.user?.zona) return;
     const res = await fetch(`/api/usuarios?zona=${session.user.zona}&role=TECNICO`);
     const data = await res.json();
     setTecnicos(data.tecnicos || []);
-    if (data.tecnicos?.length && !tecnicoId) setTecnicoId(data.tecnicos[0].id);
   }, [session?.user?.zona]);
 
-  const cargarMalla = useCallback(async () => {
-    if (!tecnicoId || !mes) return;
+  const cargarMalla = useCallback(async (userId: string) => {
+    if (!userId || !mes) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/malla?userId=${tecnicoId}&mes=${mes}`);
+      const res = await fetch(`/api/malla?userId=${userId}&mes=${mes}`);
       const data = await res.json();
       setMalla(Array.isArray(data) ? data : []);
     } catch { setMalla([]); }
     finally { setLoading(false); }
-  }, [tecnicoId, mes]);
+  }, [mes]);
 
   useEffect(() => { cargarTecnicos(); }, [cargarTecnicos]);
-  useEffect(() => { if (tecnicoId) cargarMalla(); }, [tecnicoId, cargarMalla]);
+  useEffect(() => { if (primaryTecnico) cargarMalla(primaryTecnico); }, [primaryTecnico, cargarMalla]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowTecnicoDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const toggleTecnico = (userId: string) => {
+    setSelectedTecnicos((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+  const selectAllTecnicos = () => setSelectedTecnicos(new Set(tecnicos.map((t) => t.id)));
+  const deselectAllTecnicos = () => setSelectedTecnicos(new Set());
 
   const [year, month] = mes.split("-").map(Number);
   const start = startOfMonth(new Date(year, month - 1));
@@ -108,41 +133,57 @@ export default function CoordinadorMallaPage() {
   };
 
   const guardar = async (fecha: Date, valor: string) => {
-    if (!tecnicoId) return;
+    const uid = primaryTecnico;
+    if (!uid) return;
     setSaving(true);
     try {
       const fechaStr = dateKey(fecha);
       const res = await fetch("/api/malla", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: tecnicoId, fecha: fechaStr, valor }),
+        body: JSON.stringify({ userId: uid, fecha: fechaStr, valor }),
       });
       if (!res.ok) throw new Error("Error al guardar");
       setEditDay(null);
       setValorLibre("");
-      cargarMalla();
+      cargarMalla(uid);
     } catch { /* ignore */ }
     finally { setSaving(false); }
   };
 
   const assignMallaToSelected = async (valor: string) => {
-    if (!tecnicoId || selectedDays.size === 0) return;
+    if (selectedTecnicos.size === 0) {
+      alert("Selecciona al menos un técnico");
+      return;
+    }
+    if (selectedDays.size === 0) {
+      alert("Selecciona al menos un día");
+      return;
+    }
     setSaving(true);
     try {
-      await Promise.all(
-        Array.from(selectedDays).map((fecha) =>
-          fetch("/api/malla", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: tecnicoId, fecha, valor }),
-          })
-        )
-      );
-      setSelectedDays(new Set());
-      setMallaModalOpen(false);
-      cargarMalla();
-    } catch { /* ignore */ }
-    finally { setSaving(false); }
+      const res = await fetch("/api/malla/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userIds: Array.from(selectedTecnicos),
+          fechas: Array.from(selectedDays),
+          valor,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        alert(`✓ Malla "${valor}" asignada a ${selectedTecnicos.size} técnico(s) en ${selectedDays.size} día(s) = ${data.registros} registros`);
+        setSelectedDays(new Set());
+        setMallaModalOpen(false);
+        if (primaryTecnico) cargarMalla(primaryTecnico);
+      } else {
+        alert("Error: " + (data.error || "No se pudo asignar"));
+      }
+    } catch (e: unknown) {
+      alert("Error: " + (e instanceof Error ? e.message : "No se pudo asignar"));
+    }
+    setSaving(false);
   };
 
   const weekDays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -153,13 +194,52 @@ export default function CoordinadorMallaPage() {
       <h2 className="text-2xl font-bold text-gray-900">Malla de Turnos</h2>
       <p className="text-gray-500">Zona {session?.user?.zona}</p>
 
-      <div className="card flex flex-wrap gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Técnico</label>
-          <select value={tecnicoId} onChange={(e) => setTecnicoId(e.target.value)} className="input-field min-w-[200px]">
-            <option value="">Seleccionar</option>
-            {tecnicos.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
-          </select>
+      <div className="card flex flex-wrap gap-4 items-end">
+        <div className="relative min-w-[220px]" ref={dropdownRef}>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Técnicos</label>
+          <button
+            type="button"
+            onClick={() => setShowTecnicoDropdown(!showTecnicoDropdown)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-left bg-white hover:border-gray-400 flex items-center justify-between"
+          >
+            <span>
+              {selectedTecnicos.size === 0
+                ? "Seleccionar técnicos..."
+                : selectedTecnicos.size === tecnicos.length
+                  ? "Todos los técnicos"
+                  : `${selectedTecnicos.size} técnico${selectedTecnicos.size > 1 ? "s" : ""} seleccionado${selectedTecnicos.size > 1 ? "s" : ""}`
+              }
+            </span>
+            <HiChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0 ml-2" />
+          </button>
+          {showTecnicoDropdown && (
+            <div className="absolute z-20 mt-1 w-full max-w-sm bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+              <div className="sticky top-0 bg-gray-50 px-3 py-2 border-b border-gray-200 flex gap-2">
+                <button type="button" onClick={selectAllTecnicos} className="text-xs text-blue-600 font-medium hover:underline">Seleccionar todos</button>
+                <span className="text-gray-300">|</span>
+                <button type="button" onClick={deselectAllTecnicos} className="text-xs text-gray-500 font-medium hover:underline">Ninguno</button>
+              </div>
+              {tecnicos.map((t) => (
+                <label key={t.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                  <input type="checkbox" checked={selectedTecnicos.has(t.id)} onChange={() => toggleTecnico(t.id)} className="w-4 h-4 text-blue-600 rounded border-gray-300" />
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium text-gray-900">{t.nombre}</span>
+                    {t.email && <span className="text-xs text-gray-400 ml-2">{t.email}</span>}
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+          {selectedTecnicos.size > 0 && selectedTecnicos.size <= 5 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {tecnicos.filter((t) => selectedTecnicos.has(t.id)).map((t) => (
+                <span key={t.id} className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                  {t.nombre}
+                  <button type="button" onClick={() => toggleTecnico(t.id)} className="hover:text-blue-900">×</button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Mes</label>
@@ -175,8 +255,8 @@ export default function CoordinadorMallaPage() {
         <span className="px-2 py-1 rounded bg-purple-100 text-purple-800">Día familia / Semana Santa</span>
       </div>
 
-      {!tecnicoId ? (
-        <div className="card text-center py-12 text-gray-500">Selecciona un técnico</div>
+      {selectedTecnicos.size === 0 ? (
+        <div className="card text-center py-12 text-gray-500">Selecciona uno o más técnicos para ver o asignar la malla</div>
       ) : loading ? (
         <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
       ) : (
@@ -259,7 +339,7 @@ export default function CoordinadorMallaPage() {
       {mallaModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-20 p-4" onClick={() => setMallaModalOpen(false)}>
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Asignar valor a {selectedDays.size} días</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Asignar valor a {selectedTecnicos.size > 0 ? `${selectedTecnicos.size} técnico(s) × ` : ""}{selectedDays.size} día(s)</h3>
             <p className="text-xs text-gray-500 mb-3">Turnos:</p>
             <div className="flex flex-wrap gap-2 mb-4">
               {OPCIONES_TURNO.map((o) => (

@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const body = await req.json();
-  const { userId, base64Data, tipo, turnoId, observaciones } = body;
+  const { userId, base64Data, tipo, turnoId, observaciones, kmInicial, kmFinal } = body;
 
   let driveFileId: string | null = null;
   let driveUrl: string | null = null;
@@ -40,6 +40,8 @@ export async function POST(req: NextRequest) {
       driveUrl,
       base64Fallback,
       observaciones: observaciones || (turnoId ? `Turno: ${turnoId}` : null),
+      kmInicial: kmInicial != null ? parseFloat(kmInicial) : null,
+      kmFinal: kmFinal != null ? parseFloat(kmFinal) : null,
     },
   });
 
