@@ -1,0 +1,336 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import DataTable from "@/components/ui/DataTable";
+import { HiPlus, HiPencil, HiTrash, HiX } from "react-icons/hi";
+
+interface Usuario {
+  id: string;
+  cedula: string;
+  nombre: string;
+  email: string;
+  role: string;
+  zona: string;
+  isActive: boolean;
+}
+
+export default function UsuariosPage() {
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [editando, setEditando] = useState<Usuario | null>(null);
+  const [form, setForm] = useState({
+    cedula: "",
+    nombre: "",
+    email: "",
+    pin: "",
+    role: "TECNICO",
+    zona: "BOGOTA",
+  });
+  const [saving, setSaving] = useState(false);
+
+  const cargarUsuarios = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/usuarios");
+      if (res.ok) setUsuarios(await res.json());
+    } catch {
+      console.error("Error cargando usuarios");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    cargarUsuarios();
+  }, [cargarUsuarios]);
+
+  const abrirCrear = () => {
+    setEditando(null);
+    setForm({ cedula: "", nombre: "", email: "", pin: "", role: "TECNICO", zona: "BOGOTA" });
+    setModal(true);
+  };
+
+  const abrirEditar = (u: Usuario) => {
+    setEditando(u);
+    setForm({
+      cedula: u.cedula,
+      nombre: u.nombre,
+      email: u.email,
+      pin: "",
+      role: u.role,
+      zona: u.zona,
+    });
+    setModal(true);
+  };
+
+  const guardar = async () => {
+    setSaving(true);
+    try {
+      const method = editando ? "PATCH" : "POST";
+      const body = editando ? { id: editando.id, ...form } : form;
+      const res = await fetch("/api/admin/usuarios", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        setModal(false);
+        cargarUsuarios();
+      }
+    } catch {
+      console.error("Error guardando usuario");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleActivo = async (u: Usuario) => {
+    try {
+      await fetch("/api/admin/usuarios", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: u.id, isActive: !u.isActive }),
+      });
+      cargarUsuarios();
+    } catch {
+      console.error("Error actualizando usuario");
+    }
+  };
+
+  const columns = [
+    { key: "cedula", label: "Cédula", sortable: true },
+    { key: "nombre", label: "Nombre", sortable: true },
+    { key: "email", label: "Email", sortable: true },
+    {
+      key: "role",
+      label: "Rol",
+      render: (u: Usuario) => {
+        const cls: Record<string, string> = {
+          ADMIN: "badge-red",
+          MANAGER: "badge-purple",
+          COORDINADOR: "badge-yellow",
+          TECNICO: "badge-blue",
+        };
+        return <span className={cls[u.role] || "badge-blue"}>{u.role}</span>;
+      },
+    },
+    {
+      key: "zona",
+      label: "Zona",
+      render: (u: Usuario) => (
+        <span className={u.zona === "BOGOTA" ? "badge-blue" : "badge-green"}>
+          {u.zona}
+        </span>
+      ),
+    },
+    {
+      key: "isActive",
+      label: "Estado",
+      render: (u: Usuario) => (
+        <span className={u.isActive ? "badge-green" : "badge-red"}>
+          {u.isActive ? "Activo" : "Inactivo"}
+        </span>
+      ),
+    },
+    {
+      key: "acciones",
+      label: "Acciones",
+      render: (u: Usuario) => (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              abrirEditar(u);
+            }}
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-primary-600"
+          >
+            <HiPencil className="h-4 w-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleActivo(u);
+            }}
+            className={`p-1.5 rounded-lg hover:bg-gray-100 ${
+              u.isActive
+                ? "text-gray-500 hover:text-red-600"
+                : "text-gray-500 hover:text-green-600"
+            }`}
+            title={u.isActive ? "Desactivar" : "Activar"}
+          >
+            <HiTrash className="h-4 w-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-gray-900">
+          Gestión de Usuarios
+        </h2>
+        <button
+          onClick={abrirCrear}
+          className="btn-primary flex items-center gap-2"
+        >
+          <HiPlus className="h-5 w-5" />
+          Nuevo Usuario
+        </button>
+      </div>
+
+      <DataTable
+        columns={columns as never}
+        data={usuarios as never}
+        searchable
+        searchPlaceholder="Buscar usuario..."
+      />
+
+      {modal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {editando ? "Editar Usuario" : "Nuevo Usuario"}
+              </h3>
+              <button
+                onClick={() => setModal(false)}
+                className="p-1 rounded-lg hover:bg-gray-100 text-gray-500"
+              >
+                <HiX className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Cédula
+                </label>
+                <input
+                  type="text"
+                  value={form.cedula}
+                  onChange={(e) =>
+                    setForm({ ...form, cedula: e.target.value })
+                  }
+                  className="input-field"
+                  required
+                  disabled={!!editando}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre completo
+                </label>
+                <input
+                  type="text"
+                  value={form.nombre}
+                  onChange={(e) =>
+                    setForm({ ...form, nombre: e.target.value })
+                  }
+                  className="input-field"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) =>
+                    setForm({ ...form, email: e.target.value })
+                  }
+                  className="input-field"
+                  required
+                  disabled={!!editando}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  PIN{" "}
+                  {editando && "(dejar vacío para no cambiar)"}
+                </label>
+                <input
+                  type="text"
+                  value={form.pin}
+                  onChange={(e) =>
+                    setForm({ ...form, pin: e.target.value })
+                  }
+                  className="input-field"
+                  maxLength={6}
+                  placeholder="••••"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Rol
+                  </label>
+                  <select
+                    value={form.role}
+                    onChange={(e) =>
+                      setForm({ ...form, role: e.target.value })
+                    }
+                    className="input-field"
+                  >
+                    <option value="TECNICO">Técnico</option>
+                    <option value="COORDINADOR">Coordinador</option>
+                    <option value="MANAGER">Manager</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Zona
+                  </label>
+                  <select
+                    value={form.zona}
+                    onChange={(e) =>
+                      setForm({ ...form, zona: e.target.value })
+                    }
+                    className="input-field"
+                  >
+                    <option value="BOGOTA">Bogotá</option>
+                    <option value="COSTA">Costa</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
+              <button onClick={() => setModal(false)} className="btn-secondary">
+                Cancelar
+              </button>
+              <button
+                onClick={guardar}
+                disabled={
+                  saving ||
+                  !form.nombre ||
+                  !form.email ||
+                  (!editando && (!form.cedula || !form.pin))
+                }
+                className="btn-primary"
+              >
+                {saving
+                  ? "Guardando..."
+                  : editando
+                  ? "Actualizar"
+                  : "Crear"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

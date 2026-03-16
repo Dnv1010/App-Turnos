@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  TECNICO
+  COORDINADOR
+  MANAGER
+  ADMIN
+}
+
+enum Zona {
+  BOGOTA
+  COSTA
+}
+
+model User {
+  id             String          @id @default(cuid())
+  cedula         String          @unique
+  nombre         String
+  email          String          @unique
+  password       String
+  role           Role            @default(TECNICO)
+  zona           Zona            @default(BOGOTA)
+  isActive       Boolean         @default(true)
+  fotoUrl        String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  turnos         Turno[]
+  mallaTurnos    MallaTurno[]
+  disponibilidades Disponibilidad[]
+  fotoRegistros  FotoRegistro[]
+  accounts       Account[]
+  sessions       Session[]
+}
+
+model Turno {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  fecha          DateTime @db.Date
+  horaEntrada    DateTime
+  horaSalida     DateTime?
+  latEntrada     Float?
+  lngEntrada     Float?
+  latSalida      Float?
+  lngSalida      Float?
+  horasOrdinarias Float   @default(0)
+  heDiurna       Float    @default(0)
+  heNocturna     Float    @default(0)
+  heDominical    Float    @default(0)
+  heNoctDominical Float   @default(0)
+  recNocturno    Float    @default(0)
+  recDominical   Float    @default(0)
+  recNoctDominical Float  @default(0)
+  observaciones  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, fecha])
+}
+
+model MallaTurno {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  fecha     DateTime @db.Date
+  valor     String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, fecha])
+}
+
+model Festivo {
+  id     String   @id @default(cuid())
+  fecha  DateTime @db.Date @unique
+  nombre String
+}
+
+model Disponibilidad {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  fecha     DateTime @db.Date
+  monto     Float    @default(80000)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, fecha])
+}
+
+model FotoRegistro {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  tipo          String
+  driveFileId   String?
+  driveUrl      String?
+  kmInicial     Float?
+  kmFinal       Float?
+  observaciones String?
+  createdAt     DateTime @default(now())
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
