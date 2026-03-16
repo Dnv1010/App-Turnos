@@ -1,9 +1,6 @@
 {
   "/login/page": "app/login/page.js",
-  "/api/turnos/route": "app/api/turnos/route.js",
-  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
-  "/api/reportes/route": "app/api/reportes/route.js",
-  "/(dashboard)/tecnico/page": "app/(dashboard)/tecnico/page.js",
   "/(dashboard)/tecnico/calendario/page": "app/(dashboard)/tecnico/calendario/page.js",
-  "/(dashboard)/manager/page": "app/(dashboard)/manager/page.js"
+  "/(dashboard)/manager/page": "app/(dashboard)/manager/page.js",
+  "/(dashboard)/tecnico/page": "app/(dashboard)/tecnico/page.js"
 }
