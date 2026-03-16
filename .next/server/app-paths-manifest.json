@@ -1,6 +1,0 @@
-{
-  "/login/page": "app/login/page.js",
-  "/(dashboard)/tecnico/calendario/page": "app/(dashboard)/tecnico/calendario/page.js",
-  "/(dashboard)/manager/page": "app/(dashboard)/manager/page.js",
-  "/(dashboard)/tecnico/page": "app/(dashboard)/tecnico/page.js"
-}
