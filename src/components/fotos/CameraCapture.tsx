@@ -14,32 +14,70 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
   const [streaming, setStreaming] = useState(false);
   const [captured, setCaptured] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cameraLoading, setCameraLoading] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
   const startCamera = useCallback(async () => {
     try {
       setError(null);
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-      });
+      setCameraLoading(true);
+      const constraints = {
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+        audio: false,
+      };
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
       streamRef.current = stream;
-      if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); setStreaming(true); }
-    } catch { setError("No se pudo acceder a la cámara. Verifica los permisos."); }
+      const video = videoRef.current;
+      if (video) {
+        video.srcObject = stream;
+        await new Promise<void>((resolve) => {
+          video.onloadedmetadata = () => {
+            video.play().then(() => resolve());
+          };
+        });
+      }
+      setStreaming(true);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError("No se pudo acceder a la cámara: " + msg + ". Asegúrate de estar en HTTPS y dar permisos de cámara.");
+    } finally {
+      setCameraLoading(false);
+    }
   }, []);
 
   const stopCamera = useCallback(() => {
-    if (streamRef.current) { streamRef.current.getTracks().forEach((track) => track.stop()); streamRef.current = null; }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
     setStreaming(false);
   }, []);
 
   const takePhoto = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return;
-    const video = videoRef.current; const canvas = canvasRef.current;
-    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d"); if (!ctx) return;
+    const video = videoRef.current;
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      setError("La cámara aún no está lista. Espera un momento.");
+      return;
+    }
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
     ctx.drawImage(video, 0, 0);
     const base64 = canvas.toDataURL("image/jpeg", 0.85);
-    setCaptured(base64); stopCamera();
+    setCaptured(base64);
+    stopCamera();
   }, [stopCamera]);
 
   const retake = useCallback(() => { setCaptured(null); startCamera(); }, [startCamera]);
@@ -49,7 +87,13 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
   return (
     <div className="card">
       <canvas ref={canvasRef} className="hidden" />
-      {!streaming && !captured && (
+      {cameraLoading && (
+        <div className="flex flex-col items-center gap-4 py-8">
+          <div className="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+          <p className="text-gray-500 text-center">Cargando cámara...</p>
+        </div>
+      )}
+      {!cameraLoading && !streaming && !captured && (
         <div className="flex flex-col items-center gap-4 py-8">
           <div className="w-20 h-20 bg-primary-50 rounded-full flex items-center justify-center">
             <HiCamera className="h-10 w-10 text-primary-600" />
@@ -59,7 +103,7 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
           {error && <p className="text-sm text-red-600 bg-red-50 px-4 py-2 rounded-lg">{error}</p>}
         </div>
       )}
-      {streaming && (
+      {!cameraLoading && streaming && (
         <div className="space-y-4">
           <div className="relative rounded-lg overflow-hidden bg-black">
             <video ref={videoRef} autoPlay playsInline muted className="w-full h-auto" />

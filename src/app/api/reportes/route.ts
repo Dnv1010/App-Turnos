@@ -32,7 +32,8 @@ export async function GET(req: NextRequest) {
 
   const usuarios = await prisma.user.findMany({
     where: whereUser,
-    include: {
+    select: {
+      id: true, nombre: true, cedula: true, email: true, zona: true, role: true,
       turnos: {
         where: { fecha: { gte: fechaInicio, lte: fechaFin }, horaSalida: { not: null } },
         orderBy: { fecha: "asc" },
@@ -62,7 +63,7 @@ export async function GET(req: NextRequest) {
     }, 0);
 
     return {
-      userId: user.id, nombre: user.nombre, zona: user.zona, role: user.role,
+      userId: user.id, nombre: user.nombre, cedula: user.cedula, email: user.email, zona: user.zona, role: user.role,
       totalTurnos: user.turnos.length,
       horasOrdinarias: Math.round(totalOrdinarias * 100) / 100,
       heDiurna: Math.round(user.turnos.reduce((s, t) => s + t.heDiurna, 0) * 100) / 100,
@@ -105,5 +106,23 @@ export async function GET(req: NextRequest) {
     .filter((d) => d.totalHorasExtra > 40)
     .map((d) => ({ userId: d.userId, nombre: d.nombre, mensaje: `${d.nombre} acumula ${d.totalHorasExtra}h extras en el período` }));
 
-  return NextResponse.json({ detalle, resumen, alertas });
+  const foraneos = detalle.flatMap((d) =>
+    d.fotos
+      .filter((f) => f.tipo === "FORANEO")
+      .map((f) => ({
+        id: f.id,
+        fecha: f.fecha,
+        tecnico: d.nombre,
+        cedula: d.cedula,
+        correo: d.email,
+        tipo: f.tipo,
+        kmInicial: f.kmInicial,
+        kmFinal: f.kmFinal,
+        distancia: f.kmRecorridos,
+        observaciones: f.observaciones,
+        fotoUrl: f.driveUrl || "",
+      }))
+  );
+
+  return NextResponse.json({ detalle, resumen, alertas, foraneos });
 }

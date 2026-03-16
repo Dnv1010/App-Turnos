@@ -38,21 +38,42 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
     });
   };
 
+  const [cameraLoading, setCameraLoading] = useState(false);
+
   const startCamera = useCallback(async () => {
     try {
       setError(null);
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-      });
+      setCameraLoading(true);
+      const constraints = {
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+        audio: false,
+      };
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+      const video = videoRef.current;
+      if (video) {
+        video.srcObject = stream;
+        await new Promise<void>((resolve) => {
+          video.onloadedmetadata = () => {
+            video.play().then(() => resolve());
+          };
+        });
       }
       setStep("camera");
-    } catch {
-      setError("No se pudo acceder a la cámara. Verifica los permisos.");
-      setStep("idle");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError("No se pudo acceder a la cámara. Asegúrate de estar en HTTPS y dar permisos de cámara.");
+    } finally {
+      setCameraLoading(false);
     }
   }, []);
 
@@ -66,13 +87,17 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
   const takePhoto = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      setError("La cámara aún no está lista. Espera un momento.");
+      return;
+    }
     const canvas = canvasRef.current;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.drawImage(video, 0, 0);
-    const base64 = canvas.toDataURL("image/jpeg", 0.8);
+    const base64 = canvas.toDataURL("image/jpeg", 0.85);
     setCapturedPhoto(base64);
     stopCamera();
     setStep("preview");
@@ -104,29 +129,7 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
     try {
       const coords = await obtenerUbicacion();
 
-      if (isCerrandoTurno && turnoActivo) {
-        const res = await fetch("/api/turnos", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ turnoId: turnoActivo.id, lat: coords.lat, lng: coords.lng }),
-        });
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || "Error al cerrar turno");
-        }
-      } else {
-        const res = await fetch("/api/turnos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, lat: coords.lat, lng: coords.lng }),
-        });
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || "Error al iniciar turno");
-        }
-      }
-
-      await fetch("/api/fotos", {
+      const fotoRes = await fetch("/api/fotos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -136,6 +139,34 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
           observaciones: `Fichaje ${isCerrandoTurno ? "salida" : "entrada"} - ${new Date().toLocaleString("es-CO")}`,
         }),
       });
+      if (!fotoRes.ok) {
+        const data = await fotoRes.json();
+        throw new Error(data.error || "Error subiendo foto");
+      }
+      const fotoData = await fotoRes.json();
+      const photoUrl = fotoData.driveUrl || null;
+
+      if (isCerrandoTurno && turnoActivo) {
+        const res = await fetch("/api/turnos", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ turnoId: turnoActivo.id, lat: coords.lat, lng: coords.lng, endPhotoUrl: photoUrl }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || "Error al cerrar turno");
+        }
+      } else {
+        const res = await fetch("/api/turnos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, lat: coords.lat, lng: coords.lng, startPhotoUrl: photoUrl }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || "Error al iniciar turno");
+        }
+      }
 
       setCapturedPhoto(null);
       setStep("idle");
@@ -155,7 +186,13 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
     <div className="flex flex-col items-center gap-4 w-full max-w-sm">
       <canvas ref={canvasRef} className="hidden" />
 
-      {step === "idle" && (
+      {cameraLoading && (
+        <div className="flex flex-col items-center gap-3 py-8">
+          <div className="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+          <p className="text-sm text-gray-500">Cargando cámara...</p>
+        </div>
+      )}
+      {!cameraLoading && step === "idle" && (
         <>
           <button
             onClick={handleFichajeClick}

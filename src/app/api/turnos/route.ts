@@ -10,18 +10,35 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId") || session.user.userId;
+  const userIdParam = searchParams.get("userId");
   const inicio = searchParams.get("inicio");
   const fin = searchParams.get("fin");
+  const zonaParam = searchParams.get("zona");
 
-  const where: Record<string, unknown> = { userId };
+  let where: Record<string, unknown> = {};
+
+  if (session.user.role === "TECNICO") {
+    where.userId = session.user.userId;
+  } else if (session.user.role === "COORDINADOR") {
+    const zona = zonaParam || session.user.zona;
+    const usersZona = await prisma.user.findMany({
+      where: { zona, role: "TECNICO", isActive: true },
+      select: { id: true },
+    });
+    where.userId = { in: usersZona.map((u) => u.id) };
+  } else if (userIdParam) {
+    where.userId = userIdParam;
+  } else {
+    where.userId = session.user.userId;
+  }
+
   if (inicio && fin) {
     where.fecha = { gte: new Date(inicio), lte: new Date(fin) };
   }
 
   const turnos = await prisma.turno.findMany({
     where,
-    orderBy: { fecha: "desc" },
+    orderBy: [{ fecha: "desc" }, { horaEntrada: "desc" }],
     include: { user: { select: { nombre: true, zona: true } } },
   });
 
@@ -31,12 +48,16 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (session.user.role !== "TECNICO") {
+    return NextResponse.json({ error: "Solo los técnicos pueden iniciar turnos" }, { status: 403 });
+  }
 
   const body = await req.json();
-  const { userId, lat, lng } = body;
+  const { userId, lat, lng, startPhotoUrl } = body;
+  const uid = userId || session.user.userId;
 
   const turnoAbierto = await prisma.turno.findFirst({
-    where: { userId, horaSalida: null },
+    where: { userId: uid, horaSalida: null },
   });
 
   if (turnoAbierto) {
@@ -46,11 +67,12 @@ export async function POST(req: NextRequest) {
   const ahora = new Date();
   const turno = await prisma.turno.create({
     data: {
-      userId,
+      userId: uid,
       fecha: new Date(ahora.toISOString().split("T")[0]),
       horaEntrada: ahora,
       latEntrada: lat,
       lngEntrada: lng,
+      startPhotoUrl: startPhotoUrl || null,
     },
   });
 
@@ -60,12 +82,16 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (session.user.role !== "TECNICO") {
+    return NextResponse.json({ error: "Solo los técnicos pueden cerrar turnos" }, { status: 403 });
+  }
 
   const body = await req.json();
-  const { turnoId, lat, lng } = body;
+  const { turnoId, lat, lng, endPhotoUrl } = body;
 
   const turno = await prisma.turno.findUnique({ where: { id: turnoId } });
   if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
+  if (turno.userId !== session.user.userId) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   if (turno.horaSalida) return NextResponse.json({ error: "Turno ya cerrado" }, { status: 400 });
 
   const horaSalida = new Date();
@@ -93,7 +119,7 @@ export async function PATCH(req: NextRequest) {
 
   const turnoActualizado = await prisma.turno.update({
     where: { id: turnoId },
-    data: { horaSalida, latSalida: lat, lngSalida: lng, ...resultado },
+    data: { horaSalida, latSalida: lat, lngSalida: lng, endPhotoUrl: endPhotoUrl || null, ...resultado },
   });
 
   return NextResponse.json(turnoActualizado);

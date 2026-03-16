@@ -25,6 +25,20 @@ interface DetalleUsuario {
   totalKmRecorridos: number; registrosForaneo: number; fotos: FotoInfo[];
 }
 
+interface ForaneoItem {
+  id: string;
+  fecha: string;
+  tecnico: string;
+  cedula: string | null;
+  correo: string | null;
+  tipo: string;
+  kmInicial: number | null;
+  kmFinal: number | null;
+  distancia: number | null;
+  observaciones: string | null;
+  fotoUrl: string;
+}
+
 interface ReporteData {
   detalle: DetalleUsuario[];
   resumen: {
@@ -32,6 +46,7 @@ interface ReporteData {
     totalHorasOrdinarias: number; totalDisponibilidades: number;
     totalKmRecorridos: number; totalRegistrosForaneo: number;
   };
+  foraneos?: ForaneoItem[];
 }
 
 type TabView = "horas" | "foraneos";
@@ -70,12 +85,37 @@ export default function ReportesPage() {
       d.totalKmRecorridos, d.registrosForaneo,
       d.fotos.filter((f) => f.driveUrl).map((f) => f.driveUrl).join(" | "),
     ]);
-    const csv = [headers.join(","), ...rows.map((r) => r.map((v) => `"${v}"`).join(","))].join("\n");
+    const csv = [headers.join(","), ...rows.map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(","))].join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
     link.download = `reporte_completo_${inicio}_${fin}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportarCSVForaneos = () => {
+    if (!data?.foraneos?.length) return;
+    const headers = ["Fecha", "Técnico", "Cédula", "Correo", "Tipo", "Km Inicial", "Km Final", "Distancia", "Observaciones", "Foto URL"];
+    const rows = data.foraneos.map((f) => [
+      f.fecha,
+      f.tecnico,
+      f.cedula ?? "",
+      f.correo ?? "",
+      f.tipo,
+      f.kmInicial ?? "",
+      f.kmFinal ?? "",
+      f.distancia ?? "",
+      (f.observaciones ?? "").replace(/"/g, '""'),
+      f.fotoUrl,
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.map((v) => `"${String(v)}"`).join(","))].join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `reporte_foraneos_${inicio}_${fin}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -124,9 +164,16 @@ export default function ReportesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h2 className="text-2xl font-bold text-gray-900">Reportes</h2>
         {data && (
-          <button onClick={exportarCSV} className="btn-secondary flex items-center gap-2">
-            <HiDownload className="h-5 w-5" />Exportar CSV
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={exportarCSV} className="btn-secondary flex items-center gap-2">
+              <HiDownload className="h-5 w-5" />Exportar CSV
+            </button>
+            {data.foraneos && data.foraneos.length > 0 && (
+              <button onClick={exportarCSVForaneos} className="btn-secondary flex items-center gap-2">
+                <HiTruck className="h-5 w-5" />CSV Foráneos
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -222,6 +269,28 @@ export default function ReportesPage() {
                 </div>
               ) : (
                 <>
+                  {data.foraneos && data.foraneos.length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-2">Detalle por registro (con tipo)</h4>
+                      <DataTable
+                        columns={[
+                          { key: "fecha", label: "Fecha", render: (f: ForaneoItem) => new Date(f.fecha).toLocaleDateString("es-CO") },
+                          { key: "tecnico", label: "Técnico", sortable: true },
+                          { key: "cedula", label: "Cédula" },
+                          { key: "correo", label: "Correo" },
+                          { key: "tipo", label: "Tipo", sortable: true },
+                          { key: "kmInicial", label: "Km Inicial", render: (f: ForaneoItem) => f.kmInicial ?? "—" },
+                          { key: "kmFinal", label: "Km Final", render: (f: ForaneoItem) => f.kmFinal ?? "—" },
+                          { key: "distancia", label: "Distancia", render: (f: ForaneoItem) => f.distancia != null ? `${f.distancia} km` : "—" },
+                          { key: "observaciones", label: "Observaciones", render: (f: ForaneoItem) => (f.observaciones ?? "").slice(0, 40) + ((f.observaciones?.length ?? 0) > 40 ? "…" : "") },
+                          { key: "fotoUrl", label: "Foto", render: (f: ForaneoItem) => f.fotoUrl ? <a href={f.fotoUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline text-xs flex items-center gap-1"><HiExternalLink className="h-3.5 w-3.5" />Ver</a> : "—" },
+                        ] as never}
+                        data={data.foraneos as never}
+                        searchable
+                        searchPlaceholder="Buscar técnico, cédula..."
+                      />
+                    </div>
+                  )}
                   <DataTable columns={columnsForaneo as never} data={foraneoData as never} searchable searchPlaceholder="Buscar técnico..." />
 
                   {expandedUser && (
@@ -239,6 +308,7 @@ export default function ReportesPage() {
                                 <span className="text-sm text-gray-700">
                                   {new Date(foto.fecha).toLocaleDateString("es-CO", { day: "2-digit", month: "short" })}
                                 </span>
+                                <span className="ml-2 text-xs font-medium text-gray-500">({foto.tipo})</span>
                                 {foto.kmRecorridos != null && (
                                   <span className="ml-3 text-sm font-medium text-orange-700">{foto.kmRecorridos} km</span>
                                 )}

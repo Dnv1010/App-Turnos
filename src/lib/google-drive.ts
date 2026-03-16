@@ -13,6 +13,8 @@ export async function uploadToDrive(
   const base64Content = base64Data.replace(/^data:image\/\w+;base64,/, "");
   const buffer = Buffer.from(base64Content, "base64");
 
+  console.log("[Drive] Uploading file:", fileName, "size:", buffer.length, "bytes");
+
   const metadata = {
     name: fileName,
     mimeType: "image/jpeg",
@@ -29,8 +31,7 @@ export async function uploadToDrive(
         "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
         JSON.stringify(metadata) +
         delimiter +
-        "Content-Type: image/jpeg\r\n" +
-        "Content-Transfer-Encoding: base64\r\n\r\n"
+        "Content-Type: image/jpeg\r\n\r\n"
     ),
     buffer,
     Buffer.from(closeDelimiter),
@@ -50,13 +51,16 @@ export async function uploadToDrive(
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.error("[Drive] Upload failed:", response.status, errorText);
     throw new Error(`Google Drive upload failed (${response.status}): ${errorText}`);
   }
 
   const data = await response.json();
+  const webViewLink = `https://drive.google.com/file/d/${data.id}/view`;
+  console.log("[Drive] Upload success, id:", data.id, "link:", webViewLink);
 
   return {
     fileId: data.id,
-    webViewLink: `https://drive.google.com/file/d/${data.id}/view`,
+    webViewLink,
   };
 }

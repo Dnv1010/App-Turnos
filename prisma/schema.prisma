@@ -50,6 +50,8 @@ model Turno {
   lngEntrada     Float?
   latSalida      Float?
   lngSalida      Float?
+  startPhotoUrl  String?
+  endPhotoUrl    String?
   horasOrdinarias Float   @default(0)
   heDiurna       Float    @default(0)
   heNocturna     Float    @default(0)
@@ -94,16 +96,17 @@ model Disponibilidad {
 }
 
 model FotoRegistro {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id])
-  tipo          String
-  driveFileId   String?
-  driveUrl      String?
-  kmInicial     Float?
-  kmFinal       Float?
-  observaciones String?
-  createdAt     DateTime @default(now())
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  tipo            String
+  driveFileId     String?
+  driveUrl        String?
+  base64Fallback  String?  @db.Text
+  kmInicial       Float?
+  kmFinal        Float?
+  observaciones   String?
+  createdAt       DateTime @default(now())
 }
 
 model Account {

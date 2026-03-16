@@ -13,6 +13,8 @@ export async function POST(req: NextRequest) {
 
   let driveFileId: string | null = null;
   let driveUrl: string | null = null;
+  let base64Fallback: string | null = null;
+  let usedFallback = false;
 
   if (base64Data) {
     try {
@@ -24,11 +26,9 @@ export async function POST(req: NextRequest) {
       driveFileId = result.fileId;
       driveUrl = result.webViewLink;
     } catch (error) {
-      console.error("Error subiendo a Google Drive:", error);
-      return NextResponse.json(
-        { error: "Error subiendo foto a Google Drive", details: String(error) },
-        { status: 500 }
-      );
+      console.error("[Fotos] Error subiendo a Google Drive, guardando fallback en BD:", error);
+      usedFallback = true;
+      base64Fallback = typeof base64Data === "string" ? base64Data.replace(/^data:image\/\w+;base64,/, "") : base64Data;
     }
   }
 
@@ -38,11 +38,15 @@ export async function POST(req: NextRequest) {
       tipo: tipo || "FICHAJE",
       driveFileId,
       driveUrl,
+      base64Fallback,
       observaciones: observaciones || (turnoId ? `Turno: ${turnoId}` : null),
     },
   });
 
-  return NextResponse.json({ ...registro, driveUrl }, { status: 201 });
+  return NextResponse.json(
+    { ...registro, driveUrl, fallback: usedFallback },
+    { status: 201 }
+  );
 }
 
 export async function GET(req: NextRequest) {

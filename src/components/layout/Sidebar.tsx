@@ -18,12 +18,14 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: "Mi Dashboard", href: "/tecnico", icon: HiHome, roles: ["TECNICO", "COORDINADOR", "MANAGER", "ADMIN"] },
-  { label: "Calendario", href: "/tecnico/calendario", icon: HiCalendar, roles: ["TECNICO", "COORDINADOR", "MANAGER", "ADMIN"] },
-  { label: "Fotos / Km", href: "/tecnico/fotos", icon: HiCamera, roles: ["TECNICO"] },
-  { label: "Mi Equipo", href: "/coordinador", icon: HiUserGroup, roles: ["COORDINADOR"] },
+  { label: "Mi Dashboard", href: "/tecnico", icon: HiHome, roles: ["TECNICO"] },
+  { label: "Mi Calendario", href: "/tecnico/calendario", icon: HiCalendar, roles: ["TECNICO"] },
+  { label: "Fotos / Foráneos", href: "/tecnico/fotos", icon: HiCamera, roles: ["TECNICO"] },
+  { label: "Dashboard Equipo", href: "/coordinador", icon: HiUserGroup, roles: ["COORDINADOR"] },
+  { label: "Mi Equipo", href: "/coordinador/equipo", icon: HiUserGroup, roles: ["COORDINADOR"] },
+  { label: "Malla de Turnos", href: "/coordinador/malla", icon: HiCalendar, roles: ["COORDINADOR"] },
+  { label: "Reportes", href: "/manager/reportes", icon: HiDocumentReport, roles: ["COORDINADOR", "MANAGER", "ADMIN"] },
   { label: "Dashboard Global", href: "/manager", icon: HiChartBar, roles: ["MANAGER", "ADMIN"] },
-  { label: "Reportes", href: "/manager/reportes", icon: HiDocumentReport, roles: ["MANAGER", "ADMIN", "COORDINADOR"] },
   { label: "Usuarios", href: "/admin/usuarios", icon: HiCog, roles: ["ADMIN"] },
 ];
 
@@ -48,7 +50,7 @@ export default function Sidebar({ role, isOpen, onClose }: SidebarProps) {
         </div>
         <nav className="p-4 space-y-1">
           {filteredItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link key={item.href} href={item.href} onClick={onClose}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive ? "bg-primary-50 text-primary-700" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}`}>

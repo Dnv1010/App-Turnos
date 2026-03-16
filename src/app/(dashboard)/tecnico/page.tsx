@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
@@ -28,6 +29,7 @@ interface TurnoRecord {
 
 export default function TecnicoDashboard() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [turnos, setTurnos] = useState<TurnoRecord[]>([]);
   const [turnoActivo, setTurnoActivo] = useState<{ id: string; horaEntrada: string } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,7 +50,14 @@ export default function TecnicoDashboard() {
     finally { setLoading(false); }
   }, [session?.user?.userId, inicio, fin]);
 
-  useEffect(() => { cargarTurnos(); }, [cargarTurnos]);
+  useEffect(() => {
+    if (session && session.user.role !== "TECNICO") {
+      if (session.user.role === "COORDINADOR") router.replace("/coordinador");
+      else if (["MANAGER", "ADMIN"].includes(session.user.role)) router.replace("/manager");
+      return;
+    }
+    cargarTurnos();
+  }, [session, router, cargarTurnos]);
 
   const totalHE = turnos.reduce((s, t) => s + t.heDiurna + t.heNocturna + t.heDominical + t.heNoctDominical, 0);
   const totalRecargos = turnos.reduce((s, t) => s + t.recNocturno + t.recDominical + t.recNoctDominical, 0);
