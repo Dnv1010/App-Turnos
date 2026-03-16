@@ -24,11 +24,169 @@ export interface ResumenSemanal {
   aplicaRegla44h: boolean;
 }
 
+export interface AlertaBIA {
+  tipo: string;
+  id: string;
+  correo: string;
+  fecha: string;
+  detalle: string;
+  malla?: string;
+}
+
 const JORNADA_DIURNA_INICIO = 6;
 const JORNADA_DIURNA_FIN = 19;
 const ORDINARIO_LV = 9;
 const ORDINARIO_SAB = 4;
 const UMBRAL_HE = 0.5;
+
+const ORDINARIO_LV_MIN = 540;
+const ORDINARIO_SAB_MIN = 240;
+
+export function normalizeName(val: string): string {
+  return (val || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\u0300/g, "")
+    .trim();
+}
+
+export function looksLikeShift(val: string | null): boolean {
+  if (!val) return false;
+  const raw = val.replace(/\s/g, "");
+  return /^\d+-\d+$/.test(raw);
+}
+
+export function getOrdinaryMinutes(
+  date: Date,
+  mallaVal: string | null,
+  holidaySet: Set<string>
+): number {
+  const dow = date.getUTCDay();
+  const dateKey = date.toISOString().split("T")[0];
+  const isFestivo = holidaySet.has(dateKey);
+
+  if (dow === 0) return 0;
+
+  const v = normalizeName(mallaVal || "");
+
+  if (
+    v.includes("descanso") ||
+    v.includes("vacacion") ||
+    v.includes("dia de la familia") ||
+    v.includes("semana santa") ||
+    v.includes("keynote")
+  )
+    return 0;
+
+  if (v === "disponible") return 0;
+
+  if (v.includes("medio dia") && v.includes("cumple")) {
+    if (dow === 6) return 0;
+    return 240;
+  }
+
+  if (looksLikeShift(mallaVal)) {
+    const raw = (mallaVal || "").replace(/\s/g, "");
+    if (raw === "8-14") return 240;
+    if (dow === 6) return ORDINARIO_SAB_MIN;
+    return ORDINARIO_LV_MIN;
+  }
+
+  if (dow === 6) return ORDINARIO_SAB_MIN;
+  return ORDINARIO_LV_MIN;
+}
+
+export function checkMallaAlerts(
+  turnoId: string,
+  correo: string,
+  fecha: Date,
+  mallaVal: string | null,
+  isFestivo: boolean,
+  totalHoras: number
+): AlertaBIA[] {
+  const alerts: AlertaBIA[] = [];
+  const fechaStr = fecha.toISOString().split("T")[0];
+
+  if (!mallaVal) {
+    alerts.push({
+      tipo: "SIN_MALLA",
+      id: turnoId,
+      correo,
+      fecha: fechaStr,
+      detalle: "Técnico sin malla asignada para este día. Se usó jornada ordinaria por defecto.",
+    });
+    return alerts;
+  }
+
+  const v = normalizeName(mallaVal);
+
+  if (v.includes("descanso")) {
+    alerts.push({
+      tipo: "TRABAJO_EN_DESCANSO",
+      id: turnoId,
+      correo,
+      fecha: fechaStr,
+      detalle: `Trabajó ${totalHoras}h en día marcado como DESCANSO. Todas las horas son HE.`,
+      malla: mallaVal,
+    });
+  }
+
+  if (v.includes("vacacion")) {
+    alerts.push({
+      tipo: "TRABAJO_EN_VACACIONES",
+      id: turnoId,
+      correo,
+      fecha: fechaStr,
+      detalle: `Trabajó ${totalHoras}h en día marcado como VACACIONES.`,
+      malla: mallaVal,
+    });
+  }
+
+  if (v.includes("dia de la familia")) {
+    alerts.push({
+      tipo: "TRABAJO_EN_DIA_FAMILIA",
+      id: turnoId,
+      correo,
+      fecha: fechaStr,
+      detalle: `Trabajó ${totalHoras}h en día marcado como DÍA DE LA FAMILIA.`,
+      malla: mallaVal,
+    });
+  }
+
+  if (v.includes("semana santa") || v.includes("keynote")) {
+    alerts.push({
+      tipo: "TRABAJO_EN_NOVEDAD",
+      id: turnoId,
+      correo,
+      fecha: fechaStr,
+      detalle: `Trabajó ${totalHoras}h en día marcado como ${mallaVal}.`,
+      malla: mallaVal,
+    });
+  }
+
+  if (v === "disponible" && !isFestivo) {
+    alerts.push({
+      tipo: "DISPONIBLE_EN_NO_FESTIVO",
+      id: turnoId,
+      correo,
+      fecha: fechaStr,
+      detalle: "Marcado como Disponible en día no festivo. Verificar malla.",
+      malla: mallaVal,
+    });
+  }
+
+  if (totalHoras > 14) {
+    alerts.push({
+      tipo: "TURNO_MAYOR_14H",
+      id: turnoId,
+      correo,
+      fecha: fechaStr,
+      detalle: `Duración ${totalHoras}h — posible error.`,
+    });
+  }
+
+  return alerts;
+}
 
 function minutosAHoras(minutos: number): number {
   return Math.round((minutos / 60) * 100) / 100;
@@ -72,7 +230,30 @@ export function calcularHorasSemanales(turnosSemana: TurnoData[]): ResumenSemana
   };
 }
 
-export function calcularTurno(turno: TurnoData, resumenSemanal: ResumenSemanal): ResultadoCalculo {
+export function calcularHorasSemanalesConMalla(
+  turnosSemana: TurnoData[],
+  mallaGetter: (fecha: Date) => string | null,
+  holidaySet: Set<string>
+): ResumenSemanal {
+  let totalOrdinariasMin = 0;
+  for (const turno of turnosSemana) {
+    const mallaVal = mallaGetter(turno.fecha);
+    const ordMin = getOrdinaryMinutes(turno.fecha, mallaVal, holidaySet);
+    totalOrdinariasMin += ordMin;
+  }
+  const horasOrdinariasSemana = Math.round((totalOrdinariasMin / 60) * 100) / 100;
+  return {
+    horasOrdinariasSemana,
+    aplicaRegla44h: horasOrdinariasSemana < 44,
+  };
+}
+
+export function calcularTurno(
+  turno: TurnoData,
+  resumenSemanal: ResumenSemanal,
+  mallaVal?: string | null,
+  holidaySet?: Set<string>
+): ResultadoCalculo {
   const resultado: ResultadoCalculo = {
     horasOrdinarias: 0, heDiurna: 0, heNocturna: 0, heDominical: 0,
     heNoctDominical: 0, recNocturno: 0, recDominical: 0, recNoctDominical: 0,
@@ -98,7 +279,13 @@ export function calcularTurno(turno: TurnoData, resumenSemanal: ResumenSemanal):
     return resultado;
   }
 
-  const horasEsperadas = calcularHorasOrdinariasEsperadas(diaSemana);
+  let horasEsperadas: number;
+  if (mallaVal !== undefined && holidaySet !== undefined) {
+    const ordMin = getOrdinaryMinutes(turno.fecha, mallaVal, holidaySet);
+    horasEsperadas = ordMin / 60;
+  } else {
+    horasEsperadas = calcularHorasOrdinariasEsperadas(diaSemana);
+  }
   resultado.horasOrdinarias = Math.min(totalHoras, horasEsperadas);
 
   const excedente = totalHoras - horasEsperadas;
@@ -110,7 +297,7 @@ export function calcularTurno(turno: TurnoData, resumenSemanal: ResumenSemanal):
   }
 
   if (horasNocturnas > 0 && diaSemana >= 1 && diaSemana <= 6) {
-    const nocturnoOrdinario = Math.min(horasNocturnas, horasEsperadas - horasDiurnas);
+    const nocturnoOrdinario = Math.min(horasNocturnas, Math.max(0, horasEsperadas - horasDiurnas));
     if (nocturnoOrdinario > 0) resultado.recNocturno = nocturnoOrdinario;
   }
 

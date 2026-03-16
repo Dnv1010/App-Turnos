@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { calcularTurno, calcularHorasSemanales, getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
+import { calcularTurno, calcularHorasSemanales, calcularHorasSemanalesConMalla, getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
 import { getDay } from "date-fns";
+
+function dateKey(d: Date): string {
+  return d.toISOString().split("T")[0];
+}
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -96,25 +100,42 @@ export async function PATCH(req: NextRequest) {
 
   const horaSalida = new Date();
 
-  const festivos = await prisma.festivo.findMany({ where: { fecha: turno.fecha } });
-  const esFestivo = festivos.length > 0;
-  const esDomingo = getDay(turno.fecha) === 0;
-
   const inicioSemana = getInicioSemana(turno.fecha);
   const finSemana = getFinSemana(turno.fecha);
+
+  const [mallaSemana, festivosSemana] = await Promise.all([
+    prisma.mallaTurno.findMany({
+      where: { userId: turno.userId, fecha: { gte: inicioSemana, lte: finSemana } },
+    }),
+    prisma.festivo.findMany({ where: { fecha: { gte: inicioSemana, lte: finSemana } } }),
+  ]);
+  const mallaMap = new Map<string, string>();
+  mallaSemana.forEach((m) => mallaMap.set(dateKey(m.fecha), m.valor));
+  const holidaySet = new Set(festivosSemana.map((f) => dateKey(f.fecha)));
+
+  const esFestivo = holidaySet.has(dateKey(turno.fecha));
+  const esDomingo = getDay(turno.fecha) === 0;
+
   const turnosSemana = await prisma.turno.findMany({
     where: { userId: turno.userId, fecha: { gte: inicioSemana, lte: finSemana }, horaSalida: { not: null } },
   });
-
   const turnosData = turnosSemana.map((t) => ({
     fecha: t.fecha, horaEntrada: t.horaEntrada, horaSalida: t.horaSalida!,
-    esFestivo: false, esDomingo: getDay(t.fecha) === 0,
+    esFestivo: holidaySet.has(dateKey(t.fecha)), esDomingo: getDay(t.fecha) === 0,
   }));
+  turnosData.push({
+    fecha: turno.fecha, horaEntrada: turno.horaEntrada, horaSalida,
+    esFestivo, esDomingo: getDay(turno.fecha) === 0,
+  });
 
-  const resumenSemanal = calcularHorasSemanales(turnosData);
+  const mallaGetter = (fecha: Date) => mallaMap.get(dateKey(fecha)) ?? null;
+  const resumenSemanal = calcularHorasSemanalesConMalla(turnosData, mallaGetter, holidaySet);
+  const mallaVal = mallaMap.get(dateKey(turno.fecha)) ?? null;
   const resultado = calcularTurno(
     { fecha: turno.fecha, horaEntrada: turno.horaEntrada, horaSalida, esFestivo, esDomingo },
-    resumenSemanal
+    resumenSemanal,
+    mallaVal,
+    holidaySet
   );
 
   const turnoActualizado = await prisma.turno.update({

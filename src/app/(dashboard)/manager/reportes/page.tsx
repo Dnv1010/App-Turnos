@@ -17,12 +17,41 @@ interface FotoInfo {
   fecha: string;
 }
 
+interface TurnoConMalla {
+  id: string;
+  fecha: string;
+  horasOrdinarias?: number;
+  heDiurna?: number;
+  heNocturna?: number;
+  malla?: string;
+  [key: string]: unknown;
+}
+
 interface DetalleUsuario {
   userId: string; nombre: string; zona: string; totalTurnos: number; horasOrdinarias: number;
   heDiurna: number; heNocturna: number; heDominical: number; heNoctDominical: number;
   recNocturno: number; recDominical: number; recNoctDominical: number;
   totalHorasExtra: number; totalRecargos: number; totalDisponibilidades: number;
   totalKmRecorridos: number; registrosForaneo: number; fotos: FotoInfo[];
+  turnos?: TurnoConMalla[];
+}
+
+function isBlockMalla(val: string): boolean {
+  if (!val) return false;
+  const v = val.toLowerCase();
+  return v.includes("descanso") || v.includes("vacacion") || v.includes("dia de la familia") || v.includes("semana santa") || v.includes("keynote");
+}
+
+function mallaResumen(turnos: TurnoConMalla[] | undefined): string {
+  if (!turnos?.length) return "";
+  const counts: Record<string, number> = {};
+  turnos.forEach((t) => {
+    const m = t.malla || "Sin malla";
+    counts[m] = (counts[m] || 0) + 1;
+  });
+  return Object.entries(counts)
+    .map(([k, n]) => `${k} (${n})`)
+    .join("; ");
 }
 
 interface ForaneoItem {
@@ -76,13 +105,14 @@ export default function ReportesPage() {
       "Nombre", "Zona", "Turnos", "H. Ordinarias", "HE Diurna", "HE Nocturna",
       "HE Dominical", "HE Noct. Dominical", "Rec. Nocturno", "Rec. Dominical",
       "Rec. Noct. Dominical", "Total HE", "Total Recargos", "Disponibilidades",
-      "Km Recorridos", "Reg. Foráneos", "Links Fotos Drive",
+      "Km Recorridos", "Reg. Foráneos", "Malla", "Links Fotos Drive",
     ];
     const rows = data.detalle.map((d) => [
       d.nombre, d.zona, d.totalTurnos, d.horasOrdinarias, d.heDiurna, d.heNocturna,
       d.heDominical, d.heNoctDominical, d.recNocturno, d.recDominical, d.recNoctDominical,
       d.totalHorasExtra, d.totalRecargos, d.totalDisponibilidades,
       d.totalKmRecorridos, d.registrosForaneo,
+      mallaResumen(d.turnos),
       d.fotos.filter((f) => f.driveUrl).map((f) => f.driveUrl).join(" | "),
     ]);
     const csv = [headers.join(","), ...rows.map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(","))].join("\n");
@@ -131,6 +161,17 @@ export default function ReportesPage() {
     { key: "recNocturno", label: "Rec. Noc." },
     { key: "totalHorasExtra", label: "Total HE", sortable: true },
     { key: "totalRecargos", label: "Total Rec.", sortable: true },
+    { key: "malla", label: "Malla",
+      render: (d: DetalleUsuario) => {
+        const resumen = mallaResumen(d.turnos);
+        if (!resumen) return "—";
+        const hasBlock = (d.turnos || []).some((t) => t.malla && isBlockMalla(t.malla));
+        return (
+          <span className={`text-xs font-medium px-2 py-0.5 rounded ${hasBlock ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}`} title={resumen}>
+            {resumen.length > 40 ? resumen.slice(0, 37) + "…" : resumen}
+          </span>
+        );
+      } },
     { key: "totalKmRecorridos", label: "Km",
       render: (d: DetalleUsuario) => d.totalKmRecorridos > 0 ? `${d.totalKmRecorridos}` : "—" },
     { key: "totalDisponibilidades", label: "Disponib.",
