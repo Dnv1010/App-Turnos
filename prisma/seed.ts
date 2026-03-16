@@ -6,22 +6,22 @@ const prisma = new PrismaClient();
 async function main() {
   const usuarios = [
     { cedula: "1000000001", nombre: "Admin BIA", email: "admin@bia.com", pin: "1234", role: Role.ADMIN, zona: Zona.BOGOTA },
-    { cedula: "1000000002", nombre: "Hernan Manjarres", email: "hernan.manjarres@bia.com", pin: "1111", role: Role.MANAGER, zona: Zona.BOGOTA },
-    { cedula: "1000000003", nombre: "Dinovi Sanchez", email: "dinovi.sanchez@bia.com", pin: "2222", role: Role.COORDINADOR, zona: Zona.BOGOTA },
-    { cedula: "1000000004", nombre: "Ervison Plata", email: "ervison.plata@bia.com", pin: "3333", role: Role.COORDINADOR, zona: Zona.COSTA },
-    { cedula: "1000000005", nombre: "Carlos Mendez", email: "carlos.mendez@bia.com", pin: "4444", role: Role.TECNICO, zona: Zona.BOGOTA },
-    { cedula: "1000000006", nombre: "Andrea Lopez", email: "andrea.lopez@bia.com", pin: "5555", role: Role.TECNICO, zona: Zona.BOGOTA },
-    { cedula: "1000000007", nombre: "Miguel Torres", email: "miguel.torres@bia.com", pin: "6666", role: Role.TECNICO, zona: Zona.COSTA },
-    { cedula: "1000000008", nombre: "Laura Castillo", email: "laura.castillo@bia.com", pin: "7777", role: Role.TECNICO, zona: Zona.COSTA },
-    { cedula: "1000000009", nombre: "David Ramirez", email: "david.ramirez@bia.com", pin: "8888", role: Role.TECNICO, zona: Zona.BOGOTA },
-    { cedula: "1000000010", nombre: "Sofia Herrera", email: "sofia.herrera@bia.com", pin: "9999", role: Role.TECNICO, zona: Zona.COSTA },
+    { cedula: "1000000002", nombre: "Hernan Manjarres", email: "hernan.manjarres@bia.app", pin: "1111", role: Role.MANAGER, zona: Zona.BOGOTA },
+    { cedula: "1000000003", nombre: "Dinovi Sanchez", email: "dinovi.sanchez@bia.app", pin: "2222", role: Role.COORDINADOR, zona: Zona.BOGOTA },
+    { cedula: "1000000004", nombre: "Ervison Plata", email: "ervison.plata@bia.app", pin: "3333", role: Role.COORDINADOR, zona: Zona.COSTA },
+    { cedula: "1000000005", nombre: "Carlos Mendez", email: "carlos.mendez@bia.app", pin: "4444", role: Role.TECNICO, zona: Zona.BOGOTA },
+    { cedula: "1000000006", nombre: "Andrea Lopez", email: "andrea.lopez@bia.app", pin: "5555", role: Role.TECNICO, zona: Zona.BOGOTA },
+    { cedula: "1000000007", nombre: "Miguel Torres", email: "miguel.torres@bia.app", pin: "6666", role: Role.TECNICO, zona: Zona.COSTA },
+    { cedula: "1000000008", nombre: "Laura Castillo", email: "laura.castillo@bia.app", pin: "7777", role: Role.TECNICO, zona: Zona.COSTA },
+    { cedula: "1000000009", nombre: "David Ramirez", email: "david.ramirez@bia.app", pin: "8888", role: Role.TECNICO, zona: Zona.BOGOTA },
+    { cedula: "1000000010", nombre: "Sofia Herrera", email: "sofia.herrera@bia.app", pin: "9999", role: Role.TECNICO, zona: Zona.COSTA },
   ];
 
   for (const u of usuarios) {
     const hashedPin = await bcrypt.hash(u.pin, 10);
     await prisma.user.upsert({
-      where: { email: u.email },
-      update: {},
+      where: { cedula: u.cedula },
+      update: { nombre: u.nombre, email: u.email, role: u.role, zona: u.zona, password: hashedPin },
       create: {
         cedula: u.cedula,
         nombre: u.nombre,

@@ -20,7 +20,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: "Mi Dashboard", href: "/tecnico", icon: HiHome, roles: ["TECNICO", "COORDINADOR", "MANAGER", "ADMIN"] },
   { label: "Calendario", href: "/tecnico/calendario", icon: HiCalendar, roles: ["TECNICO", "COORDINADOR", "MANAGER", "ADMIN"] },
-  { label: "Fotos", href: "/tecnico/fotos", icon: HiCamera, roles: ["TECNICO"] },
+  { label: "Fotos / Km", href: "/tecnico/fotos", icon: HiCamera, roles: ["TECNICO"] },
   { label: "Mi Equipo", href: "/coordinador", icon: HiUserGroup, roles: ["COORDINADOR"] },
   { label: "Dashboard Global", href: "/manager", icon: HiChartBar, roles: ["MANAGER", "ADMIN"] },
   { label: "Reportes", href: "/manager/reportes", icon: HiDocumentReport, roles: ["MANAGER", "ADMIN", "COORDINADOR"] },

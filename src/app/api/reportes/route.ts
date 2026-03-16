@@ -27,15 +27,22 @@ export async function GET(req: NextRequest) {
     whereUser.id = session.user.userId;
   }
 
+  const fechaInicio = new Date(inicio);
+  const fechaFin = new Date(fin);
+
   const usuarios = await prisma.user.findMany({
     where: whereUser,
     include: {
       turnos: {
-        where: { fecha: { gte: new Date(inicio), lte: new Date(fin) }, horaSalida: { not: null } },
+        where: { fecha: { gte: fechaInicio, lte: fechaFin }, horaSalida: { not: null } },
         orderBy: { fecha: "asc" },
       },
       disponibilidades: {
-        where: { fecha: { gte: new Date(inicio), lte: new Date(fin) } },
+        where: { fecha: { gte: fechaInicio, lte: fechaFin } },
+      },
+      fotoRegistros: {
+        where: { createdAt: { gte: fechaInicio, lte: fechaFin } },
+        orderBy: { createdAt: "desc" },
       },
     },
   });
@@ -45,6 +52,14 @@ export async function GET(req: NextRequest) {
     const totalRecargos = user.turnos.reduce((sum, t) => sum + t.recNocturno + t.recDominical + t.recNoctDominical, 0);
     const totalOrdinarias = user.turnos.reduce((sum, t) => sum + t.horasOrdinarias, 0);
     const totalDisponibilidades = user.disponibilidades.reduce((sum, d) => sum + d.monto, 0);
+
+    const fotosForaneo = user.fotoRegistros.filter((f) => f.tipo === "FORANEO");
+    const totalKmRecorridos = fotosForaneo.reduce((sum, f) => {
+      if (f.kmInicial != null && f.kmFinal != null && f.kmFinal > f.kmInicial) {
+        return sum + (f.kmFinal - f.kmInicial);
+      }
+      return sum;
+    }, 0);
 
     return {
       userId: user.id, nombre: user.nombre, zona: user.zona, role: user.role,
@@ -60,6 +75,18 @@ export async function GET(req: NextRequest) {
       totalHorasExtra: Math.round(totalHE * 100) / 100,
       totalRecargos: Math.round(totalRecargos * 100) / 100,
       totalDisponibilidades,
+      totalKmRecorridos: Math.round(totalKmRecorridos * 100) / 100,
+      registrosForaneo: fotosForaneo.length,
+      fotos: user.fotoRegistros.map((f) => ({
+        id: f.id,
+        tipo: f.tipo,
+        driveUrl: f.driveUrl,
+        kmInicial: f.kmInicial,
+        kmFinal: f.kmFinal,
+        kmRecorridos: f.kmInicial != null && f.kmFinal != null ? Math.max(0, f.kmFinal - f.kmInicial) : null,
+        observaciones: f.observaciones,
+        fecha: f.createdAt,
+      })),
       turnos: user.turnos,
     };
   });
@@ -70,11 +97,13 @@ export async function GET(req: NextRequest) {
     totalRecargos: Math.round(detalle.reduce((s, d) => s + d.totalRecargos, 0) * 100) / 100,
     totalHorasOrdinarias: Math.round(detalle.reduce((s, d) => s + d.horasOrdinarias, 0) * 100) / 100,
     totalDisponibilidades: detalle.reduce((s, d) => s + d.totalDisponibilidades, 0),
+    totalKmRecorridos: Math.round(detalle.reduce((s, d) => s + d.totalKmRecorridos, 0) * 100) / 100,
+    totalRegistrosForaneo: detalle.reduce((s, d) => s + d.registrosForaneo, 0),
   };
 
   const alertas = detalle
     .filter((d) => d.totalHorasExtra > 40)
     .map((d) => ({ userId: d.userId, nombre: d.nombre, mensaje: `${d.nombre} acumula ${d.totalHorasExtra}h extras en el período` }));
 
-  return NextResponse.json({ detalle, resumen, alertas, disponibilidades: detalle.map((d) => ({ userId: d.userId, nombre: d.nombre, total: d.totalDisponibilidades })) });
+  return NextResponse.json({ detalle, resumen, alertas });
 }
