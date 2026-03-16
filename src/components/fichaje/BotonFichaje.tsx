@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
-import { HiPlay, HiStop, HiLocationMarker, HiCamera, HiX, HiCheck, HiRefresh } from "react-icons/hi";
+import { useState, useCallback } from "react";
+import { HiPlay, HiStop, HiLocationMarker, HiCamera, HiCheck, HiRefresh } from "react-icons/hi";
+import CameraCapture from "@/components/fotos/CameraCapture";
 
 interface BotonFichajeProps {
   userId: string;
@@ -19,10 +20,6 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [isCerrandoTurno, setIsCerrandoTurno] = useState(false);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-
   const obtenerUbicacion = (): Promise<{ lat: number; lng: number }> => {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) { reject(new Error("Geolocalización no disponible")); return; }
@@ -38,84 +35,27 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
     });
   };
 
-  const [cameraLoading, setCameraLoading] = useState(false);
-  const [cameraReady, setCameraReady] = useState(false);
-
-  const startCamera = useCallback(async () => {
-    try {
-      setError(null);
-      setCameraReady(false);
-      setCameraLoading(true);
-      let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-          audio: false,
-        });
-      } catch {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      }
-      streamRef.current = stream;
-      const video = videoRef.current;
-      if (!video) return;
-      video.srcObject = stream;
-      video.setAttribute("playsinline", "true");
-      await new Promise<void>((resolve) => {
-        video.onloadeddata = () => resolve();
-      });
-      await video.play();
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      setStep("camera");
-      setCameraReady(true);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setError("No se pudo acceder a la cámara. Asegúrate de estar en HTTPS y dar permisos de cámara.");
-    } finally {
-      setCameraLoading(false);
-    }
-  }, []);
-
-  const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-  }, []);
-
-  const takePhoto = useCallback(() => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas) return;
-    const w = video.videoWidth || video.clientWidth || 640;
-    const h = video.videoHeight || video.clientHeight || 480;
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0, w, h);
-    const base64 = canvas.toDataURL("image/jpeg", 0.85);
-    setCapturedPhoto(base64);
-    stopCamera();
-    setStep("preview");
-  }, [stopCamera]);
-
-  const retakePhoto = useCallback(() => {
-    setCapturedPhoto(null);
-    startCamera();
-  }, [startCamera]);
-
-  const cancelCamera = useCallback(() => {
-    stopCamera();
-    setCapturedPhoto(null);
-    setStep("idle");
-    setIsCerrandoTurno(false);
-  }, [stopCamera]);
-
   const handleFichajeClick = useCallback(() => {
     setError(null);
     setIsCerrandoTurno(!!turnoActivo);
-    startCamera();
-  }, [turnoActivo, startCamera]);
+    setStep("camera");
+  }, [turnoActivo]);
+
+  const handleCapture = useCallback((_base64: string, preview: string) => {
+    setCapturedPhoto(preview);
+    setStep("preview");
+  }, []);
+
+  const retakePhoto = useCallback(() => {
+    setCapturedPhoto(null);
+    setStep("camera");
+  }, []);
+
+  const cancelCamera = useCallback(() => {
+    setCapturedPhoto(null);
+    setStep("idle");
+    setIsCerrandoTurno(false);
+  }, []);
 
   const confirmAndSubmit = useCallback(async () => {
     if (!capturedPhoto) return;
@@ -124,13 +64,14 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
     setError(null);
     try {
       const coords = await obtenerUbicacion();
+      const base64Data = capturedPhoto.includes(",") ? capturedPhoto.split(",")[1] : capturedPhoto;
 
       const fotoRes = await fetch("/api/fotos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
-          base64Data: capturedPhoto,
+          base64Data,
           tipo: isCerrandoTurno ? "SALIDA" : "ENTRADA",
           observaciones: `Fichaje ${isCerrandoTurno ? "salida" : "entrada"} - ${new Date().toLocaleString("es-CO")}`,
         }),
@@ -140,7 +81,7 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
         throw new Error(data.error || "Error subiendo foto");
       }
       const fotoData = await fotoRes.json();
-      const photoUrl = fotoData.driveUrl || null;
+      const photoUrl = fotoData.driveUrl ?? fotoData.foto?.driveUrl ?? null;
 
       if (isCerrandoTurno && turnoActivo) {
         const res = await fetch("/api/turnos", {
@@ -180,15 +121,7 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
 
   return (
     <div className="flex flex-col items-center gap-4 w-full max-w-sm">
-      <canvas ref={canvasRef} className="hidden" />
-
-      {cameraLoading && (
-        <div className="flex flex-col items-center gap-3 py-8">
-          <div className="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
-          <p className="text-sm text-gray-500">Cargando cámara...</p>
-        </div>
-      )}
-      {!cameraLoading && step === "idle" && (
+      {step === "idle" && (
         <>
           <button
             onClick={handleFichajeClick}
@@ -222,23 +155,19 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
       )}
 
       {step === "camera" && (
-        <div className="w-full bg-white rounded-2xl shadow-lg overflow-hidden">
-          <div className="bg-gray-900 p-2 text-center">
-            <span className="text-white text-xs font-medium">
+        <div className="w-full bg-white rounded-2xl shadow-lg overflow-hidden p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-gray-600">
               📸 Foto de {isCerrandoTurno ? "salida" : "entrada"}
-            </span>
-          </div>
-          <div className="relative bg-black">
-            <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", maxWidth: "480px" }} className="w-full h-auto" />
-          </div>
-          <div className="flex justify-center gap-3 p-4">
-            <button onClick={cancelCamera} className="btn-secondary text-sm px-4 py-2">
-              <HiX className="h-4 w-4 mr-1 inline" />Cancelar
-            </button>
-            <button onClick={takePhoto} disabled={!cameraReady} className="btn-primary text-sm px-4 py-2">
-              <HiCamera className="h-4 w-4 mr-1 inline" />{!cameraReady ? "Cargando cámara..." : "Capturar"}
+            </p>
+            <button type="button" onClick={cancelCamera} className="text-sm text-gray-500 hover:text-gray-700 underline">
+              Cancelar
             </button>
           </div>
+          <CameraCapture
+            onCapture={handleCapture}
+            onCancel={cancelCamera}
+          />
         </div>
       )}
 

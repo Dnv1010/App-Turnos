@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
 import CameraCapture from "@/components/fotos/CameraCapture";
-import { HiPhotograph, HiUpload, HiTruck, HiCamera, HiClipboardList } from "react-icons/hi";
+import { HiPhotograph, HiUpload, HiTruck, HiCamera, HiClipboardList, HiX } from "react-icons/hi";
 
 type TipoFoto = "FORANEO" | "GENERAL" | "ENTRADA" | "SALIDA";
 type Tab = "registrar" | "historial";
@@ -28,6 +28,7 @@ export default function FotosPage() {
   const [loading, setLoading] = useState(false);
   const [exito, setExito] = useState(false);
   const [fotoBase64, setFotoBase64] = useState<string | null>(null);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [historial, setHistorial] = useState<FotoRecord[]>([]);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
@@ -46,8 +47,9 @@ export default function FotosPage() {
     if (tab === "historial") cargarHistorial();
   }, [tab, cargarHistorial]);
 
-  const handleCapture = (base64: string) => {
+  const handleCapture = (base64: string, preview: string) => {
     setFotoBase64(base64);
+    setFotoPreview(preview);
     setShowCamera(false);
   };
 
@@ -74,6 +76,7 @@ export default function FotosPage() {
       if (res.ok) {
         setExito(true);
         setFotoBase64(null);
+        setFotoPreview(null);
         setKmInicial("");
         setKmFinal("");
         setObservaciones("");
@@ -145,10 +148,18 @@ export default function FotosPage() {
             <CameraCapture onCapture={handleCapture} onCancel={() => setShowCamera(false)} />
           )}
 
-          {fotoBase64 && (
+          {fotoBase64 && fotoPreview && (
             <div className="max-w-lg mx-auto space-y-4">
-              <div className="card p-0 overflow-hidden">
-                <img src={fotoBase64} alt="Foto capturada" className="w-full h-auto" />
+              <div className="card p-0 overflow-hidden relative">
+                <img src={fotoPreview} alt="Foto capturada" className="w-full h-auto" />
+                <button
+                  type="button"
+                  onClick={() => { setFotoBase64(null); setFotoPreview(null); setShowCamera(false); }}
+                  className="absolute top-2 right-2 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70"
+                  aria-label="Quitar foto"
+                >
+                  <HiX className="w-4 h-4" />
+                </button>
               </div>
               <div className="card space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -186,7 +197,7 @@ export default function FotosPage() {
                 </div>
 
                 <div className="flex gap-3">
-                  <button onClick={() => { setFotoBase64(null); setShowCamera(false); }} className="btn-secondary flex-1">
+                  <button type="button" onClick={() => { setFotoBase64(null); setFotoPreview(null); setShowCamera(false); }} className="btn-secondary flex-1">
                     Cancelar
                   </button>
                   <button onClick={handleSubmit} disabled={loading} className="btn-primary flex-1 flex items-center justify-center gap-2">
