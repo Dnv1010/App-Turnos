@@ -15,37 +15,35 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
   const [captured, setCaptured] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cameraLoading, setCameraLoading] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
   const startCamera = useCallback(async () => {
     try {
       setError(null);
+      setCameraReady(false);
       setCameraLoading(true);
-      const constraints = {
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-        audio: false,
-      };
       let stream: MediaStream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false,
+        });
       } catch {
         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       }
       streamRef.current = stream;
       const video = videoRef.current;
-      if (video) {
-        video.srcObject = stream;
-        await new Promise<void>((resolve) => {
-          video.onloadedmetadata = () => {
-            video.play().then(() => resolve());
-          };
-        });
-      }
+      if (!video) return;
+      video.srcObject = stream;
+      video.setAttribute("playsinline", "true");
+      await new Promise<void>((resolve) => {
+        video.onloadeddata = () => resolve();
+      });
+      await video.play();
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       setStreaming(true);
+      setCameraReady(true);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       setError("No se pudo acceder a la cámara: " + msg + ". Asegúrate de estar en HTTPS y dar permisos de cámara.");
@@ -60,21 +58,20 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
       streamRef.current = null;
     }
     setStreaming(false);
+    setCameraReady(false);
   }, []);
 
   const takePhoto = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
-    if (video.videoWidth === 0 || video.videoHeight === 0) {
-      setError("La cámara aún no está lista. Espera un momento.");
-      return;
-    }
     const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    if (!video || !canvas) return;
+    const w = video.videoWidth || video.clientWidth || 640;
+    const h = video.videoHeight || video.clientHeight || 480;
+    canvas.width = w;
+    canvas.height = h;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
+    ctx.drawImage(video, 0, 0, w, h);
     const base64 = canvas.toDataURL("image/jpeg", 0.85);
     setCaptured(base64);
     stopCamera();
@@ -106,11 +103,17 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
       {!cameraLoading && streaming && (
         <div className="space-y-4">
           <div className="relative rounded-lg overflow-hidden bg-black">
-            <video ref={videoRef} autoPlay playsInline muted className="w-full h-auto" />
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              style={{ display: "block", width: "100%", maxWidth: "480px" }}
+            />
           </div>
           <div className="flex justify-center gap-4">
             <button onClick={handleCancel} className="btn-secondary"><HiX className="h-5 w-5 mr-1" />Cancelar</button>
-            <button onClick={takePhoto} className="btn-primary"><HiCamera className="h-5 w-5 mr-1" />Capturar</button>
+            <button onClick={takePhoto} disabled={!cameraReady} className="btn-primary"><HiCamera className="h-5 w-5 mr-1" />{!cameraReady ? "Cargando cámara..." : "Capturar"}</button>
           </div>
         </div>
       )}

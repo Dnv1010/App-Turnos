@@ -39,36 +39,34 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
   };
 
   const [cameraLoading, setCameraLoading] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
 
   const startCamera = useCallback(async () => {
     try {
       setError(null);
+      setCameraReady(false);
       setCameraLoading(true);
-      const constraints = {
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-        audio: false,
-      };
       let stream: MediaStream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false,
+        });
       } catch {
         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       }
       streamRef.current = stream;
       const video = videoRef.current;
-      if (video) {
-        video.srcObject = stream;
-        await new Promise<void>((resolve) => {
-          video.onloadedmetadata = () => {
-            video.play().then(() => resolve());
-          };
-        });
-      }
+      if (!video) return;
+      video.srcObject = stream;
+      video.setAttribute("playsinline", "true");
+      await new Promise<void>((resolve) => {
+        video.onloadeddata = () => resolve();
+      });
+      await video.play();
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       setStep("camera");
+      setCameraReady(true);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       setError("No se pudo acceder a la cámara. Asegúrate de estar en HTTPS y dar permisos de cámara.");
@@ -85,18 +83,16 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
   }, []);
 
   const takePhoto = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
-    if (video.videoWidth === 0 || video.videoHeight === 0) {
-      setError("La cámara aún no está lista. Espera un momento.");
-      return;
-    }
     const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    if (!video || !canvas) return;
+    const w = video.videoWidth || video.clientWidth || 640;
+    const h = video.videoHeight || video.clientHeight || 480;
+    canvas.width = w;
+    canvas.height = h;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
+    ctx.drawImage(video, 0, 0, w, h);
     const base64 = canvas.toDataURL("image/jpeg", 0.85);
     setCapturedPhoto(base64);
     stopCamera();
@@ -233,14 +229,14 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
             </span>
           </div>
           <div className="relative bg-black">
-            <video ref={videoRef} autoPlay playsInline muted className="w-full h-auto" />
+            <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", maxWidth: "480px" }} className="w-full h-auto" />
           </div>
           <div className="flex justify-center gap-3 p-4">
             <button onClick={cancelCamera} className="btn-secondary text-sm px-4 py-2">
               <HiX className="h-4 w-4 mr-1 inline" />Cancelar
             </button>
-            <button onClick={takePhoto} className="btn-primary text-sm px-4 py-2">
-              <HiCamera className="h-4 w-4 mr-1 inline" />Capturar
+            <button onClick={takePhoto} disabled={!cameraReady} className="btn-primary text-sm px-4 py-2">
+              <HiCamera className="h-4 w-4 mr-1 inline" />{!cameraReady ? "Cargando cámara..." : "Capturar"}
             </button>
           </div>
         </div>

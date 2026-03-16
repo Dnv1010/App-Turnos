@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isToday } from "date-fns";
 import { es } from "date-fns/locale";
 import { HiChevronLeft, HiChevronRight } from "react-icons/hi";
@@ -11,6 +11,12 @@ interface TurnoEntry {
   horaEntrada: string;
   horaSalida: string | null;
   horasOrdinarias: number;
+}
+
+interface MallaItem {
+  userId: string;
+  fecha: string;
+  valor: string;
 }
 
 const valorColors: Record<string, string> = {
@@ -26,25 +32,46 @@ export default function CalendarioPage() {
   const { data: session } = useSession();
   const [mesActual, setMesActual] = useState(new Date());
   const [turnos, setTurnos] = useState<TurnoEntry[]>([]);
+  const [malla, setMalla] = useState<MallaItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const mesKey = format(mesActual, "yyyy-MM");
 
   useEffect(() => {
     if (!session?.user?.userId) return;
     const inicio = format(startOfMonth(mesActual), "yyyy-MM-dd");
     const fin = format(endOfMonth(mesActual), "yyyy-MM-dd");
-    fetch(`/api/turnos?userId=${session.user.userId}&inicio=${inicio}&fin=${fin}`)
-      .then((r) => r.json())
-      .then((data) => { setTurnos(data); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [session?.user?.userId, mesActual]);
+    setLoading(true);
+    Promise.all([
+      fetch(`/api/turnos?userId=${session.user.userId}&inicio=${inicio}&fin=${fin}`).then((r) => r.json()),
+      fetch(`/api/malla?userId=${session.user.userId}&mes=${mesKey}`).then((r) => r.ok ? r.json() : []),
+    ])
+      .then(([turnosData, mallaData]) => {
+        setTurnos(Array.isArray(turnosData) ? turnosData : []);
+        setMalla(Array.isArray(mallaData) ? mallaData : []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [session?.user?.userId, mesActual, mesKey]);
 
   const dias = eachDayOfInterval({ start: startOfMonth(mesActual), end: endOfMonth(mesActual) });
   const primerDia = getDay(startOfMonth(mesActual));
   const offsetDias = primerDia === 0 ? 6 : primerDia - 1;
 
+  const mallaMap = useMemo(() => {
+    const map = new Map<string, string>();
+    malla.forEach((m) => map.set(m.fecha, m.valor));
+    return map;
+  }, [malla]);
+
   const getTurnoDelDia = (fecha: Date) => {
     const fechaStr = format(fecha, "yyyy-MM-dd");
     return turnos.find((t) => t.fecha.startsWith(fechaStr));
+  };
+
+  const getMallaDelDia = (fecha: Date) => {
+    const key = `${format(fecha, "yyyy")}-${String(format(fecha, "M")).padStart(2, "0")}-${String(format(fecha, "d")).padStart(2, "0")}`;
+    return mallaMap.get(key) ?? "";
   };
 
   return (
@@ -73,8 +100,10 @@ export default function CalendarioPage() {
           ))}
           {dias.map((dia) => {
             const turno = getTurnoDelDia(dia);
+            const mallaValor = getMallaDelDia(dia);
             const hoy = isToday(dia);
             const esDomingo = getDay(dia) === 0;
+            const mallaClasses = mallaValor && valorColors[mallaValor] ? valorColors[mallaValor] : mallaValor ? "bg-gray-100 text-gray-700 border-gray-200" : "";
             return (
               <div key={dia.toISOString()} className={`bg-white p-2 min-h-[100px] transition-colors ${hoy ? "ring-2 ring-primary-500 ring-inset" : ""} ${esDomingo ? "bg-red-50/50" : ""}`}>
                 <div className="flex items-center justify-between mb-1">
@@ -82,8 +111,13 @@ export default function CalendarioPage() {
                     {format(dia, "d")}
                   </span>
                 </div>
+                {mallaValor && (
+                  <div className={`text-[10px] px-1.5 py-0.5 rounded truncate border ${mallaClasses}`}>
+                    {mallaValor}
+                  </div>
+                )}
                 {turno && (
-                  <div className="text-[10px] space-y-0.5">
+                  <div className="text-[10px] space-y-0.5 mt-0.5">
                     <div className="text-green-700 bg-green-50 px-1.5 py-0.5 rounded truncate">
                       {new Date(turno.horaEntrada).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })} - {turno.horaSalida ? new Date(turno.horaSalida).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "..."}
                     </div>

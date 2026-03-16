@@ -29,6 +29,9 @@ export default function CoordinadorMallaPage() {
   const [editDay, setEditDay] = useState<Date | null>(null);
   const [valorLibre, setValorLibre] = useState("");
   const [saving, setSaving] = useState(false);
+  const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
+  const [lastClicked, setLastClicked] = useState<string | null>(null);
+  const [mallaModalOpen, setMallaModalOpen] = useState(false);
 
   const cargarTecnicos = useCallback(async () => {
     if (!session?.user?.zona) return;
@@ -57,9 +60,11 @@ export default function CoordinadorMallaPage() {
   const end = endOfMonth(new Date(year, month - 1));
   const days = eachDayOfInterval({ start, end });
 
+  const dateKey = (d: Date) => `${format(d, "yyyy")}-${String(format(d, "M")).padStart(2, "0")}-${String(format(d, "d")).padStart(2, "0")}`;
+
   const getValor = (fecha: Date) => {
-    const key = format(fecha, "yyyy-MM-dd");
-    return malla.find((m) => format(new Date(m.fecha), "yyyy-MM-dd") === key)?.valor ?? "";
+    const key = dateKey(fecha);
+    return malla.find((m) => (typeof m.fecha === "string" ? m.fecha : format(new Date(m.fecha), "yyyy-MM-dd")) === key)?.valor ?? "";
   };
 
   const getClass = (valor: string) => {
@@ -72,18 +77,69 @@ export default function CoordinadorMallaPage() {
     return "bg-gray-100 text-gray-800";
   };
 
+  const fechaStrFromDay = (d: Date) => dateKey(d);
+
+  const allDaysInMonth = days.map((d) => dateKey(d));
+
+  const toggleDay = (dateKeyStr: string) => {
+    setSelectedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(dateKeyStr)) next.delete(dateKeyStr);
+      else next.add(dateKeyStr);
+      return next;
+    });
+  };
+
+  const handleDayClick = (day: Date, shiftKey: boolean) => {
+    const key = dateKey(day);
+    if (shiftKey && lastClicked) {
+      const startIdx = allDaysInMonth.indexOf(lastClicked);
+      const endIdx = allDaysInMonth.indexOf(key);
+      const [from, to] = startIdx <= endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+      setSelectedDays((prev) => {
+        const next = new Set(prev);
+        for (let i = from; i <= to; i++) next.add(allDaysInMonth[i]);
+        return next;
+      });
+    } else {
+      toggleDay(key);
+    }
+    setLastClicked(key);
+  };
+
   const guardar = async (fecha: Date, valor: string) => {
     if (!tecnicoId) return;
     setSaving(true);
     try {
+      const fechaStr = dateKey(fecha);
       const res = await fetch("/api/malla", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: tecnicoId, fecha: format(fecha, "yyyy-MM-dd"), valor }),
+        body: JSON.stringify({ userId: tecnicoId, fecha: fechaStr, valor }),
       });
       if (!res.ok) throw new Error("Error al guardar");
       setEditDay(null);
       setValorLibre("");
+      cargarMalla();
+    } catch { /* ignore */ }
+    finally { setSaving(false); }
+  };
+
+  const assignMallaToSelected = async (valor: string) => {
+    if (!tecnicoId || selectedDays.size === 0) return;
+    setSaving(true);
+    try {
+      await Promise.all(
+        Array.from(selectedDays).map((fecha) =>
+          fetch("/api/malla", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: tecnicoId, fecha, valor }),
+          })
+        )
+      );
+      setSelectedDays(new Set());
+      setMallaModalOpen(false);
       cargarMalla();
     } catch { /* ignore */ }
     finally { setSaving(false); }
@@ -132,14 +188,24 @@ export default function CoordinadorMallaPage() {
             {Array.from({ length: firstWeekday }, (_, i) => <div key={`empty-${i}`} />)}
             {days.map((day) => {
               const valor = getValor(day);
+              const keyStr = dateKey(day);
+              const isSelected = selectedDays.has(keyStr);
               const isEdit = editDay && isSameDay(editDay, day);
               return (
                 <div key={day.toISOString()} className="min-h-[80px] border border-gray-200 rounded-lg p-2 relative">
                   <div className="text-xs text-gray-500 mb-1">{format(day, "d")}</div>
                   <button
                     type="button"
-                    onClick={() => setEditDay(day)}
-                    className={`w-full text-left text-xs rounded px-2 py-1 break-words ${getClass(valor)}`}
+                    onClick={(e) => {
+                      if (e.shiftKey) {
+                        handleDayClick(day, true);
+                      } else if (selectedDays.size > 0) {
+                        toggleDay(keyStr);
+                      } else {
+                        setEditDay(day);
+                      }
+                    }}
+                    className={`w-full text-left text-xs rounded px-2 py-1 break-words border-2 transition-colors ${isSelected ? "border-blue-600 bg-blue-100 ring-2 ring-blue-400" : "border-transparent"} ${getClass(valor)}`}
                   >
                     {valor || "—"}
                   </button>
@@ -170,6 +236,48 @@ export default function CoordinadorMallaPage() {
           </div>
         </div>
       )}
+
+      {selectedDays.size > 0 && (
+        <div className="sticky bottom-4 flex flex-wrap justify-center gap-3 z-10">
+          <button
+            type="button"
+            onClick={() => setMallaModalOpen(true)}
+            className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl shadow-lg hover:bg-blue-700"
+          >
+            Asignar malla a {selectedDays.size} día{selectedDays.size > 1 ? "s" : ""}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedDays(new Set())}
+            className="px-4 py-3 bg-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-300"
+          >
+            Limpiar
+          </button>
+        </div>
+      )}
+
+      {mallaModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-20 p-4" onClick={() => setMallaModalOpen(false)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Asignar valor a {selectedDays.size} días</h3>
+            <p className="text-xs text-gray-500 mb-3">Turnos:</p>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {OPCIONES_TURNO.map((o) => (
+                <button key={o} type="button" onClick={() => assignMallaToSelected(o)} disabled={saving} className="px-3 py-1.5 bg-blue-100 text-blue-800 text-sm rounded-lg hover:bg-blue-200">{o}</button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mb-3">Novedades:</p>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {OPCIONES_NOVEDAD.map((o) => (
+                <button key={o} type="button" onClick={() => assignMallaToSelected(o)} disabled={saving} className="px-3 py-1.5 bg-gray-100 text-gray-800 text-sm rounded-lg hover:bg-gray-200">{o}</button>
+              ))}
+            </div>
+            <button type="button" onClick={() => setMallaModalOpen(false)} className="text-gray-500 text-sm">Cerrar</button>
+          </div>
+        </div>
+      )}
+
+      <p className="text-xs text-gray-500 mt-2">Click para seleccionar un día (o abrir opciones). Shift+Click para seleccionar rango.</p>
     </div>
   );
 }

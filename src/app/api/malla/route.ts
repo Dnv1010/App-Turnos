@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { startOfMonth, endOfMonth } from "date-fns";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -17,8 +16,8 @@ export async function GET(req: NextRequest) {
   }
 
   const [year, month] = mes.split("-").map(Number);
-  const start = startOfMonth(new Date(year, month - 1));
-  const end = endOfMonth(new Date(year, month - 1));
+  const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
+  const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59));
 
   if (session.user.role === "TECNICO" && userId !== session.user.userId) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
@@ -33,12 +32,18 @@ export async function GET(req: NextRequest) {
   const malla = await prisma.mallaTurno.findMany({
     where: {
       userId,
-      fecha: { gte: start, lte: end },
+      fecha: { gte: startDate, lte: endDate },
     },
     orderBy: { fecha: "asc" },
   });
 
-  return NextResponse.json(malla);
+  const mallaConKey = malla.map((m) => ({
+    userId: m.userId,
+    fecha: m.fecha.toISOString().split("T")[0],
+    valor: m.valor,
+  }));
+
+  return NextResponse.json(mallaConKey);
 }
 
 export async function POST(req: NextRequest) {
@@ -62,8 +67,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const fechaDate = new Date(fecha);
-  fechaDate.setHours(0, 0, 0, 0);
+  const fechaStr = typeof fecha === "string" ? fecha : String(fecha);
+  const [y, m, d] = fechaStr.split("-").map(Number);
+  if (!y || !m || !d) {
+    return NextResponse.json({ error: "fecha debe ser YYYY-MM-DD" }, { status: 400 });
+  }
+  const fechaDate = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
 
   await prisma.mallaTurno.upsert({
     where: {
