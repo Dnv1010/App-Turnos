@@ -61,41 +61,54 @@ export const authOptions: NextAuthOptions = {
         pin: { label: "PIN", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.pin) return null;
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email.toLowerCase() },
-        });
-        if (!user || !user.isActive) return null;
+        if (!credentials?.email?.trim() || !credentials?.pin) return null;
+        try {
+          const email = credentials.email.toLowerCase().trim();
+          const user = await prisma.user.findUnique({
+            where: { email },
+          });
+          if (!user || !user.isActive || !user.password) return null;
 
-        const isValid = await bcrypt.compare(credentials.pin, user.password);
-        if (!isValid) return null;
+          const isValid = await bcrypt.compare(credentials.pin, user.password);
+          if (!isValid) return null;
 
-        return {
-          id: user.id,
-          userId: user.id,
-          name: user.nombre,
-          email: user.email,
-          role: user.role,
-          zona: user.zona,
-        };
+          return {
+            id: user.id,
+            userId: user.id,
+            name: user.nombre,
+            email: user.email,
+            role: user.role,
+            zona: user.zona,
+          };
+        } catch (err) {
+          console.error("[auth] Error en authorize:", err);
+          return null;
+        }
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.userId = user.userId ?? user.id;
-        token.role = user.role;
-        token.zona = user.zona;
+        token.userId = (user as any).userId ?? (user as any).id;
+        token.role = (user as any).role;
+        token.zona = (user as any).zona;
+        token.name = (user as any).name ?? (user as any).nombre;
       }
       return token;
     },
     async session({ session, token }) {
-      session.user.userId = token.userId;
-      session.user.nombre = token.name ?? "";
-      session.user.role = token.role;
-      session.user.zona = token.zona;
-      return session;
+      if (!session?.user) return session;
+      return {
+        ...session,
+        user: {
+          ...session.user,
+          userId: (token.userId as string) ?? "",
+          nombre: (token.name as string) ?? session.user.name ?? session.user.email ?? "",
+          role: (token.role as string) ?? "",
+          zona: (token.zona as string) ?? "",
+        },
+      };
     },
     async signIn({ user, account }) {
       if (account?.provider === "google") {

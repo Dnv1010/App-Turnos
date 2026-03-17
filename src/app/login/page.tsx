@@ -15,10 +15,29 @@ export default function LoginPage() {
 
   const handleCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true); setError(null);
-    const result = await signIn("credentials", { email, pin, redirect: false });
-    if (result?.error) { setError("Email o PIN incorrectos"); setLoading(false); }
-    else { router.push("/tecnico"); }
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await signIn("credentials", {
+        email: email.trim(),
+        pin,
+        redirect: false,
+      });
+      if (result?.error) {
+        setError("Email o PIN incorrectos");
+        return;
+      }
+      if (result?.ok) {
+        router.refresh();
+        router.push("/tecnico");
+        return;
+      }
+      setError("Error al iniciar sesión. Intenta de nuevo.");
+    } catch {
+      setError("Error de conexión. Intenta de nuevo.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogle = () => { signIn("google", { callbackUrl: "/tecnico" }); };
