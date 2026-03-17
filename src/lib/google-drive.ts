@@ -1,5 +1,6 @@
 import { SignJWT, importPKCS8 } from "jose";
 
+/** OAuth2 token para Drive usando service account (jose + fetch, sin googleapis). */
 async function getAccessToken(): Promise<string> {
   const privateKeyPem = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n") ?? "";
   const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ?? "";
