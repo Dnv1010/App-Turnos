@@ -81,13 +81,15 @@ export default function TecnicoDashboard() {
   }, [session?.user?.userId, desde, hasta]);
 
   useEffect(() => {
-    if (session && session.user.role !== "TECNICO") {
+    if (!session) return;
+    if (session.user.role !== "TECNICO") {
       if (session.user.role === "COORDINADOR") router.replace("/coordinador");
       else if (["MANAGER", "ADMIN"].includes(session.user.role)) router.replace("/manager");
       return;
     }
     cargarDatos();
-  }, [session, router, cargarDatos]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
 
   const totalHE = turnos.reduce((s, t) => s + t.heDiurna + t.heNocturna + t.heDominical + t.heNoctDominical, 0);
   const totalRecargos = turnos.reduce((s, t) => s + t.recNocturno + t.recDominical + t.recNoctDominical, 0);

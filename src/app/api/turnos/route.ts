@@ -39,10 +39,11 @@ export async function GET(req: NextRequest) {
   }
 
   if (desde && hasta) {
-    where.fecha = {
-      gte: new Date(desde + "T00:00:00-05:00"),
-      lte: new Date(hasta + "T23:59:59-05:00"),
-    };
+    const desdeFecha = new Date(desde);
+    desdeFecha.setUTCHours(5, 0, 0, 0); // 00:00 Colombia = 05:00 UTC
+    const hastaFecha = new Date(hasta);
+    hastaFecha.setUTCHours(28, 59, 59, 999); // 23:59 Colombia = 04:59 UTC día siguiente
+    where.fecha = { gte: desdeFecha, lte: hastaFecha };
   }
 
   const turnos = await prisma.turno.findMany({
