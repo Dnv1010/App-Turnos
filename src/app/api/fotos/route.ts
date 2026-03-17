@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { uploadToDrive } from "@/lib/google-drive";
+import { uploadToDrive } from "@/lib/drive-upload";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
