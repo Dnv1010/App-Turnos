@@ -12,6 +12,11 @@ export async function uploadToDrive(
   base64Data: string,
   fileName: string
 ): Promise<UploadResult> {
+  // Diagnóstico: variables de entorno (no loguear el valor de la key)
+  console.log("[Drive] EMAIL:", process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
+  console.log("[Drive] KEY exists:", !!process.env.GOOGLE_PRIVATE_KEY);
+  console.log("[Drive] FOLDER:", process.env.GOOGLE_DRIVE_FOLDER_ID);
+
   const base64Content = base64Data.replace(/^data:image\/\w+;base64,/, "");
   const buffer = Buffer.from(base64Content, "base64");
 
