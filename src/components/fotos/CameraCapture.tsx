@@ -12,6 +12,7 @@ interface CameraCaptureProps {
 export default function CameraCapture({ onCapture, onCancel, disabled }: CameraCaptureProps) {
   const webcamRef = useRef<Webcam>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
   const [error, setError] = useState<string | null>(null);
 
@@ -42,23 +43,39 @@ export default function CameraCapture({ onCapture, onCancel, disabled }: CameraC
 
   function closeCamera() {
     setCameraOpen(false);
+    setCameraReady(false);
     onCancel?.();
+  }
+
+  function openCamera() {
+    setError(null);
+    setCameraReady(false);
+    setCameraOpen(true);
   }
 
   if (cameraOpen) {
     return (
       <div className="space-y-3">
         <div className="relative rounded-xl overflow-hidden bg-black" style={{ maxWidth: 480, margin: "0 auto" }}>
+          {!cameraReady && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/80 text-white p-4">
+              <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin mb-3" />
+              <p className="text-sm font-medium">Preparando cámara...</p>
+              <p className="text-xs text-white/80 mt-1">Permite el acceso a la cámara si el navegador lo solicita</p>
+            </div>
+          )}
           <Webcam
             ref={webcamRef}
             audio={false}
             screenshotFormat="image/jpeg"
             screenshotQuality={0.85}
             videoConstraints={{ facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }}
+            onUserMedia={() => setCameraReady(true)}
             onUserMediaError={(err) => {
               const msg = typeof err === "string" ? err : (err as DOMException).message;
               setError(msg);
               setCameraOpen(false);
+              setCameraReady(false);
             }}
             style={{ width: "100%", display: "block" }}
             mirrored={facingMode === "user"}
@@ -67,14 +84,18 @@ export default function CameraCapture({ onCapture, onCancel, disabled }: CameraC
             <button
               type="button"
               onClick={capture}
-              className="w-16 h-16 bg-white rounded-full border-4 border-red-500 flex items-center justify-center shadow-lg active:scale-95"
+              disabled={!cameraReady}
+              className="w-16 h-16 bg-white rounded-full border-4 border-red-500 flex items-center justify-center shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="w-12 h-12 bg-red-500 rounded-full" />
             </button>
           </div>
           <button
             type="button"
-            onClick={() => setFacingMode((f) => (f === "environment" ? "user" : "environment"))}
+            onClick={() => {
+              setCameraReady(false);
+              setFacingMode((f) => (f === "environment" ? "user" : "environment"));
+            }}
             className="absolute top-3 right-3 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center text-white text-lg"
           >
             &#x21C4;
@@ -99,10 +120,7 @@ export default function CameraCapture({ onCapture, onCancel, disabled }: CameraC
           <p className="text-xs mt-1">{error}</p>
           <button
             type="button"
-            onClick={() => {
-              setError(null);
-              setCameraOpen(true);
-            }}
+            onClick={openCamera}
             className="text-xs underline mt-1"
           >
             Reintentar
@@ -112,10 +130,7 @@ export default function CameraCapture({ onCapture, onCancel, disabled }: CameraC
       <div className="flex flex-wrap gap-3 justify-center">
         <button
           type="button"
-          onClick={() => {
-            setError(null);
-            setCameraOpen(true);
-          }}
+          onClick={openCamera}
           disabled={disabled}
           className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-md"
         >

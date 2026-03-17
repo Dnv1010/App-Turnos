@@ -2,9 +2,20 @@
 
 import { useSession } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { format, startOfMonth, endOfMonth } from "date-fns";
-import CameraCapture from "@/components/fotos/CameraCapture";
 import { HiPhotograph, HiUpload, HiTruck, HiCamera, HiClipboardList, HiX, HiPencil, HiTrash } from "react-icons/hi";
+
+const CameraCapture = dynamic(() => import("@/components/fotos/CameraCapture"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-col items-center justify-center gap-3 py-12 text-gray-500">
+      <div className="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+      <p className="text-sm font-medium">Cargando cámara...</p>
+      <p className="text-xs">Solo se muestra en el cliente (HTTPS)</p>
+    </div>
+  ),
+});
 
 type TipoFoto = "FORANEO" | "GENERAL" | "ENTRADA" | "SALIDA";
 type Tab = "registrar" | "historial";

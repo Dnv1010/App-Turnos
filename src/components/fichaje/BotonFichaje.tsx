@@ -1,8 +1,19 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { HiPlay, HiStop, HiLocationMarker, HiCamera, HiCheck, HiRefresh } from "react-icons/hi";
-import CameraCapture from "@/components/fotos/CameraCapture";
+
+const CameraCapture = dynamic(() => import("@/components/fotos/CameraCapture"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-col items-center justify-center gap-3 py-8 text-gray-500">
+      <div className="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+      <p className="text-sm font-medium">Cargando cámara...</p>
+      <p className="text-xs">Solo se muestra en el cliente (HTTPS)</p>
+    </div>
+  ),
+});
 
 interface BotonFichajeProps {
   userId: string;
