@@ -37,7 +37,9 @@ export async function POST(req: NextRequest) {
   const exists = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
   if (exists) return NextResponse.json({ error: "Email ya registrado" }, { status: 400 });
 
-  const hashedPin = await bcrypt.hash(pin, 10);
+  const pinNormalized = String(pin ?? "").trim();
+  if (!pinNormalized) return NextResponse.json({ error: "El PIN es obligatorio" }, { status: 400 });
+  const hashedPin = await bcrypt.hash(pinNormalized, 10);
 
   const usuario = await prisma.user.create({
     data: {
@@ -68,7 +70,8 @@ export async function PATCH(req: NextRequest) {
   const data: Record<string, unknown> = {};
   if (updateData.nombre) data.nombre = updateData.nombre;
   if (updateData.cedula) data.cedula = updateData.cedula;
-  if (updateData.pin) data.password = await bcrypt.hash(updateData.pin, 10);
+  if (updateData.pin != null && String(updateData.pin).trim() !== "")
+    data.password = await bcrypt.hash(String(updateData.pin).trim(), 10);
   if (updateData.role) data.role = updateData.role as Role;
   if (updateData.zona) data.zona = updateData.zona as Zona;
   if (typeof updateData.isActive === "boolean") data.isActive = updateData.isActive;

@@ -19,8 +19,8 @@ export default function LoginPage() {
     setError(null);
     try {
       const result = await signIn("credentials", {
-        email: email.trim(),
-        pin,
+        email: email.trim().toLowerCase(),
+        pin: pin.trim(),
         redirect: false,
       });
       if (result?.error) {

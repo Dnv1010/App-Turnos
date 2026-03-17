@@ -69,7 +69,9 @@ export async function POST(req: NextRequest) {
     const existingCedula = await prisma.user.findUnique({ where: { cedula } });
     if (existingCedula) return NextResponse.json({ error: "La cédula ya está registrada" }, { status: 400 });
 
-    const hashedPin = await bcrypt.hash(pin, 10);
+    const pinNormalized = String(pin ?? "").trim();
+    if (!pinNormalized) return NextResponse.json({ error: "El PIN es obligatorio" }, { status: 400 });
+    const hashedPin = await bcrypt.hash(pinNormalized, 10);
 
     const user = await prisma.user.create({
       data: {

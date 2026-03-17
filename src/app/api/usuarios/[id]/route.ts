@@ -34,7 +34,8 @@ export async function PATCH(
     if (existing) return NextResponse.json({ error: "El correo ya está en uso" }, { status: 400 });
     data.email = lower;
   }
-  if (pin != null && pin !== "") data.password = await bcrypt.hash(pin, 10);
+  if (pin != null && String(pin).trim() !== "")
+    data.password = await bcrypt.hash(String(pin).trim(), 10);
 
   const updated = await prisma.user.update({
     where: { id },

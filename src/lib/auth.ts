@@ -61,15 +61,23 @@ export const authOptions: NextAuthOptions = {
         pin: { label: "PIN", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email?.trim() || !credentials?.pin) return null;
+        const email = credentials?.email?.trim()?.toLowerCase();
+        const pin = (credentials?.pin ?? (credentials as any)?.password ?? "")
+          .toString()
+          .trim();
+        if (!email || !pin) return null;
         try {
-          const email = credentials.email.toLowerCase().trim();
           const user = await prisma.user.findUnique({
             where: { email },
           });
-          if (!user || !user.isActive || !user.password) return null;
-
-          const isValid = await bcrypt.compare(credentials.pin, user.password);
+          if (!user || !user.isActive) return null;
+          if (!user.password) {
+            if (process.env.NODE_ENV === "development") {
+              console.warn("[auth] Usuario sin contraseña en BD:", user.email);
+            }
+            return null;
+          }
+          const isValid = await bcrypt.compare(pin, user.password);
           if (!isValid) return null;
 
           return {
