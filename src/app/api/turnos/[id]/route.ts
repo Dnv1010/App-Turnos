@@ -44,27 +44,32 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-
-  const { id } = await params;
-  const turno = await prisma.turno.findUnique({
-    where: { id },
-    include: { user: true },
-  });
-  if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
-
-  const canEdit = session.user.role === "ADMIN" || session.user.role === "MANAGER" ||
-    (session.user.role === "COORDINADOR" && await checkCoordinadorZona(turno.userId, session));
-  if (!canEdit) return NextResponse.json({ error: "Solo coordinador o superior puede editar este turno" }, { status: 403 });
-
-  if (turno.observaciones?.startsWith("Cancelado")) {
-    return NextResponse.json({ error: "No se puede editar un turno cancelado" }, { status: 400 });
-  }
-
   try {
-    const body = await req.json();
-    const { horaEntrada: horaEntradaISO, horaSalida: horaSalidaISO, observaciones: notes } = body;
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const { id } = await params;
+    const turno = await prisma.turno.findUnique({
+      where: { id },
+      include: { user: true },
+    });
+    if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
+
+    const canEdit = session.user.role === "ADMIN" || session.user.role === "MANAGER" ||
+      (session.user.role === "COORDINADOR" && await checkCoordinadorZona(turno.userId, session));
+    if (!canEdit) return NextResponse.json({ error: "Solo coordinador o superior puede editar este turno" }, { status: 403 });
+
+    if (turno.observaciones?.startsWith("Cancelado")) {
+      return NextResponse.json({ error: "No se puede editar un turno cancelado" }, { status: 400 });
+    }
+
+    let body: { horaEntrada?: string; horaSalida?: string; observaciones?: string };
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 });
+    }
+    const { horaEntrada: horaEntradaISO, horaSalida: horaSalidaISO, observaciones: notes } = body ?? {};
 
     const newEntrada = horaEntradaISO ? new Date(horaEntradaISO) : turno.horaEntrada;
     const newSalida = horaSalidaISO ? new Date(horaSalidaISO) : turno.horaSalida;
@@ -157,7 +162,7 @@ export async function PATCH(
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Error al editar";
-    console.error("Error editando turno:", error);
+    console.error("[PATCH /api/turnos/[id]]", error);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

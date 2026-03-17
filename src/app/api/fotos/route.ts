@@ -5,53 +5,64 @@ import { authOptions } from "@/lib/auth";
 import { uploadToDrive } from "@/lib/drive-upload";
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const body = await req.json();
-  const { userId, base64Data, tipo, turnoId, observaciones, kmInicial, kmFinal } = body;
-
-  let driveFileId: string | null = null;
-  let driveUrl: string | null = null;
-  let base64Fallback: string | null = null;
-  let usedFallback = false;
-
-  if (base64Data) {
+    let body: { userId?: string; base64Data?: string; tipo?: string; turnoId?: string; observaciones?: string; kmInicial?: number; kmFinal?: number };
     try {
-      console.log("[Fotos] base64Data length:", base64Data?.length);
-      console.log("[Fotos] base64Data prefix:", base64Data?.substring(0, 30));
-
-      const uid = userId || session.user.userId;
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const fileName = `turno_${tipo || "FICHAJE"}_${uid}_${timestamp}.jpg`;
-
-      const result = await uploadToDrive(base64Data, fileName);
-      driveFileId = result.fileId;
-      driveUrl = result.webViewLink;
-    } catch (error) {
-      console.error("[Fotos] Error subiendo a Google Drive, guardando fallback en BD:", error);
-      usedFallback = true;
-      base64Fallback = typeof base64Data === "string" ? base64Data.replace(/^data:image\/\w+;base64,/, "") : base64Data;
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 });
     }
+    const { userId, base64Data, tipo, turnoId, observaciones, kmInicial, kmFinal } = body ?? {};
+
+    let driveFileId: string | null = null;
+    let driveUrl: string | null = null;
+    let base64Fallback: string | null = null;
+    let usedFallback = false;
+
+    if (base64Data) {
+      try {
+        console.log("[Fotos] base64Data length:", base64Data?.length);
+        console.log("[Fotos] base64Data prefix:", base64Data?.substring(0, 30));
+
+        const uid = userId || session.user.userId;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const fileName = `turno_${tipo || "FICHAJE"}_${uid}_${timestamp}.jpg`;
+
+        const result = await uploadToDrive(base64Data, fileName);
+        driveFileId = result.fileId;
+        driveUrl = result.webViewLink;
+      } catch (error) {
+        console.error("[Fotos] Error subiendo a Google Drive, guardando fallback en BD:", error);
+        usedFallback = true;
+        base64Fallback = typeof base64Data === "string" ? base64Data.replace(/^data:image\/\w+;base64,/, "") : base64Data;
+      }
+    }
+
+    const registro = await prisma.fotoRegistro.create({
+      data: {
+        userId: userId || session.user.userId,
+        tipo: tipo || "FICHAJE",
+        driveFileId,
+        driveUrl,
+        base64Fallback,
+        observaciones: observaciones || (turnoId ? `Turno: ${turnoId}` : null),
+        kmInicial: kmInicial != null ? parseFloat(String(kmInicial)) : null,
+        kmFinal: kmFinal != null ? parseFloat(String(kmFinal)) : null,
+      },
+    });
+
+    return NextResponse.json(
+      { ...registro, driveUrl, fallback: usedFallback },
+      { status: 201 }
+    );
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Error al registrar foto";
+    console.error("[POST /api/fotos]", error);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
-
-  const registro = await prisma.fotoRegistro.create({
-    data: {
-      userId: userId || session.user.userId,
-      tipo: tipo || "FICHAJE",
-      driveFileId,
-      driveUrl,
-      base64Fallback,
-      observaciones: observaciones || (turnoId ? `Turno: ${turnoId}` : null),
-      kmInicial: kmInicial != null ? parseFloat(kmInicial) : null,
-      kmFinal: kmFinal != null ? parseFloat(kmFinal) : null,
-    },
-  });
-
-  return NextResponse.json(
-    { ...registro, driveUrl, fallback: usedFallback },
-    { status: 201 }
-  );
 }
 
 export async function GET(req: NextRequest) {

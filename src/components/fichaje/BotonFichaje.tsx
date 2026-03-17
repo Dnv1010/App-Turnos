@@ -4,6 +4,16 @@ import { useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { HiPlay, HiStop, HiLocationMarker, HiCamera, HiCheck, HiRefresh } from "react-icons/hi";
 
+async function parseJsonFromResponse(response: Response): Promise<Record<string, unknown>> {
+  const text = await response.text();
+  if (!text) throw new Error("Respuesta vacía del servidor");
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    throw new Error("Respuesta inválida del servidor");
+  }
+}
+
 const CameraCapture = dynamic(() => import("@/components/fotos/CameraCapture"), {
   ssr: false,
   loading: () => (
@@ -87,12 +97,11 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
           observaciones: `Fichaje ${isCerrandoTurno ? "salida" : "entrada"} - ${new Date().toLocaleString("es-CO")}`,
         }),
       });
+      const fotoData = await parseJsonFromResponse(fotoRes);
       if (!fotoRes.ok) {
-        const data = await fotoRes.json();
-        throw new Error(data.error || "Error subiendo foto");
+        throw new Error((fotoData.error as string) || "Error subiendo foto");
       }
-      const fotoData = await fotoRes.json();
-      const photoUrl = fotoData.driveUrl ?? fotoData.foto?.driveUrl ?? null;
+      const photoUrl = (fotoData.driveUrl as string) ?? (fotoData.foto as { driveUrl?: string })?.driveUrl ?? null;
 
       if (isCerrandoTurno && turnoActivo) {
         const res = await fetch("/api/turnos", {
@@ -100,9 +109,9 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ turnoId: turnoActivo.id, lat: coords.lat, lng: coords.lng, endPhotoUrl: photoUrl }),
         });
+        const data = await parseJsonFromResponse(res);
         if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || "Error al cerrar turno");
+          throw new Error((data.error as string) || "Error al cerrar turno");
         }
       } else {
         const res = await fetch("/api/turnos", {
@@ -110,9 +119,9 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId, lat: coords.lat, lng: coords.lng, startPhotoUrl: photoUrl }),
         });
+        const data = await parseJsonFromResponse(res);
         if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || "Error al iniciar turno");
+          throw new Error((data.error as string) || "Error al iniciar turno");
         }
       }
 
