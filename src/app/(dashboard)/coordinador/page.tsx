@@ -138,7 +138,8 @@ export default function CoordinadorPage() {
     const rows = data.detalle.map((d) => [
       d.nombre, d.zona, d.totalTurnos, d.horasOrdinarias, d.heDiurna, d.heNocturna,
       d.totalHorasExtra, d.totalRecargos, mallaResumen(d.turnos),
-      d.totalKmRecorridos, d.registrosForaneo,
+      d.totalKmRecorridos,
+      d.totalKmRecorridos > 0 ? `${d.totalKmRecorridos} km` : "—",
       d.fotos.filter((f) => f.driveUrl).map((f) => f.driveUrl).join(" | "),
     ]);
     const csv = [headers.join(","), ...rows.map((r) => r.map((v) => `"${v}"`).join(","))].join("\n");
@@ -261,6 +262,11 @@ export default function CoordinadorPage() {
               return <span className={`text-xs font-medium px-2 py-0.5 rounded ${hasBlock ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}`} title={resumen}>{resumen.length > 35 ? resumen.slice(0, 32) + "…" : resumen}</span>;
             } },
             { key: "totalKmRecorridos", label: "Km", render: (d: DetalleUsuario) => d.totalKmRecorridos > 0 ? `${d.totalKmRecorridos} km` : "—" },
+            { key: "regForaneos", label: "Reg. Foráneos", render: (d: DetalleUsuario) => {
+              const km = d.fotos.filter((f) => f.tipo === "FORANEO" && f.kmInicial != null && f.kmFinal != null)
+                .reduce((s, f) => s + (f.kmFinal! - f.kmInicial!), 0);
+              return km > 0 ? `${Math.round(km * 100) / 100} km` : "—";
+            } },
           ] as never} data={data.detalle as never} searchable searchPlaceholder="Buscar técnico..." />
         </>
       )}

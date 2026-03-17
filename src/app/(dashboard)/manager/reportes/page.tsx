@@ -111,7 +111,8 @@ export default function ReportesPage() {
       d.nombre, d.zona, d.totalTurnos, d.horasOrdinarias, d.heDiurna, d.heNocturna,
       d.heDominical, d.heNoctDominical, d.recNocturno, d.recDominical, d.recNoctDominical,
       d.totalHorasExtra, d.totalRecargos, d.totalDisponibilidades,
-      d.totalKmRecorridos, d.registrosForaneo,
+      d.totalKmRecorridos,
+      d.totalKmRecorridos > 0 ? `${d.totalKmRecorridos} km` : "—",
       mallaResumen(d.turnos),
       d.fotos.filter((f) => f.driveUrl).map((f) => f.driveUrl).join(" | "),
     ]);
@@ -174,6 +175,12 @@ export default function ReportesPage() {
       } },
     { key: "totalKmRecorridos", label: "Km",
       render: (d: DetalleUsuario) => d.totalKmRecorridos > 0 ? `${d.totalKmRecorridos}` : "—" },
+    { key: "regForaneos", label: "Reg. Foráneos",
+      render: (d: DetalleUsuario) => {
+        const km = d.fotos.filter((f) => f.tipo === "FORANEO" && f.kmInicial != null && f.kmFinal != null)
+          .reduce((s, f) => s + (f.kmFinal! - f.kmInicial!), 0);
+        return km > 0 ? `${Math.round(km * 100) / 100} km` : "—";
+      } },
     { key: "totalDisponibilidades", label: "Disponib.",
       render: (d: DetalleUsuario) => d.totalDisponibilidades > 0
         ? new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(d.totalDisponibilidades) : "—" },
