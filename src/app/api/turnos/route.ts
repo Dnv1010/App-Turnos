@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { calcularTurno, calcularHorasSemanales, calcularHorasSemanalesConMalla, getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
 import { getDay } from "date-fns";
-import { nowColombia } from "@/lib/utils";
+import { nowColombia, getDatePartsColombia } from "@/lib/utils";
 
 function dateKey(d: Date): string {
   return d.toISOString().split("T")[0];
@@ -70,10 +70,12 @@ export async function POST(req: NextRequest) {
   }
 
   const ahora = nowColombia();
+  const { y, m, d } = getDatePartsColombia();
+  const fecha = new Date(Date.UTC(y, m, d, 12, 0, 0));
   const turno = await prisma.turno.create({
     data: {
       userId: uid,
-      fecha: new Date(ahora.toISOString().split("T")[0]),
+      fecha,
       horaEntrada: ahora,
       latEntrada: lat,
       lngEntrada: lng,
