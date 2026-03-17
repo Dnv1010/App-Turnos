@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import Webcam from "react-webcam";
+
+const NOT_READY_TIMEOUT_MS = 3000;
+const FALLBACK_TIMEOUT_MS = 5000;
 
 interface CameraCaptureProps {
   onCapture: (base64: string, previewUrl: string) => void;
@@ -13,8 +16,24 @@ export default function CameraCapture({ onCapture, onCancel, disabled }: CameraC
   const webcamRef = useRef<Webcam>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
+  const [showNotReadyMessage, setShowNotReadyMessage] = useState(false);
+  const [showFallbackInput, setShowFallbackInput] = useState(false);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!cameraOpen || cameraReady) {
+      setShowNotReadyMessage(false);
+      setShowFallbackInput(false);
+      return;
+    }
+    const t3 = setTimeout(() => setShowNotReadyMessage(true), NOT_READY_TIMEOUT_MS);
+    const t5 = setTimeout(() => setShowFallbackInput(true), FALLBACK_TIMEOUT_MS);
+    return () => {
+      clearTimeout(t3);
+      clearTimeout(t5);
+    };
+  }, [cameraOpen, cameraReady]);
 
   const capture = useCallback(() => {
     if (!webcamRef.current) return;
@@ -36,6 +55,9 @@ export default function CameraCapture({ onCapture, onCancel, disabled }: CameraC
     reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string;
       onCapture(dataUrl.split(",")[1], dataUrl);
+      setCameraOpen(false);
+      setShowNotReadyMessage(false);
+      setShowFallbackInput(false);
     };
     reader.readAsDataURL(file);
     e.target.value = "";
@@ -50,6 +72,8 @@ export default function CameraCapture({ onCapture, onCancel, disabled }: CameraC
   function openCamera() {
     setError(null);
     setCameraReady(false);
+    setShowNotReadyMessage(false);
+    setShowFallbackInput(false);
     setCameraOpen(true);
   }
 
@@ -60,8 +84,26 @@ export default function CameraCapture({ onCapture, onCancel, disabled }: CameraC
           {!cameraReady && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/80 text-white p-4">
               <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin mb-3" />
-              <p className="text-sm font-medium">Preparando cámara...</p>
-              <p className="text-xs text-white/80 mt-1">Permite el acceso a la cámara si el navegador lo solicita</p>
+              <p className="text-sm font-medium">
+                {showNotReadyMessage ? "La cámara aún no está lista" : "Preparando cámara..."}
+              </p>
+              <p className="text-xs text-white/80 mt-1">
+                {showNotReadyMessage
+                  ? "Comprueba que hayas dado permiso de cámara. O usa el botón de abajo para subir una foto."
+                  : "Permite el acceso a la cámara si el navegador lo solicita"}
+              </p>
+              {showFallbackInput && (
+                <label className="mt-4 px-4 py-2 bg-white text-gray-800 rounded-xl font-medium text-sm cursor-pointer">
+                  Subir foto desde galería
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+              )}
             </div>
           )}
           <Webcam
