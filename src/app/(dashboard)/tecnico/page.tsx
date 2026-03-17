@@ -32,6 +32,7 @@ export default function TecnicoDashboard() {
   const router = useRouter();
   const [turnos, setTurnos] = useState<TurnoRecord[]>([]);
   const [turnoActivo, setTurnoActivo] = useState<{ id: string; horaEntrada: string } | null>(null);
+  const [foraneosResumen, setForaneosResumen] = useState<{ totalKm: number; totalPagar: number }>({ totalKm: 0, totalPagar: 0 });
   const [loading, setLoading] = useState(true);
   const ahora = new Date();
   const [inicio, setInicio] = useState(format(startOfMonth(ahora), "yyyy-MM-dd"));
@@ -41,12 +42,20 @@ export default function TecnicoDashboard() {
     if (!session?.user?.userId) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/turnos?userId=${session.user.userId}&inicio=${inicio}&fin=${fin}`);
-      const data = await res.json();
+      const [turnosRes, foraneosRes] = await Promise.all([
+        fetch(`/api/turnos?userId=${session.user.userId}&inicio=${inicio}&fin=${fin}`),
+        fetch(`/api/reportes/foraneos?desde=${inicio}&hasta=${fin}&userId=${session.user.userId}`),
+      ]);
+      const data = await turnosRes.json();
       setTurnos(Array.isArray(data) ? data : []);
       const abierto = (Array.isArray(data) ? data : []).find((t: TurnoRecord) => !t.horaSalida);
       setTurnoActivo(abierto ? { id: abierto.id, horaEntrada: abierto.horaEntrada } : null);
-    } catch { console.error("Error cargando turnos"); setTurnos([]); }
+
+      const foraneosData = await foraneosRes.json();
+      const listaForaneos = Array.isArray(foraneosData) ? foraneosData : [];
+      const miForaneo = listaForaneos.find((f: { userId: string }) => f.userId === session.user.userId);
+      setForaneosResumen(miForaneo ? { totalKm: miForaneo.totalKm ?? 0, totalPagar: miForaneo.totalPagar ?? 0 } : { totalKm: 0, totalPagar: 0 });
+    } catch { console.error("Error cargando turnos"); setTurnos([]); setForaneosResumen({ totalKm: 0, totalPagar: 0 }); }
     finally { setLoading(false); }
   }, [session?.user?.userId, inicio, fin]);
 
@@ -61,7 +70,7 @@ export default function TecnicoDashboard() {
 
   const totalHE = turnos.reduce((s, t) => s + t.heDiurna + t.heNocturna + t.heDominical + t.heNoctDominical, 0);
   const totalRecargos = turnos.reduce((s, t) => s + t.recNocturno + t.recDominical + t.recNoctDominical, 0);
-  const totalOrdinarias = turnos.reduce((s, t) => s + t.horasOrdinarias, 0);
+  const totalOrdinarias = turnos.reduce((s, t) => s + Math.max(0, t.horasOrdinarias), 0);
 
   const columns = [
     { key: "fecha", label: "Fecha", sortable: true,
@@ -70,7 +79,7 @@ export default function TecnicoDashboard() {
       render: (t: TurnoRecord) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
     { key: "horaSalida", label: "Salida",
       render: (t: TurnoRecord) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
-    { key: "horasOrdinarias", label: "Ord.", sortable: true },
+    { key: "horasOrdinarias", label: "Ord.", sortable: true, render: (t: TurnoRecord) => Math.max(0, t.horasOrdinarias) },
     { key: "heDiurna", label: "HE Día", render: (t: TurnoRecord) => (t.heDiurna > 0 ? t.heDiurna : "—") },
     { key: "heNocturna", label: "HE Noc", render: (t: TurnoRecord) => (t.heNocturna > 0 ? t.heNocturna : "—") },
     { key: "recNocturno", label: "Rec. Noc", render: (t: TurnoRecord) => (t.recNocturno > 0 ? t.recNocturno : "—") },
@@ -109,11 +118,12 @@ export default function TecnicoDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <KPICards data={{
-            horasOrdinarias: Math.round(totalOrdinarias * 100) / 100,
+            horasOrdinarias: Math.max(0, Math.round(totalOrdinarias * 100) / 100),
             totalHorasExtra: Math.round(totalHE * 100) / 100,
             totalRecargos: Math.round(totalRecargos * 100) / 100,
             heDiurna: Math.round(turnos.reduce((s, t) => s + t.heDiurna, 0) * 100) / 100,
             heNocturna: Math.round(turnos.reduce((s, t) => s + t.heNocturna, 0) * 100) / 100,
+            foraneos: foraneosResumen,
           }} />
         </div>
         <div className="flex justify-center">
@@ -128,7 +138,7 @@ export default function TecnicoDashboard() {
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalle de turnos</h3>
         <DataTable columns={columns as never} data={turnos.filter((t) => t.horaSalida) as never}
-          searchable searchPlaceholder="Buscar por fecha..." emptyMessage="No hay turnos registrados este mes" />
+          emptyMessage="No hay turnos registrados este mes" />
       </div>
     </div>
   );
