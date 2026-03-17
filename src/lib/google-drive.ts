@@ -1,79 +1,78 @@
-import { google } from "googleapis";
+import { SignJWT, importPKCS8 } from "jose";
 
-const DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID || "";
+async function getAccessToken(): Promise<string> {
+  const privateKeyPem = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n") ?? "";
+  const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ?? "";
+  const privateKey = await importPKCS8(privateKeyPem, "RS256");
+  const now = Math.floor(Date.now() / 1000);
+  const jwt = await new SignJWT({
+    iss: clientEmail,
+    scope: "https://www.googleapis.com/auth/drive.file",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: now + 3600,
+  })
+    .setProtectedHeader({ alg: "RS256" })
+    .sign(privateKey);
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+  });
+  const data = (await res.json()) as { access_token?: string };
+  if (!data.access_token) throw new Error("[Drive] No se obtuvo access_token");
+  return data.access_token;
+}
 
-interface UploadResult {
+export interface UploadResult {
   fileId: string;
   webViewLink: string;
 }
 
-export async function uploadToDrive(
-  base64Data: string,
-  fileName: string
-): Promise<UploadResult> {
+export async function uploadToDrive(base64Data: string, fileName: string): Promise<UploadResult> {
   if (!base64Data) throw new Error("[Drive] base64Data es undefined o vacío");
+  const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID ?? "";
+  if (!folderId) throw new Error("[Drive] GOOGLE_DRIVE_FOLDER_ID es requerido");
 
-  // Diagnóstico: variables de entorno (no loguear el valor de la key)
-  console.log("[Drive] EMAIL:", process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
-  console.log("[Drive] KEY exists:", !!process.env.GOOGLE_PRIVATE_KEY);
-  console.log("[Drive] FOLDER:", process.env.GOOGLE_DRIVE_FOLDER_ID);
-
-  const base64Clean = base64Data.includes(",")
-    ? base64Data.split(",")[1]
-    : base64Data;
+  const base64Clean = base64Data.includes(",") ? base64Data.split(",")[1] : base64Data;
   const buffer = Buffer.from(base64Clean, "base64");
 
-  if (!DRIVE_FOLDER_ID) {
-    console.error("[Drive] GOOGLE_DRIVE_FOLDER_ID no está definido");
-    throw new Error("GOOGLE_DRIVE_FOLDER_ID es requerido para subir fotos");
-  }
-  console.log("[Drive] Uploading file:", fileName, "size:", buffer.length, "bytes", "folder:", DRIVE_FOLDER_ID);
+  const token = await getAccessToken();
+  const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
+  const boundary = "bia_boundary";
+  const body = Buffer.concat([
+    Buffer.from(`--${boundary}\r\nContent-Type: application/json\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: image/jpeg\r\n\r\n`),
+    buffer,
+    Buffer.from(`\r\n--${boundary}--`),
+  ]);
 
-  const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-  if (!clientEmail || !privateKey) {
-    throw new Error(
-      "Configura GOOGLE_SERVICE_ACCOUNT_EMAIL y GOOGLE_PRIVATE_KEY en .env para subir fotos a Drive"
-    );
-  }
-
-  try {
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: clientEmail,
-        private_key: privateKey,
+  const uploadRes = await fetch(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": `multipart/related; boundary=${boundary}`,
+        "Content-Length": String(body.length),
       },
-      scopes: ["https://www.googleapis.com/auth/drive.file"],
-    });
-    const drive = google.drive({ version: "v3", auth });
-
-    const res = await drive.files.create({
-      requestBody: {
-        name: fileName,
-        parents: [DRIVE_FOLDER_ID],
-        mimeType: "image/jpeg",
-      },
-      media: { mimeType: "image/jpeg", body: buffer },
-      fields: "id, webViewLink",
-    });
-
-    const fileId = res.data.id || "";
-    const webViewLink = res.data.webViewLink || `https://drive.google.com/file/d/${fileId}/view`;
-
-    try {
-      await drive.permissions.create({
-        fileId,
-        requestBody: { role: "reader", type: "anyone" },
-      });
-      console.log("[Drive] Permisos públicos asignados");
-    } catch (permErr) {
-      console.warn("[Drive] No se pudo asignar permiso público:", permErr);
+      body,
     }
+  );
 
-    console.log("[Drive] Upload success (service account), id:", fileId);
-    return { fileId, webViewLink };
-  } catch (err) {
-    console.error("[Drive] Error con service account:", err);
-    throw err;
+  if (!uploadRes.ok) {
+    const errText = await uploadRes.text();
+    throw new Error(`[Drive] Upload failed ${uploadRes.status}: ${errText}`);
   }
+
+  const file = (await uploadRes.json()) as { id?: string; webViewLink?: string };
+  if (!file.id) throw new Error("[Drive] Respuesta sin id");
+
+  await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ role: "reader", type: "anyone" }),
+  });
+
+  const webViewLink = file.webViewLink ?? `https://drive.google.com/file/d/${file.id}/view`;
+  return { fileId: file.id, webViewLink };
 }

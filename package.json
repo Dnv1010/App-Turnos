@@ -30,6 +30,7 @@
     "bcryptjs": "^3.0.3",
     "date-fns": "^4.1.0",
     "googleapis": "^171.4.0",
+    "jose": "^6.2.1",
     "next": "^14.2.35",
     "next-auth": "^4.24.13",
     "postcss": "^8.5.8",
