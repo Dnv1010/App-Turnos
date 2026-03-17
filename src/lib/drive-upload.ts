@@ -2,7 +2,11 @@ import { SignJWT, importPKCS8 } from "jose";
 
 /** OAuth2 token para Drive usando service account (jose + fetch, sin googleapis). */
 async function getAccessToken(): Promise<string> {
-  const privateKeyPem = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n") ?? "";
+  const privateKeyPem = (process.env.GOOGLE_PRIVATE_KEY ?? "")
+    .replace(/\\n/g, "\n")
+    .replace(/\r/g, "");
+  console.log("[Drive] KEY starts with:", privateKeyPem.substring(0, 30));
+  console.log("[Drive] KEY ends with:", privateKeyPem.slice(-30));
   const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ?? "";
   const privateKey = await importPKCS8(privateKeyPem, "RS256");
   const now = Math.floor(Date.now() / 1000);
