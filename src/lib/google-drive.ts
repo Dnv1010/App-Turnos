@@ -46,8 +46,6 @@ export async function uploadToDrive(
       scopes: ["https://www.googleapis.com/auth/drive.file"],
     });
     const drive = google.drive({ version: "v3", auth });
-    const { Readable } = await import("stream");
-    const readable = Readable.from(buffer);
 
     const res = await drive.files.create({
       requestBody: {
@@ -55,7 +53,7 @@ export async function uploadToDrive(
         parents: [DRIVE_FOLDER_ID],
         mimeType: "image/jpeg",
       },
-      media: { mimeType: "image/jpeg", body: readable },
+      media: { mimeType: "image/jpeg", body: buffer },
       fields: "id, webViewLink",
     });
 
