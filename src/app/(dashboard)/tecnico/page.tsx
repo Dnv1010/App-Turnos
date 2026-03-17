@@ -162,7 +162,7 @@ export default function TecnicoDashboard() {
       )}
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalle de turnos</h3>
-        <DataTable columns={columns as never} data={turnos.filter((t) => t.horaSalida) as never}
+        <DataTable columns={columns as never} data={turnos as never}
           emptyMessage="No hay turnos registrados este mes" />
       </div>
     </div>

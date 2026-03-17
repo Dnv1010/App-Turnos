@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
 
   const ahoraColombia = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Bogota" }));
   const fecha = new Date(Date.UTC(ahoraColombia.getFullYear(), ahoraColombia.getMonth(), ahoraColombia.getDate()));
-  const horaEntrada = ahoraColombia;
+  const horaEntrada = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Bogota" }));
   const turno = await prisma.turno.create({
     data: {
       userId: uid,
