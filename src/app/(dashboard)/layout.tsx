@@ -5,9 +5,8 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Navbar from "@/components/layout/Navbar";
-import AuthProvider from "@/lib/auth-provider";
 
-function DashboardContent({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -32,8 +31,4 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   );
-}
-
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  return <AuthProvider><DashboardContent>{children}</DashboardContent></AuthProvider>;
 }

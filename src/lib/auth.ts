@@ -37,6 +37,10 @@ const useGoogleProvider = !!(
   process.env.GOOGLE_CLIENT_SECRET
 );
 
+if (typeof process !== "undefined" && process.env.NODE_ENV === "development" && !process.env.NEXTAUTH_SECRET) {
+  console.warn("[auth] NEXTAUTH_SECRET no está definido. El login puede fallar. Añade NEXTAUTH_SECRET a .env");
+}
+
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   // Solo usar adapter con OAuth (Google). Con solo Credentials, el adapter puede provocar fallos de login.
@@ -56,16 +60,17 @@ export const authOptions: NextAuthOptions = {
         ]
       : []),
     CredentialsProvider({
+      id: "credentials",
       name: "PIN",
       credentials: {
         email: { label: "Email", type: "email" },
         pin: { label: "PIN", type: "password" },
+        password: { label: "Contraseña", type: "password" },
       },
       async authorize(credentials) {
-        const email = credentials?.email?.trim()?.toLowerCase();
-        const pin = (credentials?.pin ?? (credentials as any)?.password ?? "")
-          .toString()
-          .trim();
+        const raw = credentials ?? {};
+        const email = (raw.email ?? "").toString().trim().toLowerCase();
+        const pin = (raw.pin ?? raw.password ?? "").toString().trim();
         if (!email || !pin) {
           if (process.env.NODE_ENV === "development") {
             console.warn("[auth] authorize: faltan email o pin");
@@ -86,7 +91,13 @@ export const authOptions: NextAuthOptions = {
             }
             return null;
           }
-          const isValid = await bcrypt.compare(pin, user.password);
+          let isValid = false;
+          try {
+            isValid = await bcrypt.compare(pin, user.password);
+          } catch (compareErr) {
+            console.error("[auth] bcrypt.compare error:", compareErr);
+            return null;
+          }
           if (!isValid) return null;
 
           return {

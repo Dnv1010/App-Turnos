@@ -22,6 +22,7 @@ export default function LoginPage() {
         email: email.trim().toLowerCase(),
         pin: pin.trim(),
         redirect: false,
+        callbackUrl: "/tecnico",
       });
       if (result?.error) {
         setError("Email o PIN incorrectos");
