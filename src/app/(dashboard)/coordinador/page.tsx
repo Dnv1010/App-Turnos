@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
+import * as XLSX from "xlsx";
 import KPICards from "@/components/dashboard/KPICards";
 import GraficoHoras from "@/components/dashboard/GraficoHoras";
 import DataTable from "@/components/ui/DataTable";
@@ -43,12 +44,12 @@ interface TurnoConMalla {
 }
 
 interface DetalleUsuario {
-  userId: string; nombre: string; zona: string; totalTurnos: number; horasOrdinarias: number;
+  userId: string; nombre: string; cedula?: string; zona: string; role?: string; totalTurnos: number; horasOrdinarias: number;
   heDiurna: number; heNocturna: number; heDominical: number; heNoctDominical: number;
   recNocturno: number; recDominical: number; recNoctDominical: number;
   totalHorasExtra: number; totalRecargos: number; totalDisponibilidades: number;
   totalKmRecorridos: number; registrosForaneo: number; fotos: FotoInfo[];
-  turnos?: TurnoConMalla[];
+  turnos?: (TurnoConMalla & { fecha: string; horaEntrada: string; horaSalida?: string | null; horasOrdinarias?: number; heDiurna?: number; heNocturna?: number; recNocturno?: number; recDominical?: number; recNoctDominical?: number })[];
 }
 
 function isBlockMalla(val: string): boolean {
@@ -188,6 +189,61 @@ export default function CoordinadorPage() {
     URL.revokeObjectURL(url);
   };
 
+  const exportarExcel = async () => {
+    if (!session?.user?.zona) return;
+    const params = `desde=${inicio}&hasta=${fin}${tecnicoFilter !== "ALL" ? `&userId=${tecnicoFilter}` : ""}`;
+    const [dispRes, foraneosRes] = await Promise.all([
+      fetch(`/api/reportes/disponibilidades?${params}`),
+      fetch(`/api/reportes/foraneos?${params}`),
+    ]);
+    const listDisp = await dispRes.json().catch(() => []);
+    const listForaneos = await foraneosRes.json().catch(() => []);
+    const tecnicosOnly = (d: DetalleUsuario) => d.role === "TECNICO" || !d.role;
+    const dataTurnos = (data?.detalle ?? [])
+      .filter(tecnicosOnly)
+      .flatMap((d) =>
+        (d.turnos ?? []).map((t) => ({
+          Nombre: d.nombre,
+          Cédula: d.cedula ?? "",
+          Fecha: format(new Date(t.fecha), "yyyy-MM-dd", { locale: es }),
+          Entrada: t.horaEntrada ? new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "",
+          Salida: t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "",
+          "Horas Ordinarias": Math.max(0, t.horasOrdinarias ?? 0),
+          "HE Diurna": t.heDiurna ?? 0,
+          "HE Nocturna": t.heNocturna ?? 0,
+          "Recargo Nocturno": t.recNocturno ?? 0,
+          "Recargo Dominical": t.recDominical ?? 0,
+          "Recargo Festivo": t.recNoctDominical ?? 0,
+        }))
+      );
+    const dataDisponibilidades = (Array.isArray(listDisp) ? listDisp : []).map((r: { nombre: string; cedula: string; fecha: string; valor: number }) => ({
+      Nombre: r.nombre,
+      Cédula: r.cedula,
+      Fecha: r.fecha,
+      "Valor ($80,000/día)": r.valor,
+    }));
+    const dataForaneos = (Array.isArray(listForaneos) ? listForaneos : []).map((r: { nombre: string; cedula: string; cantidadForaneos: number; totalKm: number; totalPagar: number }) => ({
+      Nombre: r.nombre,
+      Cédula: r.cedula,
+      Fecha: `${inicio} a ${fin}`,
+      "Cantidad Foráneos": r.cantidadForaneos,
+      "Total Km": r.totalKm,
+      "Total a Pagar (km × $1,100)": r.totalPagar,
+    }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataTurnos), "Turnos");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataDisponibilidades), "Disponibilidades");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataForaneos), "Foraneos-Km");
+    const buffer = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `reporte_${session?.user?.zona}_${inicio}_${fin}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const columnsTurnos = [
     { key: "user", label: "Técnico", render: (t: TurnoRow) => t.user?.nombre ?? "—" },
     { key: "fecha", label: "Fecha", render: (t: TurnoRow) => format(new Date(t.fecha), "dd MMM yyyy", { locale: es }) },
@@ -215,7 +271,12 @@ export default function CoordinadorPage() {
           <h2 className="text-2xl font-bold text-gray-900">Dashboard Equipo</h2>
           <p className="text-gray-500">Zona {session?.user?.zona} — {session?.user?.nombre}</p>
         </div>
-        {data && <button onClick={exportarCSV} className="btn-secondary flex items-center gap-2"><HiDownload className="h-5 w-5" />Exportar CSV</button>}
+        {data && (
+          <>
+            <button onClick={exportarCSV} className="btn-secondary flex items-center gap-2"><HiDownload className="h-5 w-5" />Exportar CSV</button>
+            <button onClick={() => void exportarExcel()} className="btn-secondary flex items-center gap-2"><HiDownload className="h-5 w-5" />Exportar Excel</button>
+          </>
+        )}
       </div>
 
       <div className="card">

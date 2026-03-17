@@ -43,7 +43,7 @@ export default function TecnicoDashboard() {
     setLoading(true);
     try {
       const [turnosRes, foraneosRes] = await Promise.all([
-        fetch(`/api/turnos?userId=${session.user.userId}&inicio=${inicio}&fin=${fin}`),
+        fetch(`/api/turnos?userId=${session.user.userId}&desde=${inicio}&hasta=${fin}`),
         fetch(`/api/reportes/foraneos?desde=${inicio}&hasta=${fin}&userId=${session.user.userId}`),
       ]);
       const data = await turnosRes.json();

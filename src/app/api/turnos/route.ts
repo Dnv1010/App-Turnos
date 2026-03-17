@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { calcularTurno, calcularHorasSemanales, calcularHorasSemanalesConMalla, getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
+import { getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
 import { getDay } from "date-fns";
 import { nowColombia } from "@/lib/utils";
+import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
 
 function dateKey(d: Date): string {
   return d.toISOString().split("T")[0];
@@ -16,8 +17,8 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const userIdParam = searchParams.get("userId");
-  const inicio = searchParams.get("inicio");
-  const fin = searchParams.get("fin");
+  const desde = searchParams.get("desde") ?? searchParams.get("inicio");
+  const hasta = searchParams.get("hasta") ?? searchParams.get("fin");
   const zonaParam = searchParams.get("zona");
 
   let where: Record<string, unknown> = {};
@@ -37,10 +38,10 @@ export async function GET(req: NextRequest) {
     where.userId = session.user.userId;
   }
 
-  if (inicio && fin) {
+  if (desde && hasta) {
     where.fecha = {
-      gte: new Date(inicio),
-      lte: new Date(fin + "T23:59:59.999"),
+      gte: new Date(desde + "T00:00:00-05:00"),
+      lte: new Date(hasta + "T23:59:59-05:00"),
     };
   }
 
@@ -72,14 +73,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Ya hay un turno abierto", turno: turnoAbierto }, { status: 400 });
   }
 
-  // Fecha correcta en Colombia (UTC-5)
-  const ahoraUTC = new Date();
-  const ahoraColombia = new Date(ahoraUTC.toLocaleString("en-US", { timeZone: "America/Bogota" }));
-  const fechaSolodia = new Date(ahoraColombia.getFullYear(), ahoraColombia.getMonth(), ahoraColombia.getDate());
+  // Fecha y hora Colombia (UTC-5)
+  const ahoraColombia = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Bogota" }));
+  const fechaSoloDia = new Date(Date.UTC(ahoraColombia.getFullYear(), ahoraColombia.getMonth(), ahoraColombia.getDate()));
   const turno = await prisma.turno.create({
     data: {
       userId: uid,
-      fecha: fechaSolodia,
+      fecha: fechaSoloDia,
       horaEntrada: ahoraColombia,
       latEntrada: lat,
       lngEntrada: lng,
@@ -112,49 +112,50 @@ export async function PATCH(req: NextRequest) {
     if (turno.userId !== session.user.userId) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     if (turno.horaSalida) return NextResponse.json({ error: "Turno ya cerrado" }, { status: 400 });
 
-    const horaSalida = nowColombia();
+    const horaSalida = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Bogota" }));
 
-    const inicioSemana = getInicioSemana(turno.fecha);
-    const finSemana = getFinSemana(turno.fecha);
-
-    const [mallaSemana, festivosSemana] = await Promise.all([
-      prisma.mallaTurno.findMany({
-        where: { userId: turno.userId, fecha: { gte: inicioSemana, lte: finSemana } },
+    const [mallaDiaRow, festivosSemana] = await Promise.all([
+      prisma.mallaTurno.findUnique({
+        where: { userId_fecha: { userId: turno.userId, fecha: turno.fecha } },
       }),
-      prisma.festivo.findMany({ where: { fecha: { gte: inicioSemana, lte: finSemana } } }),
+      prisma.festivo.findMany({
+        where: { fecha: { gte: getInicioSemana(turno.fecha), lte: getFinSemana(turno.fecha) } },
+      }),
     ]);
-    const mallaMap = new Map<string, string>();
-    mallaSemana.forEach((m) => mallaMap.set(dateKey(m.fecha), m.valor));
     const holidaySet = new Set(festivosSemana.map((f) => dateKey(f.fecha)));
-
     const esFestivo = holidaySet.has(dateKey(turno.fecha));
-    const esDomingo = getDay(turno.fecha) === 0;
 
-    const turnosSemana = await prisma.turno.findMany({
-      where: { userId: turno.userId, fecha: { gte: inicioSemana, lte: finSemana }, horaSalida: { not: null } },
-    });
-    const turnosData = turnosSemana.map((t) => ({
-      fecha: t.fecha, horaEntrada: t.horaEntrada, horaSalida: t.horaSalida!,
-      esFestivo: holidaySet.has(dateKey(t.fecha)), esDomingo: getDay(t.fecha) === 0,
-    }));
-    turnosData.push({
-      fecha: turno.fecha, horaEntrada: turno.horaEntrada, horaSalida,
-      esFestivo, esDomingo: getDay(turno.fecha) === 0,
-    });
+    const mallaDia = mallaDiaRow
+      ? {
+          tipo: esFestivo ? "FESTIVO" : (mallaDiaRow.tipo ?? "TRABAJO"),
+          horaInicio: mallaDiaRow.horaInicio,
+          horaFin: mallaDiaRow.horaFin,
+        }
+      : esFestivo
+        ? { tipo: "FESTIVO" as const, horaInicio: null, horaFin: null }
+        : getDay(turno.fecha) === 0
+          ? { tipo: "DESCANSO" as const, horaInicio: null, horaFin: null }
+          : {
+              tipo: "TRABAJO" as const,
+              horaInicio: "08:00",
+              horaFin: getDay(turno.fecha) === 6 ? "12:00" : "17:00",
+            };
 
-    const mallaGetter = (fecha: Date) => mallaMap.get(dateKey(fecha)) ?? null;
-    const resumenSemanal = calcularHorasSemanalesConMalla(turnosData, mallaGetter, holidaySet);
-    const mallaVal = mallaMap.get(dateKey(turno.fecha)) ?? null;
-    const resultado = calcularTurno(
-      { fecha: turno.fecha, horaEntrada: turno.horaEntrada, horaSalida, esFestivo, esDomingo },
-      resumenSemanal,
-      mallaVal,
-      holidaySet
+    const resultado = calcularHorasTurno(
+      { horaEntrada: turno.horaEntrada, horaSalida },
+      mallaDia
     );
+    const resultadoDb = resultadoToTurnoData(resultado);
 
     const turnoActualizado = await prisma.turno.update({
       where: { id: turnoId },
-      data: { horaSalida, latSalida: lat, lngSalida: lng, endPhotoUrl: endPhotoUrl || null, ...resultado },
+      data: {
+        horaSalida,
+        latSalida: lat,
+        lngSalida: lng,
+        endPhotoUrl: endPhotoUrl || null,
+        ...resultadoDb,
+      },
     });
 
     return NextResponse.json(turnoActualizado);

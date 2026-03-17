@@ -28,7 +28,9 @@ export async function GET(req: NextRequest) {
   if (zona && zona !== "ALL") whereUser.zona = zona;
   if (userId) whereUser.id = userId;
   if (rol && rol !== "ALL") whereUser.role = rol;
-
+  if (session.user.role === "COORDINADOR" || session.user.role === "MANAGER") {
+    whereUser.role = "TECNICO";
+  }
   if (session.user.role === "COORDINADOR") {
     whereUser.zona = session.user.zona;
   } else if (session.user.role === "TECNICO") {

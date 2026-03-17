@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, type CSSProperties } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay } from "date-fns";
 import { HiChevronDown } from "react-icons/hi";
 
@@ -122,14 +122,16 @@ export default function CoordinadorMallaPage() {
   };
   const getValor = (fecha: Date) => getItem(fecha)?.valor ?? "";
 
-  const getClass = (valor: string) => {
-    if (!valor) return "bg-gray-50";
-    if (OPCIONES_TURNO.some((o) => valor.includes(o) || /^\d+-\d+$/.test(valor))) return "bg-blue-100 text-blue-800";
-    if (valor === "Disponible") return "bg-green-100 text-green-800";
-    if (["Descanso", "Vacaciones"].includes(valor)) return "bg-cyan-100 text-cyan-800";
-    if (["Día de la familia", "Semana Santa"].includes(valor)) return "bg-purple-100 text-purple-800";
-    if (["Medio día cumpleaños", "Keynote"].includes(valor)) return "bg-purple-50 text-purple-700";
-    return "bg-gray-100 text-gray-800";
+  const getMallaStyle = (valor: string, item?: MallaItem | null): CSSProperties => {
+    const tipo = item?.tipo;
+    const v = (valor || "").toLowerCase();
+    if (!valor) return { backgroundColor: "#f9fafb", color: "#6b7280" };
+    if (tipo === "DESCANSO" || v.includes("descanso") || v.includes("vacacion")) return { backgroundColor: "#f3f4f6", color: "#6b7280" };
+    if (tipo === "DISPONIBLE" || v === "disponible") return { backgroundColor: "#dcfce7", color: "#15803d" };
+    if (v.includes("festivo") || v.includes("semana santa")) return { backgroundColor: "#fef9c3", color: "#854d0e" };
+    if (v.includes("familia") || v.includes("día de la familia")) return { backgroundColor: "#f3e8ff", color: "#7e22ce" };
+    if (tipo === "TRABAJO" || OPCIONES_TURNO.some((o) => valor.includes(o) || /^\d+-\d+$/.test(valor))) return { backgroundColor: "#dbeafe", color: "#1d4ed8" };
+    return { backgroundColor: "#f3f4f6", color: "#6b7280" };
   };
 
   const fechaStrFromDay = (d: Date) => dateKey(d);
@@ -309,11 +311,11 @@ export default function CoordinadorMallaPage() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs mb-4">
-        <span className="px-2 py-1 rounded bg-blue-100 text-blue-800">Turno (horario)</span>
-        <span className="px-2 py-1 rounded bg-green-100 text-green-800">Disponible</span>
-        <span className="px-2 py-1 rounded bg-cyan-100 text-cyan-800">Descanso / Vacaciones</span>
-        <span className="px-2 py-1 rounded bg-yellow-100 text-yellow-800">Festivo</span>
-        <span className="px-2 py-1 rounded bg-purple-100 text-purple-800">Día familia / Semana Santa</span>
+        <span className="px-2 py-1 rounded" style={{ backgroundColor: "#dbeafe", color: "#1d4ed8" }}>TRABAJO</span>
+        <span className="px-2 py-1 rounded" style={{ backgroundColor: "#f3f4f6", color: "#6b7280" }}>DESCANSO</span>
+        <span className="px-2 py-1 rounded" style={{ backgroundColor: "#dcfce7", color: "#15803d" }}>DISPONIBLE</span>
+        <span className="px-2 py-1 rounded" style={{ backgroundColor: "#fef9c3", color: "#854d0e" }}>FESTIVO</span>
+        <span className="px-2 py-1 rounded" style={{ backgroundColor: "#f3e8ff", color: "#7e22ce" }}>DÍA FAMILIA</span>
       </div>
 
       {selectedTecnicos.size === 0 ? (
@@ -353,7 +355,8 @@ export default function CoordinadorMallaPage() {
                         setEditHoraFin(item?.horaFin || "17:00");
                       }
                     }}
-                    className={`w-full text-left text-xs rounded px-2 py-1 break-words border-2 transition-colors ${isSelected ? "border-blue-600 bg-blue-100 ring-2 ring-blue-400" : "border-transparent"} ${getClass(valor)}`}
+                    className={`w-full text-left text-xs rounded px-2 py-1 break-words border-2 transition-colors ${isSelected ? "border-blue-600 ring-2 ring-blue-400" : "border-transparent"}`}
+                    style={getMallaStyle(valor, getItem(day))}
                   >
                     {valor || "—"}
                   </button>
