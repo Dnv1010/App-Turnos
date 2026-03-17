@@ -39,7 +39,8 @@ const useGoogleProvider = !!(
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
-  adapter: PrismaAdapter(prisma) as Adapter,
+  // Solo usar adapter con OAuth (Google). Con solo Credentials, el adapter puede provocar fallos de login.
+  adapter: useGoogleProvider ? (PrismaAdapter(prisma) as Adapter) : undefined,
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
@@ -65,11 +66,19 @@ export const authOptions: NextAuthOptions = {
         const pin = (credentials?.pin ?? (credentials as any)?.password ?? "")
           .toString()
           .trim();
-        if (!email || !pin) return null;
+        if (!email || !pin) {
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[auth] authorize: faltan email o pin");
+          }
+          return null;
+        }
         try {
           const user = await prisma.user.findUnique({
             where: { email },
           });
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[auth] authorize:", email, "userFound:", !!user, "isActive:", user?.isActive, "hasPassword:", !!(user?.password));
+          }
           if (!user || !user.isActive) return null;
           if (!user.password) {
             if (process.env.NODE_ENV === "development") {
