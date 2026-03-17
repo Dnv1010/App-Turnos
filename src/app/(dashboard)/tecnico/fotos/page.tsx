@@ -2,8 +2,9 @@
 
 import { useSession } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import CameraCapture from "@/components/fotos/CameraCapture";
-import { HiPhotograph, HiUpload, HiTruck, HiCamera, HiClipboardList, HiX } from "react-icons/hi";
+import { HiPhotograph, HiUpload, HiTruck, HiCamera, HiClipboardList, HiX, HiPencil, HiTrash } from "react-icons/hi";
 
 type TipoFoto = "FORANEO" | "GENERAL" | "ENTRADA" | "SALIDA";
 type Tab = "registrar" | "historial";
@@ -32,16 +33,25 @@ export default function FotosPage() {
   const [showCamera, setShowCamera] = useState(false);
   const [historial, setHistorial] = useState<FotoRecord[]>([]);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
+  const ahora = new Date();
+  const [filtroInicio, setFiltroInicio] = useState(format(startOfMonth(ahora), "yyyy-MM-dd"));
+  const [filtroFin, setFiltroFin] = useState(format(endOfMonth(ahora), "yyyy-MM-dd"));
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [editKmInicial, setEditKmInicial] = useState("");
+  const [editKmFinal, setEditKmFinal] = useState("");
+  const [editObservaciones, setEditObservaciones] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null);
 
   const cargarHistorial = useCallback(async () => {
     if (!session?.user?.userId) return;
     setLoadingHistorial(true);
     try {
-      const res = await fetch(`/api/fotos?userId=${session.user.userId}`);
+      const res = await fetch(`/api/fotos?userId=${session.user.userId}&inicio=${filtroInicio}&fin=${filtroFin}`);
       if (res.ok) setHistorial(await res.json());
     } catch { /* silently fail */ }
     finally { setLoadingHistorial(false); }
-  }, [session?.user?.userId]);
+  }, [session?.user?.userId, filtroInicio, filtroFin]);
 
   useEffect(() => {
     if (tab === "historial") cargarHistorial();
@@ -93,6 +103,46 @@ export default function FotosPage() {
     if (f.kmInicial != null && f.kmFinal != null) return sum + Math.max(0, f.kmFinal - f.kmInicial);
     return sum;
   }, 0);
+
+  const abrirEditar = (f: FotoRecord) => {
+    setEditandoId(f.id);
+    setEditKmInicial(f.kmInicial != null ? String(f.kmInicial) : "");
+    setEditKmFinal(f.kmFinal != null ? String(f.kmFinal) : "");
+    setEditObservaciones(f.observaciones || "");
+  };
+  const guardarEdicion = async () => {
+    if (!editandoId) return;
+    setGuardando(true);
+    try {
+      const res = await fetch(`/api/fotos/${editandoId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kmInicial: editKmInicial ? parseFloat(editKmInicial) : undefined,
+          kmFinal: editKmFinal ? parseFloat(editKmFinal) : undefined,
+          observaciones: editObservaciones || undefined,
+        }),
+      });
+      if (res.ok) {
+        setEditandoId(null);
+        cargarHistorial();
+      } else {
+        const d = await res.json();
+        alert(d.error || "Error al guardar");
+      }
+    } catch { alert("Error de conexión"); }
+    finally { setGuardando(false); }
+  };
+  const eliminarRegistro = async (id: string) => {
+    if (!confirm("¿Eliminar este registro foráneo?")) return;
+    setEliminandoId(id);
+    try {
+      const res = await fetch(`/api/fotos/${id}`, { method: "DELETE" });
+      if (res.ok) cargarHistorial();
+      else alert("No se pudo eliminar");
+    } catch { alert("Error de conexión"); }
+    finally { setEliminandoId(null); }
+  };
 
   return (
     <div className="space-y-6">
@@ -216,6 +266,22 @@ export default function FotosPage() {
 
       {tab === "historial" && (
         <>
+          <div className="card grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
+              <input type="date" value={filtroInicio} onChange={(e) => setFiltroInicio(e.target.value)} className="input-field" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
+              <input type="date" value={filtroFin} onChange={(e) => setFiltroFin(e.target.value)} className="input-field" />
+            </div>
+            <div className="sm:col-span-2 flex gap-2">
+              <button type="button" onClick={cargarHistorial} disabled={loadingHistorial} className="btn-primary flex items-center gap-2">
+                {loadingHistorial ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <HiCamera className="h-4 w-4" />}
+                Filtrar
+              </button>
+            </div>
+          </div>
           {fotosForaneo.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="card bg-orange-50 border-orange-200">
@@ -246,33 +312,72 @@ export default function FotosPage() {
             <div className="space-y-3">
               {historial.map((foto) => (
                 <div key={foto.id} className="card flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        foto.tipo === "FORANEO" ? "bg-orange-100 text-orange-700" :
-                        foto.tipo === "ENTRADA" ? "bg-green-100 text-green-700" :
-                        foto.tipo === "SALIDA" ? "bg-red-100 text-red-700" :
-                        "bg-blue-100 text-blue-700"
-                      }`}>
-                        {foto.tipo === "FORANEO" ? "Foráneo" : foto.tipo === "ENTRADA" ? "Entrada" : foto.tipo === "SALIDA" ? "Salida" : "General"}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {new Date(foto.createdAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                      </span>
+                  {editandoId === foto.id ? (
+                    <div className="flex-1 space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-0.5">Km Inicial</label>
+                          <input type="number" value={editKmInicial} onChange={(e) => setEditKmInicial(e.target.value)} className="input-field text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-0.5">Km Final</label>
+                          <input type="number" value={editKmFinal} onChange={(e) => setEditKmFinal(e.target.value)} className="input-field text-sm" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-0.5">Observaciones</label>
+                        <textarea value={editObservaciones} onChange={(e) => setEditObservaciones(e.target.value)} className="input-field text-sm" rows={2} />
+                      </div>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={guardarEdicion} disabled={guardando} className="btn-primary text-sm px-3 py-1.5">
+                          {guardando ? "Guardando…" : "Guardar"}
+                        </button>
+                        <button type="button" onClick={() => setEditandoId(null)} className="btn-secondary text-sm px-3 py-1.5">Cancelar</button>
+                      </div>
                     </div>
-                    {foto.tipo === "FORANEO" && foto.kmInicial != null && foto.kmFinal != null && (
-                      <p className="text-sm text-gray-700">
-                        <strong>{Math.max(0, foto.kmFinal - foto.kmInicial).toFixed(1)} km</strong>
-                        <span className="text-gray-400"> ({foto.kmInicial} → {foto.kmFinal})</span>
-                      </p>
-                    )}
-                    {foto.observaciones && <p className="text-sm text-gray-500 mt-1">{foto.observaciones}</p>}
-                  </div>
-                  {foto.driveUrl && (
-                    <a href={foto.driveUrl} target="_blank" rel="noopener noreferrer"
-                      className="btn-secondary text-xs px-3 py-1.5 whitespace-nowrap">
-                      Ver en Drive
-                    </a>
+                  ) : (
+                    <>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            foto.tipo === "FORANEO" ? "bg-orange-100 text-orange-700" :
+                            foto.tipo === "ENTRADA" ? "bg-green-100 text-green-700" :
+                            foto.tipo === "SALIDA" ? "bg-red-100 text-red-700" :
+                            "bg-blue-100 text-blue-700"
+                          }`}>
+                            {foto.tipo === "FORANEO" ? "Foráneo" : foto.tipo === "ENTRADA" ? "Entrada" : foto.tipo === "SALIDA" ? "Salida" : "General"}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {new Date(foto.createdAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        {foto.tipo === "FORANEO" && foto.kmInicial != null && foto.kmFinal != null && (
+                          <p className="text-sm text-gray-700">
+                            <strong>{Math.max(0, foto.kmFinal - foto.kmInicial).toFixed(1)} km</strong>
+                            <span className="text-gray-400"> ({foto.kmInicial} → {foto.kmFinal})</span>
+                          </p>
+                        )}
+                        {foto.observaciones && <p className="text-sm text-gray-500 mt-1">{foto.observaciones}</p>}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {foto.driveUrl && (
+                          <a href={foto.driveUrl} target="_blank" rel="noopener noreferrer"
+                            className="btn-secondary text-xs px-3 py-1.5 whitespace-nowrap">
+                            Ver en Drive
+                          </a>
+                        )}
+                        {foto.tipo === "FORANEO" && (
+                          <>
+                            <button type="button" onClick={() => abrirEditar(foto)} className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg" title="Editar">
+                              <HiPencil className="h-4 w-4" />
+                            </button>
+                            <button type="button" onClick={() => eliminarRegistro(foto.id)} disabled={eliminandoId === foto.id} className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Eliminar">
+                              {eliminandoId === foto.id ? <div className="w-4 h-4 border-2 border-red-200 border-t-red-600 rounded-full animate-spin" /> : <HiTrash className="h-4 w-4" />}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
               ))}

@@ -57,11 +57,26 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get("userId") || session.user.userId;
+  const inicio = searchParams.get("inicio");
+  const fin = searchParams.get("fin");
+
+  const where: { userId: string; createdAt?: { gte?: Date; lte?: Date } } = { userId };
+  if (inicio || fin) {
+    where.createdAt = {};
+    if (inicio) {
+      const [y, m, d] = inicio.split("-").map(Number);
+      where.createdAt.gte = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
+    }
+    if (fin) {
+      const [y, m, d] = fin.split("-").map(Number);
+      where.createdAt.lte = new Date(Date.UTC(y, m - 1, d, 23, 59, 59));
+    }
+  }
 
   const fotos = await prisma.fotoRegistro.findMany({
-    where: { userId },
+    where,
     orderBy: { createdAt: "desc" },
-    take: 50,
+    take: 100,
   });
 
   return NextResponse.json(fotos);

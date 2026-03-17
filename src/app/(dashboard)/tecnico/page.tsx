@@ -33,10 +33,9 @@ export default function TecnicoDashboard() {
   const [turnos, setTurnos] = useState<TurnoRecord[]>([]);
   const [turnoActivo, setTurnoActivo] = useState<{ id: string; horaEntrada: string } | null>(null);
   const [loading, setLoading] = useState(true);
-
   const ahora = new Date();
-  const inicio = format(startOfMonth(ahora), "yyyy-MM-dd");
-  const fin = format(endOfMonth(ahora), "yyyy-MM-dd");
+  const [inicio, setInicio] = useState(format(startOfMonth(ahora), "yyyy-MM-dd"));
+  const [fin, setFin] = useState(format(endOfMonth(ahora), "yyyy-MM-dd"));
 
   const cargarTurnos = useCallback(async () => {
     if (!session?.user?.userId) return;
@@ -87,7 +86,23 @@ export default function TecnicoDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Mi Dashboard</h2>
-          <p className="text-gray-500">{format(ahora, "MMMM yyyy", { locale: es })}</p>
+          <p className="text-gray-500">Turnos y horas extras</p>
+        </div>
+      </div>
+      <div className="card grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
+          <input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} className="input-field" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
+          <input type="date" value={fin} onChange={(e) => setFin(e.target.value)} className="input-field" />
+        </div>
+        <div className="sm:col-span-2 flex items-end">
+          <button type="button" onClick={() => cargarTurnos()} disabled={loading} className="btn-primary flex items-center gap-2">
+            {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
+            Filtrar período
+          </button>
         </div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
