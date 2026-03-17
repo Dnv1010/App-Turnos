@@ -77,8 +77,8 @@ export async function POST(req: NextRequest) {
   }
 
   const ahoraColombia = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Bogota" }));
-  const fecha = new Date(ahoraColombia.getFullYear(), ahoraColombia.getMonth(), ahoraColombia.getDate());
-  const horaEntrada = new Date(Date.now() - 5 * 60 * 60 * 1000);
+  const fecha = new Date(Date.UTC(ahoraColombia.getFullYear(), ahoraColombia.getMonth(), ahoraColombia.getDate()));
+  const horaEntrada = ahoraColombia;
   const turno = await prisma.turno.create({
     data: {
       userId: uid,
@@ -115,7 +115,7 @@ export async function PATCH(req: NextRequest) {
     if (turno.userId !== session.user.userId) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     if (turno.horaSalida) return NextResponse.json({ error: "Turno ya cerrado" }, { status: 400 });
 
-    const horaSalida = new Date(Date.now() - 5 * 60 * 60 * 1000);
+    const horaSalida = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Bogota" }));
 
     const [mallaDiaRow, festivosSemana] = await Promise.all([
       prisma.mallaTurno.findUnique({
