@@ -1,16 +1,11 @@
 {
   "name": "app-turnos",
   "version": "1.0.0",
-  "{
-  "name": "app-turnos",
-  "version": "1.0.0",
+  "description": "Sistema de gestion de turnos para BIA Colombia.",
+  "main": "index.js",
   "prisma": {
-    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts"
   },
-  "scripts": {
-    ...
-  }
-}
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -52,8 +47,5 @@
     "eslint-config-next": "^16.1.6",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0"
-  },
-  "prisma": {
-    "seed": "ts-node --compiler-options {\\module\\:\\CommonJS\\} prisma/seed.ts"
   }
 }
