@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { calcularTurno, calcularHorasSemanales, calcularHorasSemanalesConMalla, getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
 import { getDay } from "date-fns";
-import { nowColombia, getDatePartsColombia } from "@/lib/utils";
+import { nowColombia } from "@/lib/utils";
 
 function dateKey(d: Date): string {
   return d.toISOString().split("T")[0];
@@ -38,7 +38,10 @@ export async function GET(req: NextRequest) {
   }
 
   if (inicio && fin) {
-    where.fecha = { gte: new Date(inicio), lte: new Date(fin) };
+    where.fecha = {
+      gte: new Date(inicio),
+      lte: new Date(fin + "T23:59:59.999"),
+    };
   }
 
   const turnos = await prisma.turno.findMany({
@@ -69,14 +72,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Ya hay un turno abierto", turno: turnoAbierto }, { status: 400 });
   }
 
-  const ahora = nowColombia();
-  const { y, m, d } = getDatePartsColombia();
-  const fecha = new Date(Date.UTC(y, m, d, 12, 0, 0));
+  // Fecha correcta en Colombia (UTC-5)
+  const ahoraUTC = new Date();
+  const ahoraColombia = new Date(ahoraUTC.toLocaleString("en-US", { timeZone: "America/Bogota" }));
+  const fechaSolodia = new Date(ahoraColombia.getFullYear(), ahoraColombia.getMonth(), ahoraColombia.getDate());
   const turno = await prisma.turno.create({
     data: {
       userId: uid,
-      fecha,
-      horaEntrada: ahora,
+      fecha: fechaSolodia,
+      horaEntrada: ahoraColombia,
       latEntrada: lat,
       lngEntrada: lng,
       startPhotoUrl: startPhotoUrl || null,

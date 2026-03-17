@@ -39,13 +39,14 @@ export default function TecnicoDashboard() {
 
   const cargarTurnos = useCallback(async () => {
     if (!session?.user?.userId) return;
+    setLoading(true);
     try {
       const res = await fetch(`/api/turnos?userId=${session.user.userId}&inicio=${inicio}&fin=${fin}`);
       const data = await res.json();
-      setTurnos(data);
-      const abierto = data.find((t: TurnoRecord) => !t.horaSalida);
+      setTurnos(Array.isArray(data) ? data : []);
+      const abierto = (Array.isArray(data) ? data : []).find((t: TurnoRecord) => !t.horaSalida);
       setTurnoActivo(abierto ? { id: abierto.id, horaEntrada: abierto.horaEntrada } : null);
-    } catch { console.error("Error cargando turnos"); }
+    } catch { console.error("Error cargando turnos"); setTurnos([]); }
     finally { setLoading(false); }
   }, [session?.user?.userId, inicio, fin]);
 
@@ -99,7 +100,7 @@ export default function TecnicoDashboard() {
           <input type="date" value={fin} onChange={(e) => setFin(e.target.value)} className="input-field" />
         </div>
         <div className="sm:col-span-2 flex items-end">
-          <button type="button" onClick={() => cargarTurnos()} disabled={loading} className="btn-primary flex items-center gap-2">
+          <button type="button" onClick={() => void cargarTurnos()} disabled={loading} className="btn-primary flex items-center gap-2">
             {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
             Filtrar período
           </button>
