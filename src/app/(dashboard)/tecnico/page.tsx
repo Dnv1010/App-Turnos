@@ -35,16 +35,18 @@ export default function TecnicoDashboard() {
   const [foraneosResumen, setForaneosResumen] = useState<{ totalKm: number; totalPagar: number }>({ totalKm: 0, totalPagar: 0 });
   const [loading, setLoading] = useState(true);
   const ahora = new Date();
-  const [inicio, setInicio] = useState(format(startOfMonth(ahora), "yyyy-MM-dd"));
-  const [fin, setFin] = useState(format(endOfMonth(ahora), "yyyy-MM-dd"));
+  const primerDiaMes = format(startOfMonth(ahora), "yyyy-MM-dd");
+  const hoy = format(ahora, "yyyy-MM-dd");
+  const [desde, setDesde] = useState(primerDiaMes);
+  const [hasta, setHasta] = useState(hoy);
 
-  const cargarTurnos = useCallback(async () => {
+  const cargarDatos = useCallback(async () => {
     if (!session?.user?.userId) return;
     setLoading(true);
     try {
       const [turnosRes, foraneosRes] = await Promise.all([
-        fetch(`/api/turnos?userId=${session.user.userId}&desde=${inicio}&hasta=${fin}`),
-        fetch(`/api/reportes/foraneos?desde=${inicio}&hasta=${fin}&userId=${session.user.userId}`),
+        fetch(`/api/turnos?desde=${desde}&hasta=${hasta}`),
+        fetch(`/api/reportes/foraneos?desde=${desde}&hasta=${hasta}&userId=${session.user.userId}`),
       ]);
       const data = await turnosRes.json();
       setTurnos(Array.isArray(data) ? data : []);
@@ -57,7 +59,26 @@ export default function TecnicoDashboard() {
       setForaneosResumen(miForaneo ? { totalKm: miForaneo.totalKm ?? 0, totalPagar: miForaneo.totalPagar ?? 0 } : { totalKm: 0, totalPagar: 0 });
     } catch { console.error("Error cargando turnos"); setTurnos([]); setForaneosResumen({ totalKm: 0, totalPagar: 0 }); }
     finally { setLoading(false); }
-  }, [session?.user?.userId, inicio, fin]);
+  }, [session?.user?.userId, desde, hasta]);
+
+  const filtrar = useCallback(async () => {
+    if (!session?.user?.userId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/turnos?desde=${desde}&hasta=${hasta}`);
+      const data = await res.json();
+      setTurnos(Array.isArray(data) ? data : []);
+      const abierto = (Array.isArray(data) ? data : []).find((t: TurnoRecord) => !t.horaSalida);
+      setTurnoActivo(abierto ? { id: abierto.id, horaEntrada: abierto.horaEntrada } : null);
+
+      const foraneosRes = await fetch(`/api/reportes/foraneos?desde=${desde}&hasta=${hasta}&userId=${session.user.userId}`);
+      const foraneosData = await foraneosRes.json();
+      const listaForaneos = Array.isArray(foraneosData) ? foraneosData : [];
+      const miForaneo = listaForaneos.find((f: { userId: string }) => f.userId === session.user.userId);
+      setForaneosResumen(miForaneo ? { totalKm: miForaneo.totalKm ?? 0, totalPagar: miForaneo.totalPagar ?? 0 } : { totalKm: 0, totalPagar: 0 });
+    } catch { console.error("Error cargando turnos"); setTurnos([]); setForaneosResumen({ totalKm: 0, totalPagar: 0 }); }
+    finally { setLoading(false); }
+  }, [session?.user?.userId, desde, hasta]);
 
   useEffect(() => {
     if (session && session.user.role !== "TECNICO") {
@@ -65,8 +86,8 @@ export default function TecnicoDashboard() {
       else if (["MANAGER", "ADMIN"].includes(session.user.role)) router.replace("/manager");
       return;
     }
-    cargarTurnos();
-  }, [session, router, cargarTurnos]);
+    cargarDatos();
+  }, [session, router, cargarDatos]);
 
   const totalHE = turnos.reduce((s, t) => s + t.heDiurna + t.heNocturna + t.heDominical + t.heNoctDominical, 0);
   const totalRecargos = turnos.reduce((s, t) => s + t.recNocturno + t.recDominical + t.recNoctDominical, 0);
@@ -102,14 +123,14 @@ export default function TecnicoDashboard() {
       <div className="card grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
-          <input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} className="input-field" />
+          <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="input-field" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
-          <input type="date" value={fin} onChange={(e) => setFin(e.target.value)} className="input-field" />
+          <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="input-field" />
         </div>
         <div className="sm:col-span-2 flex items-end">
-          <button type="button" onClick={() => void cargarTurnos()} disabled={loading} className="btn-primary flex items-center gap-2">
+          <button type="button" onClick={() => void filtrar()} disabled={loading} className="btn-primary flex items-center gap-2">
             {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
             Filtrar período
           </button>
@@ -127,7 +148,7 @@ export default function TecnicoDashboard() {
           }} />
         </div>
         <div className="flex justify-center">
-          <BotonFichaje userId={session?.user?.userId || ""} turnoActivo={turnoActivo} onFichaje={cargarTurnos} />
+          <BotonFichaje userId={session?.user?.userId || ""} turnoActivo={turnoActivo} onFichaje={cargarDatos} onTurnoFinalizado={cargarDatos} />
         </div>
       </div>
       {turnoActivo && turnos[0]?.latEntrada && turnos[0]?.lngEntrada && (

@@ -29,11 +29,13 @@ interface BotonFichajeProps {
   userId: string;
   turnoActivo?: { id: string; horaEntrada: string } | null;
   onFichaje: () => void;
+  /** Se llama después de abrir o cerrar un turno para recargar datos de la página (p. ej. detalle de turnos). */
+  onTurnoFinalizado?: () => void;
 }
 
 type Step = "idle" | "camera" | "preview" | "uploading";
 
-export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFichajeProps) {
+export default function BotonFichaje({ userId, turnoActivo, onFichaje, onTurnoFinalizado }: BotonFichajeProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ubicacion, setUbicacion] = useState<{ lat: number; lng: number } | null>(null);
@@ -129,13 +131,14 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
       setStep("idle");
       setIsCerrandoTurno(false);
       onFichaje();
+      onTurnoFinalizado?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
       setStep("preview");
     } finally {
       setLoading(false);
     }
-  }, [capturedPhoto, isCerrandoTurno, turnoActivo, userId, onFichaje]);
+  }, [capturedPhoto, isCerrandoTurno, turnoActivo, userId, onFichaje, onTurnoFinalizado]);
 
   const estaEnTurno = !!turnoActivo;
 
