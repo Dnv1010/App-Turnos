@@ -79,13 +79,8 @@ export async function POST(req: NextRequest) {
 
   const ahoraUTC = new Date();
   const offsetColombia = -5 * 60; // UTC-5 en minutos
-  const ahoraColombia = new Date(ahoraUTC.getTime() + offsetColombia * 60 * 1000);
-  const fecha = new Date(Date.UTC(
-    ahoraColombia.getUTCFullYear(),
-    ahoraColombia.getUTCMonth(),
-    ahoraColombia.getUTCDate()
-  ));
-  const horaEntrada = ahoraColombia;
+  const horaEntrada = new Date(new Date().getTime() - 5 * 60 * 60 * 1000);
+const fecha = new Date(Date.UTC(horaEntrada.getUTCFullYear(), horaEntrada.getUTCMonth(), horaEntrada.getUTCDate()));
   const turno = await prisma.turno.create({
     data: {
       userId: uid,
@@ -176,3 +171,4 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
+
