@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
   const desde = searchParams.get("desde") ?? searchParams.get("inicio");
   const hasta = searchParams.get("hasta") ?? searchParams.get("fin");
   const zonaParam = searchParams.get("zona");
+  console.log("[Turnos GET] desde:", desde, "hasta:", hasta);
 
   let where: Record<string, unknown> = {};
 
@@ -45,12 +46,14 @@ export async function GET(req: NextRequest) {
     hastaFecha.setUTCHours(28, 59, 59, 999); // 23:59 Colombia = 04:59 UTC día siguiente
     where.fecha = { gte: desdeFecha, lte: hastaFecha };
   }
+  console.log("[Turnos GET] where:", JSON.stringify(where));
 
   const turnos = await prisma.turno.findMany({
     where,
     orderBy: [{ fecha: "desc" }, { horaEntrada: "desc" }],
     include: { user: { select: { nombre: true, zona: true } } },
   });
+  console.log("[Turnos GET] total encontrados:", turnos.length);
 
   return NextResponse.json(turnos);
 }

@@ -44,6 +44,7 @@ export default function TecnicoDashboard() {
     if (!session?.user?.userId) return;
     setLoading(true);
     try {
+      console.log("[Filtro] desde:", desde, "hasta:", hasta);
       const [turnosRes, foraneosRes] = await Promise.all([
         fetch(`/api/turnos?desde=${desde}&hasta=${hasta}`),
         fetch(`/api/reportes/foraneos?desde=${desde}&hasta=${hasta}&userId=${session.user.userId}`),
@@ -65,6 +66,7 @@ export default function TecnicoDashboard() {
     if (!session?.user?.userId) return;
     setLoading(true);
     try {
+      console.log("[Filtro] desde:", desde, "hasta:", hasta);
       const res = await fetch(`/api/turnos?desde=${desde}&hasta=${hasta}`);
       const data = await res.json();
       setTurnos(Array.isArray(data) ? data : []);
