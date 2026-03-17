@@ -52,7 +52,7 @@ export async function uploadToDrive(base64Data: string, fileName: string): Promi
   ]);
 
   const uploadRes = await fetch(
-    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink",
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink&supportsAllDrives=true",
     {
       method: "POST",
       headers: {
