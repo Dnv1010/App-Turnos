@@ -8,10 +8,15 @@ import { HiChevronDown } from "react-icons/hi";
 const OPCIONES_TURNO = ["8-17", "6-14", "14-22", "22-6", "8-14"];
 const OPCIONES_NOVEDAD = ["Disponible", "Descanso", "Vacaciones", "Día de la familia", "Semana Santa", "Medio día cumpleaños", "Keynote"];
 
+type TipoDia = "TRABAJO" | "DESCANSO" | "DISPONIBLE";
+
 interface MallaItem {
   userId: string;
   fecha: string;
   valor: string;
+  tipo?: TipoDia;
+  horaInicio?: string;
+  horaFin?: string;
 }
 
 interface Tecnico {
@@ -28,7 +33,11 @@ export default function CoordinadorMallaPage() {
   const [loading, setLoading] = useState(true);
   const [editDay, setEditDay] = useState<Date | null>(null);
   const [valorLibre, setValorLibre] = useState("");
+  const [editTipo, setEditTipo] = useState<TipoDia>("TRABAJO");
+  const [editHoraInicio, setEditHoraInicio] = useState("08:00");
+  const [editHoraFin, setEditHoraFin] = useState("17:00");
   const [saving, setSaving] = useState(false);
+  const [precargando, setPrecargando] = useState(false);
   const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
   const [lastClicked, setLastClicked] = useState<string | null>(null);
   const [mallaModalOpen, setMallaModalOpen] = useState(false);
@@ -87,10 +96,11 @@ export default function CoordinadorMallaPage() {
 
   const dateKey = (d: Date) => `${format(d, "yyyy")}-${String(format(d, "M")).padStart(2, "0")}-${String(format(d, "d")).padStart(2, "0")}`;
 
-  const getValor = (fecha: Date) => {
+  const getItem = (fecha: Date) => {
     const key = dateKey(fecha);
-    return malla.find((m) => (typeof m.fecha === "string" ? m.fecha : format(new Date(m.fecha), "yyyy-MM-dd")) === key)?.valor ?? "";
+    return malla.find((m) => (typeof m.fecha === "string" ? m.fecha : format(new Date(m.fecha), "yyyy-MM-dd")) === key);
   };
+  const getValor = (fecha: Date) => getItem(fecha)?.valor ?? "";
 
   const getClass = (valor: string) => {
     if (!valor) return "bg-gray-50";
@@ -132,20 +142,46 @@ export default function CoordinadorMallaPage() {
     setLastClicked(key);
   };
 
-  const guardar = async (fecha: Date, valor: string) => {
+  const precargarMalla = async () => {
+    if (!primaryTecnico) return;
+    setPrecargando(true);
+    try {
+      const res = await fetch("/api/malla/precarga", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: primaryTecnico, mes }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        alert(`Malla precargada: ${data.registros} días (L-V 08:00-17:00, Sáb 08:00-12:00, Dom y festivos descanso)`);
+        cargarMalla(primaryTecnico);
+      } else alert("Error: " + (data.error || "No se pudo precargar"));
+    } catch (e) { alert("Error: " + (e instanceof Error ? e.message : "No se pudo precargar")); }
+    setPrecargando(false);
+  };
+
+  const guardar = async (fecha: Date, valor: string, tipo?: TipoDia, horaInicio?: string, horaFin?: string) => {
     const uid = primaryTecnico;
     if (!uid) return;
     setSaving(true);
     try {
       const fechaStr = dateKey(fecha);
+      const body: Record<string, unknown> = { userId: uid, fecha: fechaStr };
+      if (tipo !== undefined) body.tipo = tipo;
+      if (horaInicio !== undefined) body.horaInicio = horaInicio;
+      if (horaFin !== undefined) body.horaFin = horaFin;
+      if (valor !== undefined) body.valor = valor;
       const res = await fetch("/api/malla", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: uid, fecha: fechaStr, valor }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error("Error al guardar");
       setEditDay(null);
       setValorLibre("");
+      setEditTipo("TRABAJO");
+      setEditHoraInicio("08:00");
+      setEditHoraFin("17:00");
       cargarMalla(uid);
     } catch { /* ignore */ }
     finally { setSaving(false); }
@@ -245,6 +281,11 @@ export default function CoordinadorMallaPage() {
           <label className="block text-sm font-medium text-gray-700 mb-1">Mes</label>
           <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="input-field" />
         </div>
+        {primaryTecnico && (
+          <button type="button" onClick={precargarMalla} disabled={precargando || loading} className="btn-secondary text-sm py-2">
+            {precargando ? "Precargando…" : "Precargar malla (L-V 08-17, Sáb 08-12, Dom/festivos descanso)"}
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs mb-4">
@@ -282,7 +323,14 @@ export default function CoordinadorMallaPage() {
                       } else if (selectedDays.size > 0) {
                         toggleDay(keyStr);
                       } else {
+                        const item = getItem(day);
                         setEditDay(day);
+                        if (item?.tipo) setEditTipo(item.tipo);
+                        else if (valor === "descanso") setEditTipo("DESCANSO");
+                        else if (valor === "disponible") setEditTipo("DISPONIBLE");
+                        else setEditTipo("TRABAJO");
+                        setEditHoraInicio(item?.horaInicio || "08:00");
+                        setEditHoraFin(item?.horaFin || "17:00");
                       }
                     }}
                     className={`w-full text-left text-xs rounded px-2 py-1 break-words border-2 transition-colors ${isSelected ? "border-blue-600 bg-blue-100 ring-2 ring-blue-400" : "border-transparent"} ${getClass(valor)}`}
@@ -290,24 +338,38 @@ export default function CoordinadorMallaPage() {
                     {valor || "—"}
                   </button>
                   {isEdit && (
-                    <div className="absolute top-full left-0 mt-1 z-10 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-64">
-                      <p className="text-xs font-medium text-gray-700 mb-2">Turnos:</p>
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {OPCIONES_TURNO.map((o) => (
-                          <button key={o} type="button" onClick={() => guardar(day, o)} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded hover:bg-blue-200">{o}</button>
-                        ))}
+                    <div className="absolute top-full left-0 mt-1 z-10 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-72">
+                      <p className="text-xs font-medium text-gray-700 mb-2">Tipo:</p>
+                      <select value={editTipo} onChange={(e) => setEditTipo(e.target.value as TipoDia)} className="input-field w-full text-xs py-1.5 mb-2">
+                        <option value="TRABAJO">Trabajo</option>
+                        <option value="DESCANSO">Descanso</option>
+                        <option value="DISPONIBLE">Disponible</option>
+                      </select>
+                      {editTipo === "TRABAJO" && (
+                        <div className="flex gap-2 mb-2">
+                          <div>
+                            <label className="text-xs text-gray-500">Inicio</label>
+                            <input type="time" value={editHoraInicio} onChange={(e) => setEditHoraInicio(e.target.value)} className="input-field w-full text-xs py-1" />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500">Fin</label>
+                            <input type="time" value={editHoraFin} onChange={(e) => setEditHoraFin(e.target.value)} className="input-field w-full text-xs py-1" />
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex gap-2 flex-wrap">
+                        <button type="button" onClick={() => guardar(day, editTipo === "DESCANSO" ? "descanso" : editTipo === "DISPONIBLE" ? "disponible" : `${editHoraInicio}-${editHoraFin}`, editTipo, editTipo === "TRABAJO" ? editHoraInicio : undefined, editTipo === "TRABAJO" ? editHoraFin : undefined)} disabled={saving} className="btn-primary text-xs py-1">Guardar</button>
+                        <button type="button" onClick={() => setEditDay(null)} className="text-gray-500 text-xs py-1">Cerrar</button>
                       </div>
-                      <p className="text-xs font-medium text-gray-700 mb-2">Novedades:</p>
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {OPCIONES_NOVEDAD.map((o) => (
-                          <button key={o} type="button" onClick={() => guardar(day, o)} className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded hover:bg-gray-200">{o}</button>
-                        ))}
+                      <p className="text-xs text-gray-500 mt-2">Rápido:</p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {OPCIONES_TURNO.map((o) => {
+                          const [h1, h2] = o.split("-").map((x) => x.length <= 2 ? `${x.padStart(2, "0")}:00` : `${x.slice(0, 2).padStart(2, "0")}:${x.slice(2)}`);
+                          return <button key={o} type="button" onClick={() => guardar(day, o, "TRABAJO", h1, h2)} className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded hover:bg-blue-200">{o}</button>;
+                        })}
+                        <button type="button" onClick={() => guardar(day, "descanso", "DESCANSO")} className="px-2 py-0.5 bg-cyan-100 text-cyan-800 text-xs rounded hover:bg-cyan-200">Descanso</button>
+                        <button type="button" onClick={() => guardar(day, "disponible", "DISPONIBLE")} className="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded hover:bg-green-200">Disponible</button>
                       </div>
-                      <div className="flex gap-2">
-                        <input type="text" value={valorLibre} onChange={(e) => setValorLibre(e.target.value)} placeholder="Otro valor" className="input-field flex-1 text-xs py-1" />
-                        <button type="button" onClick={() => { if (valorLibre.trim()) guardar(day, valorLibre.trim()); }} disabled={saving} className="btn-primary text-xs py-1">Guardar</button>
-                      </div>
-                      <button type="button" onClick={() => setEditDay(null)} className="text-gray-500 text-xs mt-2">Cerrar</button>
                     </div>
                   )}
                 </div>

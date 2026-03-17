@@ -74,7 +74,7 @@ interface ReporteData {
   alertas: Array<{ nombre: string; mensaje: string; tipo?: string }>;
 }
 
-type TabView = "turnos" | "equipo" | "foraneos";
+type TabView = "turnos" | "equipo" | "disponibilidades" | "foraneos";
 
 export default function CoordinadorPage() {
   const { data: session } = useSession();
@@ -90,6 +90,10 @@ export default function CoordinadorPage() {
   const [loadingReportes, setLoadingReportes] = useState(true);
   const [tabView, setTabView] = useState<TabView>("turnos");
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [disponibilidadesList, setDisponibilidadesList] = useState<Array<{ nombre: string; cedula: string; fecha: string; valor: number }>>([]);
+  const [foraneosList, setForaneosList] = useState<Array<{ nombre: string; cedula: string; cantidadForaneos: number; totalKm: number; totalPagar: number }>>([]);
+  const [loadingDisp, setLoadingDisp] = useState(false);
+  const [loadingForaneos, setLoadingForaneos] = useState(false);
 
   const cargarTurnos = useCallback(async () => {
     if (!session?.user?.zona) return;
@@ -120,6 +124,26 @@ export default function CoordinadorPage() {
 
   useEffect(() => { cargarTurnos(); }, [cargarTurnos]);
   useEffect(() => { if (tabView !== "turnos") cargarReportes(); }, [tabView, cargarReportes]);
+  useEffect(() => {
+    if (tabView === "disponibilidades" && session?.user?.zona) {
+      setLoadingDisp(true);
+      fetch(`/api/reportes/disponibilidades?desde=${inicio}&hasta=${fin}${tecnicoFilter !== "ALL" ? `&userId=${tecnicoFilter}` : ""}`)
+        .then((r) => r.json())
+        .then(setDisponibilidadesList)
+        .catch(() => setDisponibilidadesList([]))
+        .finally(() => setLoadingDisp(false));
+    }
+  }, [tabView, inicio, fin, tecnicoFilter, session?.user?.zona]);
+  useEffect(() => {
+    if (tabView === "foraneos" && session?.user?.zona) {
+      setLoadingForaneos(true);
+      fetch(`/api/reportes/foraneos?desde=${inicio}&hasta=${fin}${tecnicoFilter !== "ALL" ? `&userId=${tecnicoFilter}` : ""}`)
+        .then((r) => r.json())
+        .then(setForaneosList)
+        .catch(() => setForaneosList([]))
+        .finally(() => setLoadingForaneos(false));
+    }
+  }, [tabView, inicio, fin, tecnicoFilter, session?.user?.zona]);
 
   useEffect(() => {
     if (!session?.user?.zona) return;
@@ -222,8 +246,11 @@ export default function CoordinadorPage() {
         <button onClick={() => setTabView("equipo")} className={`px-4 py-2.5 text-sm font-medium border-b-2 flex items-center gap-1.5 ${tabView === "equipo" ? "border-primary-600 text-primary-700" : "border-transparent text-gray-500"}`}>
           <HiPhotograph className="h-4 w-4" />Reporte Equipo
         </button>
+        <button onClick={() => setTabView("disponibilidades")} className={`px-4 py-2.5 text-sm font-medium border-b-2 ${tabView === "disponibilidades" ? "border-primary-600 text-primary-700" : "border-transparent text-gray-500"}`}>
+          Disponibilidades
+        </button>
         <button onClick={() => setTabView("foraneos")} className={`px-4 py-2.5 text-sm font-medium border-b-2 flex items-center gap-1.5 ${tabView === "foraneos" ? "border-primary-600 text-primary-700" : "border-transparent text-gray-500"}`}>
-          <HiTruck className="h-4 w-4" />Foráneos
+          <HiTruck className="h-4 w-4" />Foráneos / Km
           {data && data.resumen.totalRegistrosForaneo > 0 && <span className="bg-orange-100 text-orange-700 text-xs font-bold px-1.5 py-0.5 rounded-full">{data.resumen.totalRegistrosForaneo}</span>}
         </button>
       </div>
@@ -250,7 +277,8 @@ export default function CoordinadorPage() {
           <KPICards data={{ totalTecnicos: data.resumen.totalTecnicos, horasOrdinarias: data.resumen.totalHorasOrdinarias, totalHorasExtra: data.resumen.totalHorasExtra, totalRecargos: data.resumen.totalRecargos, totalDisponibilidades: data.resumen.totalDisponibilidades }} showTeamMetrics />
           <GraficoHoras datos={data.detalle.map((d) => ({ nombre: d.nombre.split(" ")[0], horasOrdinarias: d.horasOrdinarias, heDiurna: d.heDiurna, heNocturna: d.heNocturna, recargos: d.totalRecargos }))} titulo="Horas por Técnico" />
           <DataTable columns={[
-            { key: "nombre", label: "Técnico", sortable: true },
+            { key: "nombre", label: "Nombre", sortable: true },
+            { key: "cedula", label: "Cédula", render: (d: DetalleUsuario) => d.cedula ?? "—" },
             { key: "totalTurnos", label: "Turnos" },
             { key: "horasOrdinarias", label: "Ordinarias" },
             { key: "totalHorasExtra", label: "HE Total" },
@@ -271,54 +299,52 @@ export default function CoordinadorPage() {
         </>
       )}
 
-      {tabView === "foraneos" && data && (
+      {tabView === "disponibilidades" && (
         <>
-          {data.resumen.totalKmRecorridos > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="card bg-orange-50 border-orange-200"><p className="text-xs text-orange-600 font-medium uppercase">Total Km</p><p className="text-2xl font-bold text-orange-800 mt-1">{data.resumen.totalKmRecorridos} km</p></div>
-              <div className="card bg-blue-50 border-blue-200"><p className="text-xs text-blue-600 font-medium uppercase">Registros Foráneos</p><p className="text-2xl font-bold text-blue-800 mt-1">{data.resumen.totalRegistrosForaneo}</p></div>
-              <div className="card bg-green-50 border-green-200"><p className="text-xs text-green-600 font-medium uppercase">Técnicos</p><p className="text-2xl font-bold text-green-800 mt-1">{data.detalle.filter((d) => d.registrosForaneo > 0).length}</p></div>
-            </div>
+          {loadingDisp ? (
+            <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
+          ) : disponibilidadesList.length === 0 ? (
+            <div className="card text-center py-12 text-gray-500">No hay disponibilidades en este período (días con tipo DISPONIBLE en la malla)</div>
+          ) : (
+            <DataTable
+              columns={[
+                { key: "nombre", label: "Nombre", sortable: true },
+                { key: "cedula", label: "Cédula" },
+                { key: "fecha", label: "Fecha" },
+                { key: "valor", label: "Valor ($80.000/día)", render: (r: { valor: number }) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(r.valor) },
+              ] as never}
+              data={disponibilidadesList as never}
+              searchable
+              searchPlaceholder="Buscar nombre..."
+            />
           )}
-          {data.detalle.filter((d) => d.registrosForaneo > 0).length === 0 ? (
+        </>
+      )}
+
+      {tabView === "foraneos" && (
+        <>
+          {loadingForaneos ? (
+            <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
+          ) : foraneosList.length === 0 ? (
             <div className="card text-center py-12"><HiTruck className="h-16 w-16 text-gray-300 mx-auto mb-4" /><p className="text-gray-500">No hay registros foráneos en este período</p></div>
           ) : (
-            <>
-              <DataTable columns={[
-                { key: "nombre", label: "Técnico" },
-                { key: "registrosForaneo", label: "Registros" },
-                { key: "totalKmRecorridos", label: "Km Total", render: (d: DetalleUsuario) => d.totalKmRecorridos > 0 ? <strong>{d.totalKmRecorridos} km</strong> : "—" },
-                { key: "fotos", label: "Fotos", render: (d: DetalleUsuario) => {
-                  const fotosConUrl = d.fotos.filter((f) => f.tipo === "FORANEO" && f.driveUrl);
-                  return fotosConUrl.length > 0 ? <button type="button" onClick={() => setExpandedUser(expandedUser === d.userId ? null : d.userId)} className="text-primary-600 hover:text-primary-800 text-xs font-medium">{fotosConUrl.length} fotos ▾</button> : "—";
-                } },
-              ] as never} data={data.detalle.filter((d) => d.registrosForaneo > 0) as never} searchable searchPlaceholder="Buscar técnico..." />
-              {expandedUser && (
-                <div className="card">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Detalle Foráneos — {data.detalle.find((d) => d.userId === expandedUser)?.nombre}</h4>
-                  <div className="space-y-2">
-                    {data.detalle.find((d) => d.userId === expandedUser)?.fotos.filter((f) => f.tipo === "FORANEO").map((foto) => (
-                      <div key={foto.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                        <div className="flex-1">
-                          <span className="text-sm text-gray-700">{new Date(foto.fecha).toLocaleDateString("es-CO", { day: "2-digit", month: "short" })}</span>
-                          {foto.kmRecorridos != null && <span className="ml-3 text-sm font-medium text-orange-700">{foto.kmRecorridos} km</span>}
-                          {foto.observaciones && <span className="ml-2 text-xs text-gray-400">— {foto.observaciones}</span>}
-                        </div>
-                        {foto.driveUrl && <a href={foto.driveUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-800 text-xs flex items-center gap-1"><HiExternalLink className="h-3.5 w-3.5" />Drive</a>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
+            <DataTable
+              columns={[
+                { key: "nombre", label: "Nombre", sortable: true },
+                { key: "cedula", label: "Cédula" },
+                { key: "cantidadForaneos", label: "Cant. Foráneos" },
+                { key: "totalKm", label: "Total Km", render: (r: { totalKm: number }) => `${r.totalKm} km` },
+                { key: "totalPagar", label: "Total a Pagar", render: (r: { totalPagar: number }) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(r.totalPagar) },
+              ] as never}
+              data={foraneosList as never}
+              searchable
+              searchPlaceholder="Buscar nombre..."
+            />
           )}
         </>
       )}
 
       {tabView === "equipo" && loadingReportes && !data && (
-        <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
-      )}
-      {tabView === "foraneos" && loadingReportes && !data && (
         <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
       )}
     </div>

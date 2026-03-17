@@ -41,6 +41,9 @@ export async function GET(req: NextRequest) {
     userId: m.userId,
     fecha: m.fecha.toISOString().split("T")[0],
     valor: m.valor,
+    tipo: m.tipo ?? undefined,
+    horaInicio: m.horaInicio ?? undefined,
+    horaFin: m.horaFin ?? undefined,
   }));
 
   return NextResponse.json(mallaConKey);
@@ -51,11 +54,17 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const body = await req.json();
-  const { userId, fecha, valor } = body;
+  const { userId, fecha, valor, tipo, horaInicio, horaFin } = body;
 
   if (!userId || !fecha) {
     return NextResponse.json({ error: "userId y fecha requeridos" }, { status: 400 });
   }
+
+  let valorFinal = valor;
+  if (tipo === "DESCANSO") valorFinal = "descanso";
+  else if (tipo === "DISPONIBLE") valorFinal = "disponible";
+  else if (tipo === "TRABAJO" && horaInicio && horaFin) valorFinal = `${horaInicio}-${horaFin}`;
+  if (valorFinal === undefined) valorFinal = valor ?? "";
 
   if (session.user.role === "TECNICO" && userId !== session.user.userId) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
@@ -74,12 +83,24 @@ export async function POST(req: NextRequest) {
   }
   const fechaDate = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
 
+  const updateData: { valor: string; tipo?: "TRABAJO" | "DESCANSO" | "DISPONIBLE"; horaInicio?: string | null; horaFin?: string | null } = { valor: valorFinal ?? "" };
+  if (tipo) updateData.tipo = tipo;
+  if (horaInicio !== undefined) updateData.horaInicio = horaInicio || null;
+  if (horaFin !== undefined) updateData.horaFin = horaFin || null;
+
   await prisma.mallaTurno.upsert({
     where: {
       userId_fecha: { userId, fecha: fechaDate },
     },
-    update: { valor: valor ?? "" },
-    create: { userId, fecha: fechaDate, valor: valor ?? "" },
+    update: updateData,
+    create: {
+      userId,
+      fecha: fechaDate,
+      valor: updateData.valor,
+      tipo: updateData.tipo ?? "TRABAJO",
+      horaInicio: updateData.horaInicio ?? undefined,
+      horaFin: updateData.horaFin ?? undefined,
+    },
   });
 
   return NextResponse.json({ ok: true });

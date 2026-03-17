@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
   const fin = searchParams.get("fin");
   const zona = searchParams.get("zona");
   const userId = searchParams.get("userId");
+  const rol = searchParams.get("rol");
 
   if (!inicio || !fin) {
     return NextResponse.json({ error: "Parámetros inicio y fin requeridos" }, { status: 400 });
@@ -26,6 +27,7 @@ export async function GET(req: NextRequest) {
   const whereUser: Record<string, unknown> = { isActive: true };
   if (zona && zona !== "ALL") whereUser.zona = zona;
   if (userId) whereUser.id = userId;
+  if (rol && rol !== "ALL") whereUser.role = rol;
 
   if (session.user.role === "COORDINADOR") {
     whereUser.zona = session.user.zona;

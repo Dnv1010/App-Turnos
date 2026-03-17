@@ -19,6 +19,12 @@ enum Zona {
   COSTA
 }
 
+enum TipoDia {
+  TRABAJO
+  DESCANSO
+  DISPONIBLE
+}
+
 model User {
   id             String          @id @default(cuid())
   cedula         String          @unique
@@ -68,12 +74,15 @@ model Turno {
 }
 
 model MallaTurno {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  fecha     DateTime @db.Date
-  valor     String
-  createdAt DateTime @default(now())
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  fecha      DateTime  @db.Date
+  valor      String
+  tipo       TipoDia?  @default(TRABAJO)
+  horaInicio String?
+  horaFin    String?
+  createdAt  DateTime  @default(now())
 
   @@unique([userId, fecha])
 }
