@@ -12,13 +12,17 @@ export async function uploadToDrive(
   base64Data: string,
   fileName: string
 ): Promise<UploadResult> {
+  if (!base64Data) throw new Error("[Drive] base64Data es undefined o vacío");
+
   // Diagnóstico: variables de entorno (no loguear el valor de la key)
   console.log("[Drive] EMAIL:", process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
   console.log("[Drive] KEY exists:", !!process.env.GOOGLE_PRIVATE_KEY);
   console.log("[Drive] FOLDER:", process.env.GOOGLE_DRIVE_FOLDER_ID);
 
-  const base64Content = base64Data.replace(/^data:image\/\w+;base64,/, "");
-  const buffer = Buffer.from(base64Content, "base64");
+  const base64Clean = base64Data.includes(",")
+    ? base64Data.split(",")[1]
+    : base64Data;
+  const buffer = Buffer.from(base64Clean, "base64");
 
   if (!DRIVE_FOLDER_ID) {
     console.error("[Drive] GOOGLE_DRIVE_FOLDER_ID no está definido");

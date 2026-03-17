@@ -18,6 +18,9 @@ export async function POST(req: NextRequest) {
 
   if (base64Data) {
     try {
+      console.log("[Fotos] base64Data length:", base64Data?.length);
+      console.log("[Fotos] base64Data prefix:", base64Data?.substring(0, 30));
+
       const uid = userId || session.user.userId;
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const fileName = `turno_${tipo || "FICHAJE"}_${uid}_${timestamp}.jpg`;
