@@ -94,6 +94,7 @@ export default function CoordinadorPage() {
   const [foraneosList, setForaneosList] = useState<Array<{ nombre: string; cedula: string; cantidadForaneos: number; totalKm: number; totalPagar: number }>>([]);
   const [loadingDisp, setLoadingDisp] = useState(false);
   const [loadingForaneos, setLoadingForaneos] = useState(false);
+  const [reporteError, setReporteError] = useState<string | null>(null);
 
   const cargarTurnos = useCallback(async () => {
     if (!session?.user?.zona) return;
@@ -113,13 +114,24 @@ export default function CoordinadorPage() {
   const cargarReportes = useCallback(async () => {
     if (!session?.user?.zona) return;
     setLoadingReportes(true);
+    setReporteError(null);
     const params = new URLSearchParams({ inicio, fin, zona: session.user.zona });
     if (tecnicoFilter !== "ALL") params.set("userId", tecnicoFilter);
     try {
       const res = await fetch(`/api/reportes?${params}`);
-      setData(await res.json());
-    } catch { /* ignore */ }
-    finally { setLoadingReportes(false); }
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        setData(null);
+        setReporteError(json?.error || `Error ${res.status}`);
+        return;
+      }
+      setData(json);
+    } catch (e) {
+      setData(null);
+      setReporteError(e instanceof Error ? e.message : "Error al cargar reportes");
+    } finally {
+      setLoadingReportes(false);
+    }
   }, [session?.user?.zona, inicio, fin, tecnicoFilter]);
 
   useEffect(() => { cargarTurnos(); }, [cargarTurnos]);
@@ -179,8 +191,8 @@ export default function CoordinadorPage() {
   const columnsTurnos = [
     { key: "user", label: "Técnico", render: (t: TurnoRow) => t.user?.nombre ?? "—" },
     { key: "fecha", label: "Fecha", render: (t: TurnoRow) => format(new Date(t.fecha), "dd MMM yyyy", { locale: es }) },
-    { key: "horaEntrada", label: "Entrada", render: (t: TurnoRow) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) },
-    { key: "horaSalida", label: "Salida", render: (t: TurnoRow) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "—" },
+    { key: "horaEntrada", label: "Entrada", render: (t: TurnoRow) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
+    { key: "horaSalida", label: "Salida", render: (t: TurnoRow) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
     { key: "latEntrada", label: "Ubicación inicio", render: (t: TurnoRow) => t.latEntrada != null && t.lngEntrada != null ? <a href={`https://www.google.com/maps?q=${t.latEntrada},${t.lngEntrada}`} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline flex items-center gap-1"><HiLocationMarker className="h-3.5 w-3.5" />Mapa</a> : "—" },
     { key: "latSalida", label: "Ubicación fin", render: (t: TurnoRow) => t.latSalida != null && t.lngSalida != null ? <a href={`https://www.google.com/maps?q=${t.latSalida},${t.lngSalida}`} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline flex items-center gap-1"><HiLocationMarker className="h-3.5 w-3.5" />Mapa</a> : "—" },
     { key: "startPhotoUrl", label: "Foto inicio", render: (t: TurnoRow) => t.startPhotoUrl ? <a href={t.startPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline text-xs">Ver</a> : "—" },
@@ -266,9 +278,17 @@ export default function CoordinadorPage() {
         </div>
       )}
 
-      {tabView === "equipo" && data && (
+      {tabView === "equipo" && (
         <>
-          {data.alertas.length > 0 && (
+          {loadingReportes && !data ? (
+            <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
+          ) : reporteError && !data ? (
+            <div className="card text-center py-12 text-amber-700">{reporteError}</div>
+          ) : !data?.detalle?.length ? (
+            <div className="card text-center py-12 text-gray-500">No hay registros para este período</div>
+          ) : data ? (
+        <>
+          {data.alertas?.length > 0 && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <h4 className="text-sm font-semibold text-yellow-800 mb-2">Alertas</h4>
               <ul className="space-y-1">{data.alertas.map((a, i) => <li key={i} className="text-sm text-yellow-700">⚠ {a.mensaje}</li>)}</ul>
@@ -296,6 +316,8 @@ export default function CoordinadorPage() {
               return km > 0 ? `${Math.round(km * 100) / 100} km` : "—";
             } },
           ] as never} data={data.detalle as never} searchable searchPlaceholder="Buscar técnico..." />
+            </>
+          ) : null}
         </>
       )}
 

@@ -54,13 +54,33 @@ export default function CoordinadorMallaPage() {
     setTecnicos(data.tecnicos || []);
   }, [session?.user?.zona]);
 
-  const cargarMalla = useCallback(async (userId: string) => {
+  const cargarMalla = useCallback(async (userId: string, autoPrecarga = true) => {
     if (!userId || !mes) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/malla?userId=${userId}&mes=${mes}`);
-      const data = await res.json();
-      setMalla(Array.isArray(data) ? data : []);
+      let data: unknown = [];
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : [];
+      } catch {
+        data = [];
+      }
+      const list = Array.isArray(data) ? data : [];
+      setMalla(list);
+      if (list.length === 0 && autoPrecarga) {
+        const precargaRes = await fetch("/api/malla/precarga", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, mes }),
+        });
+        const precargaData = precargaRes.ok ? await precargaRes.json().catch(() => ({})) : null;
+        if (precargaData?.ok) {
+          const res2 = await fetch(`/api/malla?userId=${userId}&mes=${mes}`);
+          const data2 = await res2.json().catch(() => []);
+          setMalla(Array.isArray(data2) ? data2 : []);
+        }
+      }
     } catch { setMalla([]); }
     finally { setLoading(false); }
   }, [mes]);

@@ -163,8 +163,8 @@ export default function CoordinadorTurnosPage() {
   const columns = [
     { key: "user", label: "Técnico", render: (t: TurnoRow) => t.user?.nombre ?? "—" },
     { key: "fecha", label: "Fecha", render: (t: TurnoRow) => format(new Date(t.fecha), "dd MMM yyyy", { locale: es }) },
-    { key: "horaEntrada", label: "Entrada", render: (t: TurnoRow) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) },
-    { key: "horaSalida", label: "Salida", render: (t: TurnoRow) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "—" },
+    { key: "horaEntrada", label: "Entrada", render: (t: TurnoRow) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
+    { key: "horaSalida", label: "Salida", render: (t: TurnoRow) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
     { key: "totalHoras", label: "Total h", render: (t: TurnoRow) => totalHoras(t) ?? "—" },
     { key: "he", label: "HE", render: (t: TurnoRow) => totalHE(t) },
     { key: "rec", label: "Rec.", render: (t: TurnoRow) => totalRec(t) },
@@ -243,7 +243,7 @@ export default function CoordinadorTurnosPage() {
             <div className="p-5 space-y-4">
               <div className="bg-gray-50 rounded-lg p-3 text-sm">
                 <p className="text-gray-500">Turno actual:</p>
-                <p className="font-medium">{new Date(editingTurno.horaEntrada).toLocaleTimeString("es-CO")} → {editingTurno.horaSalida ? new Date(editingTurno.horaSalida).toLocaleTimeString("es-CO") : "En curso"}</p>
+                <p className="font-medium">{new Date(editingTurno.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })} → {editingTurno.horaSalida ? new Date(editingTurno.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "En curso"}</p>
                 <p className="text-gray-500 mt-1">Total: {totalHoras(editingTurno)}h | HE: {totalHE(editingTurno)}h</p>
               </div>
               <div className="grid grid-cols-2 gap-3">

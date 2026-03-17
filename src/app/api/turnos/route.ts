@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { calcularTurno, calcularHorasSemanales, calcularHorasSemanalesConMalla, getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
 import { getDay } from "date-fns";
+import { nowColombia } from "@/lib/utils";
 
 function dateKey(d: Date): string {
   return d.toISOString().split("T")[0];
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Ya hay un turno abierto", turno: turnoAbierto }, { status: 400 });
   }
 
-  const ahora = new Date();
+  const ahora = nowColombia();
   const turno = await prisma.turno.create({
     data: {
       userId: uid,
@@ -98,7 +99,7 @@ export async function PATCH(req: NextRequest) {
   if (turno.userId !== session.user.userId) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   if (turno.horaSalida) return NextResponse.json({ error: "Turno ya cerrado" }, { status: 400 });
 
-  const horaSalida = new Date();
+  const horaSalida = nowColombia();
 
   const inicioSemana = getInicioSemana(turno.fecha);
   const finSemana = getFinSemana(turno.fecha);

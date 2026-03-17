@@ -215,7 +215,7 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje }: BotonFi
 
       {estaEnTurno && turnoActivo && step === "idle" && (
         <p className="text-sm text-gray-500">
-          Turno iniciado: {new Date(turnoActivo.horaEntrada).toLocaleTimeString("es-CO")}
+          Turno iniciado: {new Date(turnoActivo.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })}
         </p>
       )}
       {ubicacion && step === "idle" && (

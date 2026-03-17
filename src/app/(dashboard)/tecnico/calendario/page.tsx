@@ -119,7 +119,7 @@ export default function CalendarioPage() {
                 {turno && (
                   <div className="text-[10px] space-y-0.5 mt-0.5">
                     <div className="text-green-700 bg-green-50 px-1.5 py-0.5 rounded truncate">
-                      {new Date(turno.horaEntrada).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })} - {turno.horaSalida ? new Date(turno.horaSalida).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "..."}
+                      {new Date(turno.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })} - {turno.horaSalida ? new Date(turno.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "..."}
                     </div>
                     {turno.horasOrdinarias > 0 && <div className="text-gray-500">{turno.horasOrdinarias}h ord</div>}
                   </div>
