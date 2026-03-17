@@ -1,8 +1,16 @@
 {
   "name": "app-turnos",
   "version": "1.0.0",
-  "description": "Sistema de gestión de turnos, fichajes y horas extras para BIA Colombia. Incluye roles (técnico, coordinador, manager, admin), zonas (Bogotá/Costa), fotos con cámara, integración con Google Drive y reportes.",
-  "main": "index.js",
+  "{
+  "name": "app-turnos",
+  "version": "1.0.0",
+  "prisma": {
+    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
+  },
+  "scripts": {
+    ...
+  }
+}
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -42,6 +50,10 @@
   "devDependencies": {
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.1.6",
+    "ts-node": "^10.9.2",
     "tsx": "^4.21.0"
+  },
+  "prisma": {
+    "seed": "ts-node --compiler-options {\\module\\:\\CommonJS\\} prisma/seed.ts"
   }
 }
