@@ -15,7 +15,7 @@
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "pwa:icons": "node scripts/generate-pwa-icons.mjs"
+    "pwa:icons": "node scripts/generate-icons.mjs"
   },
   "keywords": [],
   "author": "",
@@ -45,6 +45,7 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.1.6",
     "sharp": "^0.34.5",
