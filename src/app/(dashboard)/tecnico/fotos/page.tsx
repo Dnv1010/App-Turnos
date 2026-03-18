@@ -130,7 +130,8 @@ export default function FotosPage() {
         setObservaciones("");
         setTipo("FORANEO");
         setTimeout(() => setExito(false), 3000);
-        cargarForaneoActivo();
+        await cargarForaneoActivo();
+        await cargarHistorial();
       } else {
         const d = await res.json();
         alert(d.error || "Error al iniciar foráneo");
@@ -168,7 +169,8 @@ export default function FotosPage() {
         setPasoFinalFotoPreview(null);
         setKmFinalPaso2("");
         setTimeout(() => setExito(false), 3000);
-        cargarForaneoActivo();
+        await cargarForaneoActivo();
+        await cargarHistorial();
       } else {
         const d = await res.json();
         alert(d.error || "Error al finalizar foráneo");

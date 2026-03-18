@@ -132,6 +132,7 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje, onTurnoFi
       setIsCerrandoTurno(false);
       onFichaje();
       onTurnoFinalizado?.();
+      if (!onTurnoFinalizado) window.location.reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
       setStep("preview");

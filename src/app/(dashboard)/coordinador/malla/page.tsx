@@ -220,7 +220,8 @@ export default function CoordinadorMallaPage() {
       setEditTipo("TRABAJO");
       setEditHoraInicio("08:00");
       setEditHoraFin("17:00");
-      cargarMalla(uid);
+      await cargarMalla(uid);
+      setMalla((prev) => [...prev]);
     } catch { /* ignore */ }
     finally { setSaving(false); }
   };
