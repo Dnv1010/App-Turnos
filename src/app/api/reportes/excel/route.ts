@@ -133,35 +133,30 @@ export async function GET(req: NextRequest) {
       Valor: VALOR_DISPONIBILIDAD,
     }));
 
-    const dataForaneos = fotosForaneos.map((f) => {
-      const km =
-        f.kmInicial != null && f.kmFinal != null && f.kmFinal > f.kmInicial
-          ? f.kmFinal - f.kmInicial
-          : 0;
-      return {
-        Nombre: f.user.nombre,
-        Cédula: f.user.cedula,
-        Fecha: dateKey(f.createdAt),
-        "Cantidad Foráneos": 1,
-        "Total Km": Math.round(km * 100) / 100,
-        "Total a Pagar": Math.round(km * TARIFA_KM_FORANEO),
-      };
+    const foraneosPorTecnico: Record<string, {
+      Nombre: string; Cédula: string | null;
+      "Cantidad Foráneos": number; "Total Km": number; "Total a Pagar": number;
+    }> = {};
+    
+    fotosForaneos.forEach((f) => {
+      const key = f.userId;
+      const km = f.kmInicial != null && f.kmFinal != null && f.kmFinal > f.kmInicial
+        ? f.kmFinal - f.kmInicial : 0;
+      if (!foraneosPorTecnico[key]) {
+        foraneosPorTecnico[key] = {
+          Nombre: f.user.nombre,
+          Cédula: f.user.cedula,
+          "Cantidad Foráneos": 0,
+          "Total Km": 0,
+          "Total a Pagar": 0,
+        };
+      }
+      foraneosPorTecnico[key]["Cantidad Foráneos"] += 1;
+      foraneosPorTecnico[key]["Total Km"] += km;
+      foraneosPorTecnico[key]["Total a Pagar"] += Math.round(km * TARIFA_KM_FORANEO);
     });
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataTurnos), "Turnos");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataDisponibilidades), "Disponibilidades");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataForaneos), "Foraneos");
-    const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-
-    return new NextResponse(buffer, {
-      headers: {
-        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="reporte_${desde}_${hasta}.xlsx"`,
-      },
-    });
-  } catch (e) {
-    console.error("[reportes/excel]", e);
-    return NextResponse.json({ error: "Error al generar Excel" }, { status: 500 });
-  }
-}
+    
+    const dataForaneos = Object.values(foraneosPorTecnico).map((r) => ({
+      ...r,
+      "Total Km": Math.round(r["Total Km"] * 100) / 100,
+    })); 
