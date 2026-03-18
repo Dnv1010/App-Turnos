@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
     if (!desde || !hasta) {
       return NextResponse.json(
-        { error: "Parámetros desde y hasta requeridos (YYYY-MM-DD)" },
+        { error: "Parametros desde y hasta requeridos (YYYY-MM-DD)" },
         { status: 400 }
       );
     }
@@ -60,6 +60,7 @@ export async function GET(req: NextRequest) {
       select: { id: true },
     });
     const userIds = usuarios.map((u) => u.id);
+
     if (userIds.length === 0) {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([]), "Turnos");
@@ -110,7 +111,7 @@ export async function GET(req: NextRequest) {
           : 0;
       return {
         Nombre: t.user.nombre,
-        Cédula: t.user.cedula,
+        Cedula: t.user.cedula,
         Fecha: dateKey(t.fecha),
         Entrada: timeColombia(t.horaEntrada),
         Salida: t.horaSalida ? timeColombia(t.horaSalida) : "",
@@ -128,35 +129,58 @@ export async function GET(req: NextRequest) {
 
     const dataDisponibilidades = mallaDisponibles.map((m) => ({
       Nombre: m.user.nombre,
-      Cédula: m.user.cedula,
+      Cedula: m.user.cedula,
       Fecha: dateKey(m.fecha),
       Valor: VALOR_DISPONIBILIDAD,
     }));
 
     const foraneosPorTecnico: Record<string, {
-      Nombre: string; Cédula: string | null;
-      "Cantidad Foráneos": number; "Total Km": number; "Total a Pagar": number;
+      Nombre: string;
+      Cedula: string | null;
+      "Cantidad Foraneos": number;
+      "Total Km": number;
+      "Total a Pagar": number;
     }> = {};
-    
+
     fotosForaneos.forEach((f) => {
       const key = f.userId;
-      const km = f.kmInicial != null && f.kmFinal != null && f.kmFinal > f.kmInicial
-        ? f.kmFinal - f.kmInicial : 0;
+      const km =
+        f.kmInicial != null && f.kmFinal != null && f.kmFinal > f.kmInicial
+          ? f.kmFinal - f.kmInicial
+          : 0;
       if (!foraneosPorTecnico[key]) {
         foraneosPorTecnico[key] = {
           Nombre: f.user.nombre,
-          Cédula: f.user.cedula,
-          "Cantidad Foráneos": 0,
+          Cedula: f.user.cedula,
+          "Cantidad Foraneos": 0,
           "Total Km": 0,
           "Total a Pagar": 0,
         };
       }
-      foraneosPorTecnico[key]["Cantidad Foráneos"] += 1;
+      foraneosPorTecnico[key]["Cantidad Foraneos"] += 1;
       foraneosPorTecnico[key]["Total Km"] += km;
       foraneosPorTecnico[key]["Total a Pagar"] += Math.round(km * TARIFA_KM_FORANEO);
     });
-    
+
     const dataForaneos = Object.values(foraneosPorTecnico).map((r) => ({
       ...r,
       "Total Km": Math.round(r["Total Km"] * 100) / 100,
-    })); 
+    }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataTurnos), "Turnos");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataDisponibilidades), "Disponibilidades");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataForaneos), "Foraneos");
+    const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+
+    return new NextResponse(buffer, {
+      headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="reporte_${desde}_${hasta}.xlsx"`,
+      },
+    });
+  } catch (e) {
+    console.error("[reportes/excel]", e);
+    return NextResponse.json({ error: "Error al generar Excel" }, { status: 500 });
+  }
+}
