@@ -43,6 +43,7 @@ export default function CoordinadorMallaPage() {
   const [mallaModalOpen, setMallaModalOpen] = useState(false);
   const [selectedTecnicos, setSelectedTecnicos] = useState<Set<string>>(new Set());
   const [showTecnicoDropdown, setShowTecnicoDropdown] = useState(false);
+  const [festivosSet, setFestivosSet] = useState<Set<string>>(new Set());
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const primaryTecnico = selectedTecnicos.size > 0 ? Array.from(selectedTecnicos)[0] : null;
@@ -87,6 +88,18 @@ export default function CoordinadorMallaPage() {
 
   useEffect(() => { cargarTecnicos(); }, [cargarTecnicos]);
   useEffect(() => { if (primaryTecnico) cargarMalla(primaryTecnico); }, [primaryTecnico, cargarMalla]);
+
+  useEffect(() => {
+    const [y, m] = mes.split("-").map(Number);
+    const start = startOfMonth(new Date(y, m - 1));
+    const end = endOfMonth(new Date(y, m - 1));
+    const inicioStr = format(start, "yyyy-MM-dd");
+    const finStr = format(end, "yyyy-MM-dd");
+    fetch(`/api/festivos?inicio=${inicioStr}&fin=${finStr}`)
+      .then((r) => r.json())
+      .then((data: { festivos?: string[] }) => setFestivosSet(new Set(data.festivos ?? [])))
+      .catch(() => setFestivosSet(new Set()));
+  }, [mes]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -334,9 +347,16 @@ export default function CoordinadorMallaPage() {
               const keyStr = dateKey(day);
               const isSelected = selectedDays.has(keyStr);
               const isEdit = editDay && isSameDay(editDay, day);
+              const esDomingo = day.getDay() === 0;
+              const esFestivo = festivosSet.has(keyStr);
+              const esRojo = esDomingo || esFestivo;
               return (
                 <div key={day.toISOString()} className="min-h-[80px] border border-gray-200 rounded-lg p-2 relative">
-                  <div className="text-xs text-gray-500 mb-1">{format(day, "d")}</div>
+                  <div className="text-xs mb-1">
+                    <span style={{ color: esRojo ? "#ef4444" : "inherit", fontWeight: esRojo ? "bold" : "normal" }}>
+                      {format(day, "d")}
+                    </span>
+                  </div>
                   <button
                     type="button"
                     onClick={(e) => {
