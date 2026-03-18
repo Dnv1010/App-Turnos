@@ -4,7 +4,6 @@ import { useSession } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
-import * as XLSX from "xlsx";
 import KPICards from "@/components/dashboard/KPICards";
 import GraficoHoras from "@/components/dashboard/GraficoHoras";
 import DataTable from "@/components/ui/DataTable";
@@ -191,51 +190,11 @@ export default function CoordinadorPage() {
 
   const exportarExcel = async () => {
     if (!session?.user?.zona) return;
-    const params = `desde=${inicio}&hasta=${fin}${tecnicoFilter !== "ALL" ? `&userId=${tecnicoFilter}` : ""}`;
-    const [dispRes, foraneosRes] = await Promise.all([
-      fetch(`/api/reportes/disponibilidades?${params}`),
-      fetch(`/api/reportes/foraneos?${params}`),
-    ]);
-    const listDisp = await dispRes.json().catch(() => []);
-    const listForaneos = await foraneosRes.json().catch(() => []);
-    const tecnicosOnly = (d: DetalleUsuario) => d.role === "TECNICO" || !d.role;
-    const dataTurnos = (data?.detalle ?? [])
-      .filter(tecnicosOnly)
-      .flatMap((d) =>
-        (d.turnos ?? []).map((t) => ({
-          Nombre: d.nombre,
-          Cédula: d.cedula ?? "",
-          Fecha: format(new Date(t.fecha), "yyyy-MM-dd", { locale: es }),
-          Entrada: t.horaEntrada ? new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "",
-          Salida: t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "",
-          "Horas Ordinarias": Math.max(0, t.horasOrdinarias ?? 0),
-          "HE Diurna": t.heDiurna ?? 0,
-          "HE Nocturna": t.heNocturna ?? 0,
-          "Recargo Nocturno": t.recNocturno ?? 0,
-          "Recargo Dominical": t.recDominical ?? 0,
-          "Recargo Festivo": t.recNoctDominical ?? 0,
-        }))
-      );
-    const dataDisponibilidades = (Array.isArray(listDisp) ? listDisp : []).map((r: { nombre: string; cedula: string; fecha: string; valor: number }) => ({
-      Nombre: r.nombre,
-      Cédula: r.cedula,
-      Fecha: r.fecha,
-      "Valor ($80,000/día)": r.valor,
-    }));
-    const dataForaneos = (Array.isArray(listForaneos) ? listForaneos : []).map((r: { nombre: string; cedula: string; cantidadForaneos: number; totalKm: number; totalPagar: number }) => ({
-      Nombre: r.nombre,
-      Cédula: r.cedula,
-      Fecha: `${inicio} a ${fin}`,
-      "Cantidad Foráneos": r.cantidadForaneos,
-      "Total Km": r.totalKm,
-      "Total a Pagar (km × $1,100)": r.totalPagar,
-    }));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataTurnos), "Turnos");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataDisponibilidades), "Disponibilidades");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataForaneos), "Foraneos-Km");
-    const buffer = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const params = new URLSearchParams({ desde: inicio, hasta: fin });
+    if (tecnicoFilter !== "ALL") params.set("userId", tecnicoFilter);
+    const res = await fetch(`/api/reportes/excel?${params}`);
+    if (!res.ok) return;
+    const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

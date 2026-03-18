@@ -160,6 +160,20 @@ export default function ReportesPage() {
     URL.revokeObjectURL(url);
   };
 
+  const exportarExcel = async () => {
+    const params = new URLSearchParams({ desde: inicio, hasta: fin });
+    if (zona !== "ALL") params.set("zona", zona);
+    const res = await fetch(`/api/reportes/excel?${params}`);
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `reporte_completo_${inicio}_${fin}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const exportarCSVForaneos = () => {
     if (!data?.foraneos?.length) return;
     const headers = ["Fecha", "Técnico", "Cédula", "Correo", "Tipo", "Km Inicial", "Km Final", "Distancia", "Observaciones", "Foto URL"];
@@ -230,6 +244,9 @@ export default function ReportesPage() {
           <div className="flex flex-wrap gap-2">
             <button onClick={exportarCSV} className="btn-secondary flex items-center gap-2">
               <HiDownload className="h-5 w-5" />Exportar CSV
+            </button>
+            <button onClick={() => void exportarExcel()} className="btn-secondary flex items-center gap-2">
+              <HiDownload className="h-5 w-5" />Exportar Excel
             </button>
             {data.foraneos && data.foraneos.length > 0 && (
               <button onClick={exportarCSVForaneos} className="btn-secondary flex items-center gap-2">
