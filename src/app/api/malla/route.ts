@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
     }
     const fechaDate = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
 
-    const updateData: { valor: string; tipo?: "TRABAJO" | "DESCANSO" | "DISPONIBLE"; horaInicio?: string | null; horaFin?: string | null } = { valor: valorFinal ?? "" };
+    const updateData: { valor: string; tipo?: "TRABAJO" | "DESCANSO" | "DISPONIBLE" | "DIA_FAMILIA" | "INCAPACITADO" | "VACACIONES" | "MEDIO_CUMPLE"; horaInicio?: string | null; horaFin?: string | null } = { valor: valorFinal ?? "" };
     if (tipo) updateData.tipo = tipo;
     if (horaInicio !== undefined) updateData.horaInicio = horaInicio || null;
     if (horaFin !== undefined) updateData.horaFin = horaFin || null;

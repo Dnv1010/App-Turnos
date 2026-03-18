@@ -51,7 +51,7 @@ export function getOrdinaryMinutes(dow: number, mallaVal: string | null | undefi
   )
     return 0;
   if (v === "disponible") return 0;
-  if (v.includes("medio dia") && v.includes("cumple")) {
+  if (v.includes("medio") && v.includes("cumple")) {
     if (dow === 6) return 0;
     return 240;
   }

@@ -8,7 +8,7 @@ import { HiChevronDown } from "react-icons/hi";
 const OPCIONES_TURNO = ["8-17", "6-14", "14-22", "22-6", "8-14"];
 const OPCIONES_NOVEDAD = ["Disponible", "Descanso", "Vacaciones", "Día de la familia", "Semana Santa", "Medio día cumpleaños", "Keynote"];
 
-type TipoDia = "TRABAJO" | "DESCANSO" | "DISPONIBLE";
+type TipoDia = "TRABAJO" | "DESCANSO" | "DISPONIBLE" | "DIA_FAMILIA" | "INCAPACITADO" | "VACACIONES" | "MEDIO_CUMPLE";
 
 interface MallaItem {
   userId: string;
@@ -139,10 +139,13 @@ export default function CoordinadorMallaPage() {
     const tipo = item?.tipo;
     const v = (valor || "").toLowerCase();
     if (!valor) return { backgroundColor: "#f9fafb", color: "#6b7280" };
-    if (tipo === "DESCANSO" || v.includes("descanso") || v.includes("vacacion")) return { backgroundColor: "#f3f4f6", color: "#6b7280" };
+    if (tipo === "DESCANSO" || v.includes("descanso")) return { backgroundColor: "#f3f4f6", color: "#6b7280" };
     if (tipo === "DISPONIBLE" || v === "disponible") return { backgroundColor: "#dcfce7", color: "#15803d" };
+    if (tipo === "DIA_FAMILIA" || v.includes("familia") || v.includes("día de la familia")) return { backgroundColor: "#f3e8ff", color: "#7e22ce" };
+    if (tipo === "INCAPACITADO" || v.includes("incapacitado")) return { backgroundColor: "#ffedd5", color: "#c2410c" };
+    if (tipo === "VACACIONES" || v.includes("vacacion")) return { backgroundColor: "#e0f2fe", color: "#0369a1" };
+    if (tipo === "MEDIO_CUMPLE" || (v.includes("medio") && v.includes("cumple"))) return { backgroundColor: "#fce7f3", color: "#be185d" };
     if (v.includes("festivo") || v.includes("semana santa")) return { backgroundColor: "#fef9c3", color: "#854d0e" };
-    if (v.includes("familia") || v.includes("día de la familia")) return { backgroundColor: "#f3e8ff", color: "#7e22ce" };
     if (tipo === "TRABAJO" || OPCIONES_TURNO.some((o) => valor.includes(o) || /^\d+-\d+$/.test(valor))) return { backgroundColor: "#dbeafe", color: "#1d4ed8" };
     return { backgroundColor: "#f3f4f6", color: "#6b7280" };
   };
@@ -323,12 +326,15 @@ export default function CoordinadorMallaPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs mb-4">
-        <span className="px-2 py-1 rounded" style={{ backgroundColor: "#dbeafe", color: "#1d4ed8" }}>TRABAJO</span>
-        <span className="px-2 py-1 rounded" style={{ backgroundColor: "#f3f4f6", color: "#6b7280" }}>DESCANSO</span>
-        <span className="px-2 py-1 rounded" style={{ backgroundColor: "#dcfce7", color: "#15803d" }}>DISPONIBLE</span>
-        <span className="px-2 py-1 rounded" style={{ backgroundColor: "#fef9c3", color: "#854d0e" }}>FESTIVO</span>
-        <span className="px-2 py-1 rounded" style={{ backgroundColor: "#f3e8ff", color: "#7e22ce" }}>DÍA FAMILIA</span>
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 text-xs mb-4">
+        <span className="px-2 py-1 rounded" style={{ backgroundColor: "#dbeafe", color: "#1d4ed8" }}>Trabajo</span>
+        <span className="px-2 py-1 rounded" style={{ backgroundColor: "#f3f4f6", color: "#6b7280" }}>Descanso</span>
+        <span className="px-2 py-1 rounded" style={{ backgroundColor: "#dcfce7", color: "#15803d" }}>Disponible</span>
+        <span className="px-2 py-1 rounded" style={{ backgroundColor: "#fef9c3", color: "#854d0e" }}>Festivo</span>
+        <span className="px-2 py-1 rounded" style={{ backgroundColor: "#f3e8ff", color: "#7e22ce" }}>Día Familia</span>
+        <span className="px-2 py-1 rounded" style={{ backgroundColor: "#ffedd5", color: "#c2410c" }}>Incapacitado</span>
+        <span className="px-2 py-1 rounded" style={{ backgroundColor: "#e0f2fe", color: "#0369a1" }}>Vacaciones</span>
+        <span className="px-2 py-1 rounded" style={{ backgroundColor: "#fce7f3", color: "#be185d" }}>Medio Cumple</span>
       </div>
 
       {selectedTecnicos.size === 0 ? (
@@ -370,6 +376,10 @@ export default function CoordinadorMallaPage() {
                         if (item?.tipo) setEditTipo(item.tipo);
                         else if (valor === "descanso") setEditTipo("DESCANSO");
                         else if (valor === "disponible") setEditTipo("DISPONIBLE");
+                        else if (/familia|día de la familia/i.test(valor)) setEditTipo("DIA_FAMILIA");
+                        else if (/incapacitado/i.test(valor)) setEditTipo("INCAPACITADO");
+                        else if (/vacacion/i.test(valor)) setEditTipo("VACACIONES");
+                        else if (/medio/i.test(valor) && /cumple/i.test(valor)) setEditTipo("MEDIO_CUMPLE");
                         else setEditTipo("TRABAJO");
                         setEditHoraInicio(item?.horaInicio || "08:00");
                         setEditHoraFin(item?.horaFin || "17:00");
@@ -387,6 +397,10 @@ export default function CoordinadorMallaPage() {
                         <option value="TRABAJO">Trabajo</option>
                         <option value="DESCANSO">Descanso</option>
                         <option value="DISPONIBLE">Disponible</option>
+                        <option value="DIA_FAMILIA">Día de la Familia</option>
+                        <option value="INCAPACITADO">Incapacitado</option>
+                        <option value="VACACIONES">Vacaciones</option>
+                        <option value="MEDIO_CUMPLE">Medio Cumpleaños</option>
                       </select>
                       {editTipo === "TRABAJO" && (
                         <div className="flex gap-2 mb-2">
@@ -401,7 +415,7 @@ export default function CoordinadorMallaPage() {
                         </div>
                       )}
                       <div className="flex gap-2 flex-wrap">
-                        <button type="button" onClick={() => guardar(day, editTipo === "DESCANSO" ? "descanso" : editTipo === "DISPONIBLE" ? "disponible" : `${editHoraInicio}-${editHoraFin}`, editTipo, editTipo === "TRABAJO" ? editHoraInicio : undefined, editTipo === "TRABAJO" ? editHoraFin : undefined)} disabled={saving} className="btn-primary text-xs py-1">Guardar</button>
+                        <button type="button" onClick={() => guardar(day, editTipo === "DESCANSO" ? "descanso" : editTipo === "DISPONIBLE" ? "disponible" : editTipo === "DIA_FAMILIA" ? "Día de la familia" : editTipo === "INCAPACITADO" ? "Incapacitado" : editTipo === "VACACIONES" ? "Vacaciones" : editTipo === "MEDIO_CUMPLE" ? "Medio día cumpleaños" : `${editHoraInicio}-${editHoraFin}`, editTipo, editTipo === "TRABAJO" ? editHoraInicio : undefined, editTipo === "TRABAJO" ? editHoraFin : undefined)} disabled={saving} className="btn-primary text-xs py-1">Guardar</button>
                         <button type="button" onClick={() => setEditDay(null)} className="text-gray-500 text-xs py-1">Cerrar</button>
                       </div>
                       <p className="text-xs text-gray-500 mt-2">Rápido:</p>
@@ -410,8 +424,12 @@ export default function CoordinadorMallaPage() {
                           const [h1, h2] = o.split("-").map((x) => x.length <= 2 ? `${x.padStart(2, "0")}:00` : `${x.slice(0, 2).padStart(2, "0")}:${x.slice(2)}`);
                           return <button key={o} type="button" onClick={() => guardar(day, o, "TRABAJO", h1, h2)} className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded hover:bg-blue-200">{o}</button>;
                         })}
-                        <button type="button" onClick={() => guardar(day, "descanso", "DESCANSO")} className="px-2 py-0.5 bg-cyan-100 text-cyan-800 text-xs rounded hover:bg-cyan-200">Descanso</button>
+                        <button type="button" onClick={() => guardar(day, "descanso", "DESCANSO")} className="px-2 py-0.5 bg-gray-200 text-gray-800 text-xs rounded hover:bg-gray-300">Descanso</button>
                         <button type="button" onClick={() => guardar(day, "disponible", "DISPONIBLE")} className="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded hover:bg-green-200">Disponible</button>
+                        <button type="button" onClick={() => guardar(day, "Día de la familia", "DIA_FAMILIA")} className="px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded hover:bg-purple-200">Día Familia</button>
+                        <button type="button" onClick={() => guardar(day, "Incapacitado", "INCAPACITADO")} className="px-2 py-0.5 bg-orange-100 text-orange-800 text-xs rounded hover:bg-orange-200">Incapacitado</button>
+                        <button type="button" onClick={() => guardar(day, "Vacaciones", "VACACIONES")} className="px-2 py-0.5 bg-sky-100 text-sky-800 text-xs rounded hover:bg-sky-200">Vacaciones</button>
+                        <button type="button" onClick={() => guardar(day, "Medio día cumpleaños", "MEDIO_CUMPLE")} className="px-2 py-0.5 bg-pink-100 text-pink-800 text-xs rounded hover:bg-pink-200">Medio Cumple</button>
                       </div>
                     </div>
                   )}
