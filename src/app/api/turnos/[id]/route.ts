@@ -4,9 +4,18 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { calcularTurno, calcularHorasSemanalesConMalla, getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
 import { getDay } from "date-fns";
+import { updateRowByMatch } from "@/lib/google-sheets";
 
 function dateKey(d: Date): string {
   return d.toISOString().split("T")[0];
+}
+
+function timeColombia(d: Date): string {
+  return new Date(d).toLocaleTimeString("es-CO", {
+    timeZone: "America/Bogota",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 async function checkCoordinadorZona(turnoUserId: string, session: { user: { zona?: string; role: string } }) {
@@ -154,6 +163,31 @@ export async function PATCH(
         ...resultado,
       },
     });
+
+    const totalHoras =
+      Math.round(
+        ((newSalida.getTime() - newEntrada.getTime()) / (1000 * 60 * 60)) * 100
+      ) / 100;
+    const rowValues = [
+      turno.user.nombre,
+      turno.user.cedula ?? "",
+      dateKey(fecha),
+      timeColombia(newEntrada),
+      timeColombia(newSalida),
+      totalHoras,
+      Math.max(0, resultado.horasOrdinarias ?? 0),
+      resultado.heDiurna ?? 0,
+      resultado.heNocturna ?? 0,
+      resultado.heDominical ?? 0,
+      resultado.heNoctDominical ?? 0,
+      resultado.recNocturno ?? 0,
+      resultado.recDominical ?? 0,
+      resultado.recNoctDominical ?? 0,
+    ];
+    updateRowByMatch("Turnos", [
+      { columnIndex: 0, value: turno.user.nombre },
+      { columnIndex: 2, value: dateKey(turno.fecha) },
+    ], rowValues).catch(console.error);
 
     const totalHE = resultado.heDiurna + resultado.heNocturna + resultado.heDominical + resultado.heNoctDominical;
     return NextResponse.json({

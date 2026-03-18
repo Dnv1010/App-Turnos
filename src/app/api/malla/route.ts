@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { appendRow } from "@/lib/google-sheets";
+import { appendRow, deleteRowByMatch } from "@/lib/google-sheets";
 
 export async function GET(req: NextRequest) {
   try {
@@ -102,6 +102,38 @@ export async function POST(req: NextRequest) {
     }
     const fechaDate = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
 
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { nombre: true, cedula: true },
+    });
+    const existing = await prisma.mallaTurno.findUnique({
+      where: { userId_fecha: { userId, fecha: fechaDate } },
+      select: { tipo: true },
+    });
+    const wasDisponible = existing?.tipo === "DISPONIBLE";
+
+    if (user) {
+      const cedula = user.cedula ?? "";
+      if (wasDisponible && tipoValido !== "DISPONIBLE") {
+        deleteRowByMatch("Disponibilidades", [
+          { columnIndex: 1, value: cedula },
+          { columnIndex: 2, value: fechaStr },
+        ]).catch(console.error);
+      }
+      if (tipoValido === "DISPONIBLE") {
+        deleteRowByMatch("Disponibilidades", [
+          { columnIndex: 1, value: cedula },
+          { columnIndex: 2, value: fechaStr },
+        ]).catch(console.error);
+        appendRow("Disponibilidades", [
+          user.nombre,
+          cedula,
+          fechaStr,
+          80000,
+        ]).catch(console.error);
+      }
+    }
+
     const updateData: { valor: string; tipo?: (typeof TIPOS_VALIDOS)[number]; horaInicio?: string | null; horaFin?: string | null } = { valor: valorFinal ?? "" };
     if (tipoValido) updateData.tipo = tipoValido;
     if (horaInicio !== undefined) updateData.horaInicio = horaInicio || null;
@@ -121,21 +153,6 @@ export async function POST(req: NextRequest) {
         horaFin: updateData.horaFin ?? undefined,
       },
     });
-
-    if (tipoValido === "DISPONIBLE") {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { nombre: true, cedula: true },
-      });
-      if (user) {
-        appendRow("Disponibilidades", [
-          user.nombre,
-          user.cedula ?? "",
-          fechaStr,
-          80000,
-        ]).catch(console.error);
-      }
-    }
 
     return NextResponse.json({ ok: true });
   } catch (e) {
