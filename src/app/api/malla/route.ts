@@ -71,11 +71,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "userId y fecha requeridos" }, { status: 400 });
     }
 
+    const TIPOS_VALIDOS = ["TRABAJO", "DESCANSO", "DISPONIBLE", "DIA_FAMILIA", "INCAPACITADO", "VACACIONES", "MEDIO_CUMPLE"] as const;
+    const tipoValido = typeof tipo === "string" && (TIPOS_VALIDOS as readonly string[]).includes(tipo) ? tipo as (typeof TIPOS_VALIDOS)[number] : undefined;
+
     let valorFinal = valor;
-    if (tipo === "DESCANSO") valorFinal = "descanso";
-    else if (tipo === "DISPONIBLE") valorFinal = "disponible";
-    else if (tipo === "TRABAJO" && horaInicio && horaFin) valorFinal = `${horaInicio}-${horaFin}`;
-    if (valorFinal === undefined) valorFinal = valor ?? "";
+    if (tipoValido === "DESCANSO") valorFinal = "descanso";
+    else if (tipoValido === "DISPONIBLE") valorFinal = "disponible";
+    else if (tipoValido === "TRABAJO" && horaInicio && horaFin) valorFinal = `${horaInicio}-${horaFin}`;
+    else if (tipoValido === "DIA_FAMILIA") valorFinal = typeof valor === "string" && valor ? valor : "Día de la familia";
+    else if (tipoValido === "INCAPACITADO") valorFinal = typeof valor === "string" && valor ? valor : "Incapacitado";
+    else if (tipoValido === "VACACIONES") valorFinal = typeof valor === "string" && valor ? valor : "Vacaciones";
+    else if (tipoValido === "MEDIO_CUMPLE") valorFinal = typeof valor === "string" && valor ? valor : "Medio día cumpleaños";
+    if (valorFinal === undefined) valorFinal = (valor ?? "") as string;
 
     if (session.user.role === "TECNICO" && userId !== session.user.userId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
@@ -94,8 +101,8 @@ export async function POST(req: NextRequest) {
     }
     const fechaDate = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
 
-    const updateData: { valor: string; tipo?: "TRABAJO" | "DESCANSO" | "DISPONIBLE" | "DIA_FAMILIA" | "INCAPACITADO" | "VACACIONES" | "MEDIO_CUMPLE"; horaInicio?: string | null; horaFin?: string | null } = { valor: valorFinal ?? "" };
-    if (tipo) updateData.tipo = tipo;
+    const updateData: { valor: string; tipo?: (typeof TIPOS_VALIDOS)[number]; horaInicio?: string | null; horaFin?: string | null } = { valor: valorFinal ?? "" };
+    if (tipoValido) updateData.tipo = tipoValido;
     if (horaInicio !== undefined) updateData.horaInicio = horaInicio || null;
     if (horaFin !== undefined) updateData.horaFin = horaFin || null;
 
