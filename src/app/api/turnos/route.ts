@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
   if (desde && hasta) {
     where.fecha = {
       gte: new Date(desde + "T00:00:00.000Z"),
-      lte: new Date(hasta + "T23:59:59.999Z"),
+      lte: new Date(new Date(hasta + "T00:00:00.000Z").getTime() + 24 * 60 * 60 * 1000 - 1),
     };
   }
   console.log("[Turnos GET] where:", JSON.stringify(where));
@@ -118,7 +118,7 @@ export async function PATCH(req: NextRequest) {
     if (turno.horaSalida) return NextResponse.json({ error: "Turno ya cerrado" }, { status: 400 });
 
     const ahoraUTC = new Date();
-    const horaSalida = new Date(ahoraUTC.getTime() + (-5 * 60 * 60 * 1000));
+    const horaSalida = new Date();
 
     const [mallaDiaRow, festivosSemana] = await Promise.all([
       prisma.mallaTurno.findUnique({
