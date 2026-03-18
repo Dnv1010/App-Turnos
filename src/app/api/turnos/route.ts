@@ -6,9 +6,18 @@ import { authOptions } from "@/lib/auth";
 import { getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
 import { getDay } from "date-fns";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
+import { appendRow } from "@/lib/google-sheets";
 
 function dateKey(d: Date): string {
   return d.toISOString().split("T")[0];
+}
+
+function timeColombia(d: Date): string {
+  return new Date(d).toLocaleTimeString("es-CO", {
+    timeZone: "America/Bogota",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export async function GET(req: NextRequest) {
@@ -181,7 +190,31 @@ export async function PATCH(req: NextRequest) {
         endPhotoUrl: endPhotoUrl || null,
         ...resultadoDb,
       },
+      include: { user: { select: { nombre: true, cedula: true } } },
     });
+
+    const totalHoras =
+      Math.round(
+        ((turnoActualizado.horaSalida!.getTime() - turnoActualizado.horaEntrada.getTime()) /
+          (1000 * 60 * 60)) *
+          100
+      ) / 100;
+    appendRow("Turnos", [
+      turnoActualizado.user?.nombre ?? "",
+      turnoActualizado.user?.cedula ?? "",
+      dateKey(turnoActualizado.fecha),
+      timeColombia(turnoActualizado.horaEntrada),
+      timeColombia(turnoActualizado.horaSalida!),
+      totalHoras,
+      Math.max(0, turnoActualizado.horasOrdinarias ?? 0),
+      turnoActualizado.heDiurna ?? 0,
+      turnoActualizado.heNocturna ?? 0,
+      turnoActualizado.heDominical ?? 0,
+      turnoActualizado.heNoctDominical ?? 0,
+      turnoActualizado.recNocturno ?? 0,
+      turnoActualizado.recDominical ?? 0,
+      turnoActualizado.recNoctDominical ?? 0,
+    ]).catch(console.error);
 
     return NextResponse.json(turnoActualizado);
   } catch (error: unknown) {

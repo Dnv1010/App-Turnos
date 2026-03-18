@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import DataTable from "@/components/ui/DataTable";
-import { HiPlus, HiPencil, HiTrash, HiX } from "react-icons/hi";
+import { HiPlus, HiPencil, HiTrash, HiX, HiRefresh } from "react-icons/hi";
 
 interface Usuario {
   id: string;
@@ -113,6 +113,22 @@ export default function UsuariosPage() {
     }
   };
 
+  const sincronizarSheets = async () => {
+    setSyncingSheets(true);
+    try {
+      const res = await fetch("/api/sheets/sync", { method: "POST" });
+      if (res.ok) alert("Google Sheets sincronizados correctamente.");
+      else {
+        const err = await res.json().catch(() => ({}));
+        alert(err?.error ?? "Error al sincronizar Sheets.");
+      }
+    } catch {
+      alert("Error al sincronizar Sheets.");
+    } finally {
+      setSyncingSheets(false);
+    }
+  };
+
   const eliminarUsuario = async (u: Usuario) => {
     if (!confirm(`¿Desactivar al usuario ${u.nombre}? Se marcará como inactivo.`)) return;
     try {
@@ -198,17 +214,27 @@ export default function UsuariosPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-2xl font-bold text-gray-900">
           Gestión de Usuarios
         </h2>
-        <button
-          onClick={abrirCrear}
-          className="btn-primary flex items-center gap-2"
-        >
-          <HiPlus className="h-5 w-5" />
-          Nuevo Usuario
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => void sincronizarSheets()}
+            disabled={syncingSheets}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <HiRefresh className="h-5 w-5" />
+            {syncingSheets ? "Sincronizando…" : "Sincronizar Sheets"}
+          </button>
+          <button
+            onClick={abrirCrear}
+            className="btn-primary flex items-center gap-2"
+          >
+            <HiPlus className="h-5 w-5" />
+            Nuevo Usuario
+          </button>
+        </div>
       </div>
 
       <DataTable

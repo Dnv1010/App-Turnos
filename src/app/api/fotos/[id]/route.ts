@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { uploadToDrive } from "@/lib/drive-upload";
+import { appendRow } from "@/lib/google-sheets";
 
 export async function PATCH(
   req: NextRequest,
@@ -53,7 +54,21 @@ export async function PATCH(
   const updated = await prisma.fotoRegistro.update({
     where: { id },
     data,
+    include: { user: { select: { nombre: true, cedula: true } } },
   });
+
+  if (updated.tipo === "FORANEO" && updated.kmFinal != null && updated.kmInicial != null) {
+    const km = updated.kmFinal - updated.kmInicial;
+    appendRow("Foraneos", [
+      updated.user.nombre,
+      updated.user.cedula ?? "",
+      new Date(updated.createdAt).toISOString().split("T")[0],
+      1,
+      km,
+      Math.round(km * 1100),
+    ]).catch(console.error);
+  }
+
   return NextResponse.json(updated);
 }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { appendRow } from "@/lib/google-sheets";
 
 export async function GET(req: NextRequest) {
   try {
@@ -120,6 +121,21 @@ export async function POST(req: NextRequest) {
         horaFin: updateData.horaFin ?? undefined,
       },
     });
+
+    if (tipoValido === "DISPONIBLE") {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { nombre: true, cedula: true },
+      });
+      if (user) {
+        appendRow("Disponibilidades", [
+          user.nombre,
+          user.cedula ?? "",
+          fechaStr,
+          80000,
+        ]).catch(console.error);
+      }
+    }
 
     return NextResponse.json({ ok: true });
   } catch (e) {

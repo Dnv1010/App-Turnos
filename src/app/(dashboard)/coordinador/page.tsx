@@ -7,7 +7,7 @@ import { es } from "date-fns/locale";
 import KPICards from "@/components/dashboard/KPICards";
 import GraficoHoras from "@/components/dashboard/GraficoHoras";
 import DataTable from "@/components/ui/DataTable";
-import { HiDownload, HiSearch, HiTruck, HiPhotograph, HiExternalLink, HiLocationMarker } from "react-icons/hi";
+import { HiDownload, HiSearch, HiTruck, HiPhotograph, HiExternalLink, HiLocationMarker, HiRefresh } from "react-icons/hi";
 
 interface TurnoRow {
   id: string;
@@ -96,6 +96,7 @@ export default function CoordinadorPage() {
   const [loadingDisp, setLoadingDisp] = useState(false);
   const [loadingForaneos, setLoadingForaneos] = useState(false);
   const [reporteError, setReporteError] = useState<string | null>(null);
+  const [syncingSheets, setSyncingSheets] = useState(false);
 
   const cargarTurnos = useCallback(async () => {
     if (!session?.user?.zona) return;
@@ -204,6 +205,22 @@ export default function CoordinadorPage() {
     URL.revokeObjectURL(url);
   };
 
+  const sincronizarSheets = async () => {
+    setSyncingSheets(true);
+    try {
+      const res = await fetch("/api/sheets/sync", { method: "POST" });
+      if (res.ok) alert("Google Sheets sincronizados correctamente.");
+      else {
+        const err = await res.json().catch(() => ({}));
+        alert(err?.error ?? "Error al sincronizar Sheets.");
+      }
+    } catch {
+      alert("Error al sincronizar Sheets.");
+    } finally {
+      setSyncingSheets(false);
+    }
+  };
+
   const columnsTurnos = [
     { key: "user", label: "Técnico", render: (t: TurnoRow) => t.user?.nombre ?? "—" },
     { key: "fecha", label: "Fecha", render: (t: TurnoRow) => format(new Date(t.fecha), "dd MMM yyyy", { locale: es }) },
@@ -235,6 +252,7 @@ export default function CoordinadorPage() {
           <>
             <button onClick={exportarCSV} className="btn-secondary flex items-center gap-2"><HiDownload className="h-5 w-5" />Exportar CSV</button>
             <button onClick={() => void exportarExcel()} className="btn-secondary flex items-center gap-2"><HiDownload className="h-5 w-5" />Exportar Excel</button>
+            <button onClick={() => void sincronizarSheets()} disabled={syncingSheets} className="btn-secondary flex items-center gap-2"><HiRefresh className="h-5 w-5" />{syncingSheets ? "Sincronizando…" : "Sincronizar Sheets"}</button>
           </>
         )}
       </div>
