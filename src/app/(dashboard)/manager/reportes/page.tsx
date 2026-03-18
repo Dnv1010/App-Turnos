@@ -28,7 +28,7 @@ interface TurnoConMalla {
 }
 
 interface DetalleUsuario {
-  userId: string; nombre: string; zona: string; totalTurnos: number; horasOrdinarias: number;
+  userId: string; nombre: string; cedula?: string; zona: string; totalTurnos: number; horasOrdinarias: number;
   heDiurna: number; heNocturna: number; heDominical: number; heNoctDominical: number;
   recNocturno: number; recDominical: number; recNoctDominical: number;
   totalHorasExtra: number; totalRecargos: number; totalDisponibilidades: number;

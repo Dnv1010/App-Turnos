@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     const fechaInicio = new Date(Date.UTC(yi, mi - 1, di, 0, 0, 0));
     const fechaFin = new Date(Date.UTC(yf, mf - 1, df, 23, 59, 59));
 
-    const whereUser: { isActive: boolean; role: string; id?: string; zona?: string } = {
+    const whereUser: { isActive: boolean; role: "TECNICO"; id?: string; zona?: string } = {
       isActive: true,
       role: "TECNICO",
     };
