@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
   const rol = searchParams.get("rol");
 
   if (!inicio || !fin) {
-    return NextResponse.json({ error: "Parámetros inicio y fin requeridos" }, { status: 400 });
+    return NextResponse.json({ error: "Parametros inicio y fin requeridos" }, { status: 400 });
   }
 
   const whereUser: Record<string, unknown> = { isActive: true };
@@ -104,7 +105,7 @@ export async function GET(req: NextRequest) {
         esDomingo: getDay(x.fecha) === 0,
       }));
       const resumenSemanal = calcularHorasSemanalesConMalla(turnosData, (f) => mallaMap.get(`${user.id}|${dateKey(f)}`) ?? null, holidaySet);
-      const totalHoras = (t.horaSalida.getTime() - t.horaEntrada.getTime()) / (1000 * 60 * 60);
+      const totalHoras = (t.horaSalida!.getTime() - t.horaEntrada.getTime()) / (1000 * 60 * 60);
       const resultado = calcularTurno(
         {
           fecha: t.fecha,
@@ -123,13 +124,14 @@ export async function GET(req: NextRequest) {
       return {
         ...t,
         ...resultado,
+        horasOrdinarias: Math.max(0, resultado.horasOrdinarias ?? 0),
         malla: mallaVal ?? undefined,
       };
     });
 
     const totalHE = turnosConMalla.reduce((sum, t) => sum + t.heDiurna + t.heNocturna + t.heDominical + t.heNoctDominical, 0);
     const totalRecargos = turnosConMalla.reduce((sum, t) => sum + t.recNocturno + t.recDominical + t.recNoctDominical, 0);
-    const totalOrdinarias = turnosConMalla.reduce((sum, t) => sum + t.horasOrdinarias, 0);
+    const totalOrdinarias = turnosConMalla.reduce((sum, t) => sum + Math.max(0, t.horasOrdinarias ?? 0), 0);
     const totalDisponibilidades = user.disponibilidades.reduce((sum, d) => sum + d.monto, 0);
 
     const fotosForaneo = user.fotoRegistros.filter((f) => f.tipo === "FORANEO");
@@ -140,10 +142,17 @@ export async function GET(req: NextRequest) {
       return sum;
     }, 0);
 
+    const totalHorasTrabajadas = turnosConMalla.reduce((sum, t) => {
+      if (t.horaSalida) {
+        return sum + (new Date(t.horaSalida).getTime() - new Date(t.horaEntrada).getTime()) / (1000 * 60 * 60);
+      }
+      return sum;
+    }, 0);
+
     return {
       userId: user.id, nombre: user.nombre, cedula: user.cedula, email: user.email, zona: user.zona, role: user.role,
       totalTurnos: turnosConMalla.length,
-      horasOrdinarias: Math.round(totalOrdinarias * 100) / 100,
+      horasOrdinarias: Math.max(0, Math.round(totalOrdinarias * 100) / 100),
       heDiurna: Math.round(turnosConMalla.reduce((s, t) => s + t.heDiurna, 0) * 100) / 100,
       heNocturna: Math.round(turnosConMalla.reduce((s, t) => s + t.heNocturna, 0) * 100) / 100,
       heDominical: Math.round(turnosConMalla.reduce((s, t) => s + t.heDominical, 0) * 100) / 100,
@@ -153,6 +162,7 @@ export async function GET(req: NextRequest) {
       recNoctDominical: Math.round(turnosConMalla.reduce((s, t) => s + t.recNoctDominical, 0) * 100) / 100,
       totalHorasExtra: Math.round(totalHE * 100) / 100,
       totalRecargos: Math.round(totalRecargos * 100) / 100,
+      totalHorasTrabajadas: Math.round(totalHorasTrabajadas * 100) / 100,
       totalDisponibilidades,
       totalKmRecorridos: Math.round(totalKmRecorridos * 100) / 100,
       registrosForaneo: fotosForaneo.length,
@@ -174,7 +184,7 @@ export async function GET(req: NextRequest) {
     totalTecnicos: detalle.length,
     totalHorasExtra: Math.round(detalle.reduce((s, d) => s + d.totalHorasExtra, 0) * 100) / 100,
     totalRecargos: Math.round(detalle.reduce((s, d) => s + d.totalRecargos, 0) * 100) / 100,
-    totalHorasOrdinarias: Math.round(detalle.reduce((s, d) => s + d.horasOrdinarias, 0) * 100) / 100,
+    totalHorasOrdinarias: Math.max(0, Math.round(detalle.reduce((s, d) => s + d.horasOrdinarias, 0) * 100) / 100),
     totalDisponibilidades: detalle.reduce((s, d) => s + d.totalDisponibilidades, 0),
     totalKmRecorridos: Math.round(detalle.reduce((s, d) => s + d.totalKmRecorridos, 0) * 100) / 100,
     totalRegistrosForaneo: detalle.reduce((s, d) => s + d.registrosForaneo, 0),
@@ -182,7 +192,7 @@ export async function GET(req: NextRequest) {
 
   const alertasHE = detalle
     .filter((d) => d.totalHorasExtra > 40)
-    .map((d) => ({ userId: d.userId, nombre: d.nombre, mensaje: `${d.nombre} acumula ${d.totalHorasExtra}h extras en el período` }));
+    .map((d) => ({ userId: d.userId, nombre: d.nombre, mensaje: `${d.nombre} acumula ${d.totalHorasExtra}h extras en el periodo` }));
   const alertas = [...alertasHE, ...alertasMalla];
 
   const foraneos = detalle.flatMap((d) =>
