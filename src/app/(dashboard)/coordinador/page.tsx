@@ -322,23 +322,20 @@ export default function CoordinadorPage() {
           <GraficoHoras datos={data.detalle.map((d) => ({ nombre: d.nombre.split(" ")[0], horasOrdinarias: d.horasOrdinarias, heDiurna: d.heDiurna, heNocturna: d.heNocturna, recargos: d.totalRecargos }))} titulo="Horas por Técnico" />
           <DataTable columns={[
             { key: "nombre", label: "Nombre", sortable: true },
-            { key: "cedula", label: "Cédula", render: (d: DetalleUsuario) => d.cedula ?? "—" },
+            { key: "cedula", label: "Cedula" },
+            { key: "zona", label: "Zona" },
             { key: "totalTurnos", label: "Turnos" },
             { key: "horasOrdinarias", label: "Ordinarias" },
-            { key: "totalHorasExtra", label: "HE Total" },
-            { key: "totalRecargos", label: "Recargos" },
-            { key: "malla", label: "Malla", render: (d: DetalleUsuario) => {
-              const resumen = mallaResumen(d.turnos);
-              if (!resumen) return "—";
-              const hasBlock = (d.turnos || []).some((t) => t.malla && isBlockMalla(t.malla));
-              return <span className={`text-xs font-medium px-2 py-0.5 rounded ${hasBlock ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}`} title={resumen}>{resumen.length > 35 ? resumen.slice(0, 32) + "…" : resumen}</span>;
-            } },
+            { key: "heDiurna", label: "HE Dia" },
+            { key: "heNocturna", label: "HE Noc" },
+            { key: "heDominical", label: "HE Dom/Fest Dia" },
+            { key: "heNoctDominical", label: "HE Dom/Fest Noc" },
+            { key: "recNocturno", label: "Rec Nocturno" },
+            { key: "recDominical", label: "Rec Dom/Fest Dia" },
+            { key: "recNoctDominical", label: "Rec Dom/Fest Noc" },
+            { key: "totalHorasExtra", label: "Total HE" },
+            { key: "totalRecargos", label: "Total Recargos" },
             { key: "totalKmRecorridos", label: "Km", render: (d: DetalleUsuario) => d.totalKmRecorridos > 0 ? `${d.totalKmRecorridos} km` : "—" },
-            { key: "regForaneos", label: "Reg. Foráneos", render: (d: DetalleUsuario) => {
-              const km = d.fotos.filter((f) => f.tipo === "FORANEO" && f.kmInicial != null && f.kmFinal != null)
-                .reduce((s, f) => s + (f.kmFinal! - f.kmInicial!), 0);
-              return km > 0 ? `${Math.round(km * 100) / 100} km` : "—";
-            } },
           ] as never} data={data.detalle as never} searchable searchPlaceholder="Buscar técnico..." />
             </>
           ) : null}
