@@ -17,6 +17,19 @@ export async function POST(req: NextRequest) {
     }
     const { userId, base64Data, tipo, turnoId, observaciones, kmInicial, kmFinal } = body ?? {};
 
+    const uid = userId || session.user.userId;
+    if (tipo === "FORANEO") {
+      const activo = await prisma.fotoRegistro.findFirst({
+        where: { userId: uid, tipo: "FORANEO", kmFinal: null },
+      });
+      if (activo) {
+        return NextResponse.json(
+          { error: "Ya tienes un foráneo activo. Finalízalo antes de iniciar otro." },
+          { status: 400 }
+        );
+      }
+    }
+
     let driveFileId: string | null = null;
     let driveUrl: string | null = null;
     let base64Fallback: string | null = null;
@@ -27,7 +40,6 @@ export async function POST(req: NextRequest) {
         console.log("[Fotos] base64Data length:", base64Data?.length);
         console.log("[Fotos] base64Data prefix:", base64Data?.substring(0, 30));
 
-        const uid = userId || session.user.userId;
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
         const fileName = `turno_${tipo || "FICHAJE"}_${uid}_${timestamp}.jpg`;
 
@@ -43,14 +55,14 @@ export async function POST(req: NextRequest) {
 
     const registro = await prisma.fotoRegistro.create({
       data: {
-        userId: userId || session.user.userId,
+        userId: uid,
         tipo: tipo || "FICHAJE",
         driveFileId,
         driveUrl,
         base64Fallback,
         observaciones: observaciones || (turnoId ? `Turno: ${turnoId}` : null),
         kmInicial: kmInicial != null ? parseFloat(String(kmInicial)) : null,
-        kmFinal: kmFinal != null ? parseFloat(String(kmFinal)) : null,
+        kmFinal: tipo === "FORANEO" ? null : (kmFinal != null ? parseFloat(String(kmFinal)) : null),
       },
     });
 
@@ -73,6 +85,15 @@ export async function GET(req: NextRequest) {
   const userId = searchParams.get("userId") || session.user.userId;
   const inicio = searchParams.get("inicio");
   const fin = searchParams.get("fin");
+  const activoForaneo = searchParams.get("activoForaneo") === "1";
+
+  if (activoForaneo) {
+    const activo = await prisma.fotoRegistro.findFirst({
+      where: { userId, tipo: "FORANEO", kmFinal: null },
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json(activo ?? null);
+  }
 
   const where: { userId: string; createdAt?: { gte?: Date; lte?: Date } } = { userId };
   if (inicio || fin) {

@@ -24,6 +24,7 @@ interface FotoRecord {
   id: string;
   tipo: string;
   driveUrl: string | null;
+  driveUrlFinal?: string | null;
   kmInicial: number | null;
   kmFinal: number | null;
   observaciones: string | null;
@@ -35,7 +36,6 @@ export default function FotosPage() {
   const [tab, setTab] = useState<Tab>("registrar");
   const [tipo, setTipo] = useState<TipoFoto>("FORANEO");
   const [kmInicial, setKmInicial] = useState("");
-  const [kmFinal, setKmFinal] = useState("");
   const [observaciones, setObservaciones] = useState("");
   const [loading, setLoading] = useState(false);
   const [exito, setExito] = useState(false);
@@ -53,6 +53,26 @@ export default function FotosPage() {
   const [editObservaciones, setEditObservaciones] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
+  const [foraneoActivo, setForaneoActivo] = useState<FotoRecord | null>(null);
+  const [loadingForaneoActivo, setLoadingForaneoActivo] = useState(false);
+  const [pasoFinalFotoBase64, setPasoFinalFotoBase64] = useState<string | null>(null);
+  const [pasoFinalFotoPreview, setPasoFinalFotoPreview] = useState<string | null>(null);
+  const [showCameraFinal, setShowCameraFinal] = useState(false);
+  const [kmFinalPaso2, setKmFinalPaso2] = useState("");
+  const [loadingFinalizar, setLoadingFinalizar] = useState(false);
+
+  const cargarForaneoActivo = useCallback(async () => {
+    if (!session?.user?.userId) return;
+    setLoadingForaneoActivo(true);
+    try {
+      const res = await fetch(`/api/fotos?activoForaneo=1`);
+      if (res.ok) {
+        const data = await res.json();
+        setForaneoActivo(data && typeof data === "object" && data.id ? data : null);
+      }
+    } catch { setForaneoActivo(null); }
+    finally { setLoadingForaneoActivo(false); }
+  }, [session?.user?.userId]);
 
   const cargarHistorial = useCallback(async () => {
     if (!session?.user?.userId) return;
@@ -68,16 +88,25 @@ export default function FotosPage() {
     if (tab === "historial") cargarHistorial();
   }, [tab, cargarHistorial]);
 
+  useEffect(() => {
+    if (tab === "registrar") cargarForaneoActivo();
+  }, [tab, cargarForaneoActivo]);
+
   const handleCapture = (base64: string, preview: string) => {
     setFotoBase64(base64);
     setFotoPreview(preview);
     setShowCamera(false);
   };
 
-  const handleSubmit = async () => {
-    if (!fotoBase64 || !session?.user?.userId) return;
-    if (tipo === "FORANEO" && (!kmInicial || !kmFinal)) {
-      alert("Para registros foráneos, ingresa el km inicial y final.");
+  const handleCaptureFinal = (base64: string, preview: string) => {
+    setPasoFinalFotoBase64(base64);
+    setPasoFinalFotoPreview(preview);
+    setShowCameraFinal(false);
+  };
+
+  const handleSubmitIniciarForaneo = async () => {
+    if (!fotoBase64 || !session?.user?.userId || !kmInicial.trim()) {
+      alert("Captura la foto e ingresa el km inicial.");
       return;
     }
     setLoading(true);
@@ -88,9 +117,8 @@ export default function FotosPage() {
         body: JSON.stringify({
           userId: session.user.userId,
           base64Data: fotoBase64,
-          tipo,
-          kmInicial: kmInicial || undefined,
-          kmFinal: kmFinal || undefined,
+          tipo: "FORANEO",
+          kmInicial: parseFloat(kmInicial),
           observaciones: observaciones || undefined,
         }),
       });
@@ -99,7 +127,74 @@ export default function FotosPage() {
         setFotoBase64(null);
         setFotoPreview(null);
         setKmInicial("");
-        setKmFinal("");
+        setObservaciones("");
+        setTipo("FORANEO");
+        setTimeout(() => setExito(false), 3000);
+        cargarForaneoActivo();
+      } else {
+        const d = await res.json();
+        alert(d.error || "Error al iniciar foráneo");
+      }
+    } catch { alert("Error de conexión"); }
+    finally { setLoading(false); }
+  };
+
+  const handleSubmitFinalizarForaneo = async () => {
+    if (!foraneoActivo?.id || !session?.user?.userId) return;
+    if (!pasoFinalFotoBase64) {
+      alert("Captura la foto final.");
+      return;
+    }
+    const kmF = parseFloat(kmFinalPaso2);
+    const kmI = foraneoActivo.kmInicial ?? 0;
+    if (isNaN(kmF) || kmF <= kmI) {
+      alert("El km final debe ser mayor que el km inicial (" + kmI + ").");
+      return;
+    }
+    setLoadingFinalizar(true);
+    try {
+      const res = await fetch(`/api/fotos/${foraneoActivo.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kmFinal: kmF,
+          base64Data: pasoFinalFotoBase64,
+        }),
+      });
+      if (res.ok) {
+        setExito(true);
+        setForaneoActivo(null);
+        setPasoFinalFotoBase64(null);
+        setPasoFinalFotoPreview(null);
+        setKmFinalPaso2("");
+        setTimeout(() => setExito(false), 3000);
+        cargarForaneoActivo();
+      } else {
+        const d = await res.json();
+        alert(d.error || "Error al finalizar foráneo");
+      }
+    } catch { alert("Error de conexión"); }
+    finally { setLoadingFinalizar(false); }
+  };
+
+  const handleSubmitGeneral = async () => {
+    if (!fotoBase64 || !session?.user?.userId) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/fotos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: session.user.userId,
+          base64Data: fotoBase64,
+          tipo: "GENERAL",
+          observaciones: observaciones || undefined,
+        }),
+      });
+      if (res.ok) {
+        setExito(true);
+        setFotoBase64(null);
+        setFotoPreview(null);
         setObservaciones("");
         setTimeout(() => setExito(false), 3000);
       }
@@ -107,7 +202,10 @@ export default function FotosPage() {
     finally { setLoading(false); }
   };
 
-  const kmRecorridosPreview = kmInicial && kmFinal ? Math.max(0, parseFloat(kmFinal) - parseFloat(kmInicial)) : 0;
+  const kmRecorridosPreviewPaso2 =
+    foraneoActivo?.kmInicial != null && kmFinalPaso2
+      ? Math.max(0, parseFloat(kmFinalPaso2) - foraneoActivo.kmInicial)
+      : 0;
 
   const fotosForaneo = historial.filter((f) => f.tipo === "FORANEO");
   const totalKm = fotosForaneo.reduce((sum, f) => {
@@ -180,7 +278,89 @@ export default function FotosPage() {
 
       {tab === "registrar" && (
         <>
-          {!fotoBase64 && !showCamera && (
+          {loadingForaneoActivo ? (
+            <div className="flex justify-center py-12">
+              <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+            </div>
+          ) : foraneoActivo ? (
+            <div className="space-y-6">
+              <div className="card bg-orange-50 border border-orange-200">
+                <h3 className="text-lg font-semibold text-orange-900 mb-2">Foráneo activo</h3>
+                <p className="text-sm text-orange-800">
+                  Km inicial: <strong>{foraneoActivo.kmInicial}</strong> — Inicio:{" "}
+                  {new Date(foraneoActivo.createdAt).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}
+                </p>
+                {foraneoActivo.driveUrl && (
+                  <a href={foraneoActivo.driveUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-orange-700 underline mt-1 inline-block">
+                    Ver foto inicial en Drive
+                  </a>
+                )}
+              </div>
+
+              <h3 className="text-lg font-semibold text-gray-900">Paso 2 — Finalizar foráneo</h3>
+              {!pasoFinalFotoBase64 && !showCameraFinal && (
+                <div className="card">
+                  <p className="text-sm text-gray-600 mb-4">Captura la foto final y ingresa el km final (debe ser mayor que el km inicial).</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowCameraFinal(true)}
+                    className="btn-primary flex items-center gap-2"
+                  >
+                    <HiCamera className="h-5 w-5" /> Capturar foto final
+                  </button>
+                </div>
+              )}
+              {showCameraFinal && !pasoFinalFotoBase64 && (
+                <CameraCapture onCapture={handleCaptureFinal} onCancel={() => setShowCameraFinal(false)} />
+              )}
+              {pasoFinalFotoBase64 && pasoFinalFotoPreview && (
+                <div className="max-w-lg space-y-4">
+                  <div className="card p-0 overflow-hidden relative">
+                    <img src={pasoFinalFotoPreview} alt="Foto final" className="w-full h-auto" />
+                    <button
+                      type="button"
+                      onClick={() => { setPasoFinalFotoBase64(null); setPasoFinalFotoPreview(null); }}
+                      className="absolute top-2 right-2 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70"
+                      aria-label="Quitar foto"
+                    >
+                      <HiX className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="card space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Km final</label>
+                      <input
+                        type="number"
+                        value={kmFinalPaso2}
+                        onChange={(e) => setKmFinalPaso2(e.target.value)}
+                        className="input-field"
+                        placeholder={`Mayor que ${foraneoActivo.kmInicial ?? ""}`}
+                      />
+                    </div>
+                    {kmRecorridosPreviewPaso2 > 0 && (
+                      <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
+                        <span className="text-sm text-orange-800 font-medium">
+                          Km recorridos: <strong>{kmRecorridosPreviewPaso2.toFixed(1)} km</strong>
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex gap-3">
+                      <button type="button" onClick={() => { setPasoFinalFotoBase64(null); setPasoFinalFotoPreview(null); setKmFinalPaso2(""); }} className="btn-secondary flex-1">
+                        Cancelar
+                      </button>
+                      <button onClick={handleSubmitFinalizarForaneo} disabled={loadingFinalizar} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                        {loadingFinalizar ? (
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <><HiUpload className="h-5 w-5" /> Finalizar Foráneo</>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : !fotoBase64 && !showCamera ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button
                 onClick={() => { setTipo("FORANEO"); setShowCamera(true); }}
@@ -189,8 +369,8 @@ export default function FotosPage() {
                 <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center">
                   <HiTruck className="h-8 w-8 text-orange-600" />
                 </div>
-                <span className="font-semibold text-gray-900">Registro Foráneo</span>
-                <span className="text-xs text-gray-500 text-center">Foto + km inicial/final del vehículo</span>
+                <span className="font-semibold text-gray-900">Iniciar Foráneo</span>
+                <span className="text-xs text-gray-500 text-center">Foto inicial + km inicial del vehículo</span>
               </button>
               <button
                 onClick={() => { setTipo("GENERAL"); setShowCamera(true); }}
@@ -203,13 +383,9 @@ export default function FotosPage() {
                 <span className="text-xs text-gray-500 text-center">Foto de trabajo en campo</span>
               </button>
             </div>
-          )}
-
-          {showCamera && !fotoBase64 && (
+          ) : showCamera && !fotoBase64 ? (
             <CameraCapture onCapture={handleCapture} onCancel={() => setShowCamera(false)} />
-          )}
-
-          {fotoBase64 && fotoPreview && (
+          ) : fotoBase64 && fotoPreview ? (
             <div className="max-w-lg mx-auto space-y-4">
               <div className="card p-0 overflow-hidden relative">
                 <img src={fotoPreview} alt="Foto capturada" className="w-full h-auto" />
@@ -224,54 +400,43 @@ export default function FotosPage() {
               </div>
               <div className="card space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  {tipo === "FORANEO" ? "Registro Foráneo" : "Foto General"}
+                  {tipo === "FORANEO" ? "Paso 1 — Iniciar Foráneo" : "Foto General"}
                 </h3>
-
                 {tipo === "FORANEO" && (
                   <>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Km Inicial</label>
-                        <input type="number" value={kmInicial} onChange={(e) => setKmInicial(e.target.value)}
-                          className="input-field" placeholder="Ej: 45230" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Km Final</label>
-                        <input type="number" value={kmFinal} onChange={(e) => setKmFinal(e.target.value)}
-                          className="input-field" placeholder="Ej: 45310" />
-                      </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Km inicial</label>
+                      <input type="number" value={kmInicial} onChange={(e) => setKmInicial(e.target.value)} className="input-field" placeholder="Ej: 45230" />
                     </div>
-                    {kmRecorridosPreview > 0 && (
-                      <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
-                        <span className="text-sm text-orange-800 font-medium">
-                          Km recorridos: <strong>{kmRecorridosPreview.toFixed(1)} km</strong>
-                        </span>
-                      </div>
-                    )}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Observaciones (opcional)</label>
+                      <textarea value={observaciones} onChange={(e) => setObservaciones(e.target.value)} className="input-field" rows={2} placeholder="Descripción..." />
+                    </div>
+                    <div className="flex gap-3">
+                      <button type="button" onClick={() => { setFotoBase64(null); setFotoPreview(null); setShowCamera(false); }} className="btn-secondary flex-1">Cancelar</button>
+                      <button onClick={handleSubmitIniciarForaneo} disabled={loading} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                        {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><HiUpload className="h-5 w-5" /> Iniciar Foráneo</>}
+                      </button>
+                    </div>
                   </>
                 )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
-                  <textarea value={observaciones} onChange={(e) => setObservaciones(e.target.value)}
-                    className="input-field" rows={3} placeholder="Descripción de la visita o trabajo..." />
-                </div>
-
-                <div className="flex gap-3">
-                  <button type="button" onClick={() => { setFotoBase64(null); setFotoPreview(null); setShowCamera(false); }} className="btn-secondary flex-1">
-                    Cancelar
-                  </button>
-                  <button onClick={handleSubmit} disabled={loading} className="btn-primary flex-1 flex items-center justify-center gap-2">
-                    {loading ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <><HiUpload className="h-5 w-5" />Guardar y Subir</>
-                    )}
-                  </button>
-                </div>
+                {tipo === "GENERAL" && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Observaciones (opcional)</label>
+                      <textarea value={observaciones} onChange={(e) => setObservaciones(e.target.value)} className="input-field" rows={3} placeholder="Descripción..." />
+                    </div>
+                    <div className="flex gap-3">
+                      <button type="button" onClick={() => { setFotoBase64(null); setFotoPreview(null); setShowCamera(false); }} className="btn-secondary flex-1">Cancelar</button>
+                      <button onClick={handleSubmitGeneral} disabled={loading} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                        {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><HiUpload className="h-5 w-5" /> Guardar y Subir</>}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
-          )}
+          ) : null}
         </>
       )}
 
@@ -374,7 +539,13 @@ export default function FotosPage() {
                         {foto.driveUrl && (
                           <a href={foto.driveUrl} target="_blank" rel="noopener noreferrer"
                             className="btn-secondary text-xs px-3 py-1.5 whitespace-nowrap">
-                            Ver en Drive
+                            {foto.tipo === "FORANEO" && (foto as FotoRecord).driveUrlFinal ? "Foto inicial" : "Ver en Drive"}
+                          </a>
+                        )}
+                        {foto.tipo === "FORANEO" && (foto as FotoRecord).driveUrlFinal && (
+                          <a href={(foto as FotoRecord).driveUrlFinal!} target="_blank" rel="noopener noreferrer"
+                            className="btn-secondary text-xs px-3 py-1.5 whitespace-nowrap">
+                            Foto final
                           </a>
                         )}
                         {foto.tipo === "FORANEO" && (

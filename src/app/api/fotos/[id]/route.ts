@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { uploadToDrive } from "@/lib/drive-upload";
 
 export async function PATCH(
   req: NextRequest,
@@ -19,13 +20,35 @@ export async function PATCH(
   if (registro.tipo !== "FORANEO") {
     return NextResponse.json({ error: "Solo se pueden editar registros foráneos" }, { status: 400 });
   }
+  if (registro.kmFinal != null) {
+    return NextResponse.json({ error: "Este foráneo ya está finalizado" }, { status: 400 });
+  }
 
-  const body = await req.json();
-  const { kmInicial, kmFinal, observaciones } = body;
-  const data: { kmInicial?: number; kmFinal?: number; observaciones?: string } = {};
-  if (kmInicial != null) data.kmInicial = parseFloat(kmInicial);
-  if (kmFinal != null) data.kmFinal = parseFloat(kmFinal);
+  let body: { kmInicial?: number; kmFinal?: number; observaciones?: string; base64Data?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 });
+  }
+  const { kmInicial, kmFinal, observaciones, base64Data } = body ?? {};
+
+  const data: { kmInicial?: number; kmFinal?: number; observaciones?: string; driveFileIdFinal?: string | null; driveUrlFinal?: string | null } = {};
+  if (kmInicial != null) data.kmInicial = parseFloat(String(kmInicial));
+  if (kmFinal != null) data.kmFinal = parseFloat(String(kmFinal));
   if (observaciones !== undefined) data.observaciones = observaciones || null;
+
+  if (base64Data) {
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const fileName = `foraneo_final_${registro.userId}_${timestamp}.jpg`;
+      const result = await uploadToDrive(base64Data, fileName);
+      data.driveFileIdFinal = result.fileId;
+      data.driveUrlFinal = result.webViewLink;
+    } catch (e) {
+      console.error("[PATCH /api/fotos] Error subiendo foto final:", e);
+      return NextResponse.json({ error: "Error al subir la foto final a Drive" }, { status: 500 });
+    }
+  }
 
   const updated = await prisma.fotoRegistro.update({
     where: { id },

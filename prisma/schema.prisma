@@ -111,6 +111,8 @@ model FotoRegistro {
   tipo            String
   driveFileId     String?
   driveUrl        String?
+  driveFileIdFinal String?
+  driveUrlFinal    String?
   base64Fallback  String?  @db.Text
   kmInicial       Float?
   kmFinal        Float?
