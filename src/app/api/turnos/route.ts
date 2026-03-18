@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
   if (desde && hasta) {
     where.fecha = {
       gte: new Date(desde + "T00:00:00.000Z"),
-      lte: new Date(hasta + "T23:59:59.000Z"),
+      lte: new Date(hasta + "T23:59:59.000-05:00"),
     };
   }
   console.log("[Turnos GET] where:", JSON.stringify(where));
