@@ -62,6 +62,68 @@ export async function GET(req: NextRequest) {
     const userIds = usuarios.map((u) => u.id);
 
     if (userIds.length === 0) {
+      // Resumen por técnico
+const resumenPorTecnico: Record<string, {
+  Nombre: string;
+  Cedula: string | null;
+  "Total Turnos": number;
+  "Horas Ordinarias": number;
+  "HE Diurna": number;
+  "HE Nocturna": number;
+  "HE Dom/Fest Diurna": number;
+  "HE Dom/Fest Nocturna": number;
+  "Recargo Nocturno": number;
+  "Recargo Dom/Fest Diurno": number;
+  "Recargo Dom/Fest Nocturno": number;
+  "Total HE": number;
+  "Total Recargos": number;
+  "Total Horas Trabajadas": number;
+}> = {};
+
+turnos.forEach((t) => {
+  const key = t.userId;
+  const totalHoras = t.horaSalida
+    ? Math.round(((t.horaSalida.getTime() - t.horaEntrada.getTime()) / (1000 * 60 * 60)) * 100) / 100
+    : 0;
+  if (!resumenPorTecnico[key]) {
+    resumenPorTecnico[key] = {
+      Nombre: t.user.nombre,
+      Cedula: t.user.cedula,
+      "Total Turnos": 0,
+      "Horas Ordinarias": 0,
+      "HE Diurna": 0,
+      "HE Nocturna": 0,
+      "HE Dom/Fest Diurna": 0,
+      "HE Dom/Fest Nocturna": 0,
+      "Recargo Nocturno": 0,
+      "Recargo Dom/Fest Diurno": 0,
+      "Recargo Dom/Fest Nocturno": 0,
+      "Total HE": 0,
+      "Total Recargos": 0,
+      "Total Horas Trabajadas": 0,
+    };
+  }
+  resumenPorTecnico[key]["Total Turnos"] += 1;
+  resumenPorTecnico[key]["Horas Ordinarias"] += t.horasOrdinarias ?? 0;
+  resumenPorTecnico[key]["HE Diurna"] += t.heDiurna ?? 0;
+  resumenPorTecnico[key]["HE Nocturna"] += t.heNocturna ?? 0;
+  resumenPorTecnico[key]["HE Dom/Fest Diurna"] += t.heDominical ?? 0;
+  resumenPorTecnico[key]["HE Dom/Fest Nocturna"] += t.heNoctDominical ?? 0;
+  resumenPorTecnico[key]["Recargo Nocturno"] += t.recNocturno ?? 0;
+  resumenPorTecnico[key]["Recargo Dom/Fest Diurno"] += t.recDominical ?? 0;
+  resumenPorTecnico[key]["Recargo Dom/Fest Nocturno"] += t.recNoctDominical ?? 0;
+  resumenPorTecnico[key]["Total HE"] += (t.heDiurna ?? 0) + (t.heNocturna ?? 0) + (t.heDominical ?? 0) + (t.heNoctDominical ?? 0);
+  resumenPorTecnico[key]["Total Recargos"] += (t.recNocturno ?? 0) + (t.recDominical ?? 0) + (t.recNoctDominical ?? 0);
+  resumenPorTecnico[key]["Total Horas Trabajadas"] += totalHoras;
+});
+
+const dataResumen = Object.values(resumenPorTecnico).map((r) => ({
+  ...r,
+  "Horas Ordinarias": Math.round(r["Horas Ordinarias"] * 100) / 100,
+  "Total HE": Math.round(r["Total HE"] * 100) / 100,
+  "Total Recargos": Math.round(r["Total Recargos"] * 100) / 100,
+  "Total Horas Trabajadas": Math.round(r["Total Horas Trabajadas"] * 100) / 100,
+}));
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([]), "Turnos");
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([]), "Disponibilidades");
@@ -168,6 +230,7 @@ export async function GET(req: NextRequest) {
     }));
 
     const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataResumen), "Resumen");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataTurnos), "Turnos");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataDisponibilidades), "Disponibilidades");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataForaneos), "Foraneos");
