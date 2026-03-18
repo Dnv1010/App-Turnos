@@ -84,6 +84,46 @@ export async function deleteRowByValue(
   });
 }
 
+/** Eliminar fila donde TODAS las columnas indicadas coinciden (omite fila 0) */
+export async function deleteRowByValues(
+  sheetName: string,
+  matchColumns: { index: number; value: string }[]
+) {
+  if (!SHEET_ID) return;
+  const auth = getAuth();
+  const sheets = google.sheets({ version: "v4", auth });
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID,
+    range: `${sheetName}!A1:Z10000`,
+  });
+  const rows = res.data.values ?? [];
+  const rowIndex = rows.findIndex((r, i) => {
+    if (i < 1) return false;
+    return matchColumns.every((col) => String(r[col.index] ?? "") === col.value);
+  });
+  if (rowIndex === -1) return;
+  const sheetMeta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+  const sheet = sheetMeta.data.sheets?.find((s) => s.properties?.title === sheetName);
+  if (sheet?.properties?.sheetId == null) return;
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: SHEET_ID,
+    requestBody: {
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId: sheet.properties.sheetId,
+              dimension: "ROWS",
+              startIndex: rowIndex,
+              endIndex: rowIndex + 1,
+            },
+          },
+        },
+      ],
+    },
+  });
+}
+
 /** Actualizar fila existente por valor en columna; si no existe, agregar */
 export async function updateRowByValue(
   sheetName: string,

@@ -220,8 +220,22 @@ export default function CoordinadorMallaPage() {
       setEditTipo("TRABAJO");
       setEditHoraInicio("08:00");
       setEditHoraFin("17:00");
-      await cargarMalla(uid);
-      setMalla((prev) => [...prev]);
+      const key = dateKey(fecha);
+      setMalla((prev) => {
+        const filtered = prev.filter((m) => m.fecha !== key);
+        return [
+          ...filtered,
+          {
+            userId: uid,
+            fecha: key,
+            valor,
+            tipo: tipo ?? "TRABAJO",
+            horaInicio: horaInicio ?? undefined,
+            horaFin: horaFin ?? undefined,
+          },
+        ];
+      });
+      void cargarMalla(uid);
     } catch { /* ignore */ }
     finally { setSaving(false); }
   };

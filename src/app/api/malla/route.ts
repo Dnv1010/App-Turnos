@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { appendRow, deleteRowByMatch } from "@/lib/google-sheets";
+import { appendRow, deleteRowByValues } from "@/lib/google-sheets";
 
 export async function GET(req: NextRequest) {
   try {
@@ -113,21 +113,20 @@ export async function POST(req: NextRequest) {
     const wasDisponible = existing?.tipo === "DISPONIBLE";
 
     if (user) {
-      const cedula = user.cedula ?? "";
       if (wasDisponible && tipoValido !== "DISPONIBLE") {
-        deleteRowByMatch("Disponibilidades", [
-          { columnIndex: 1, value: cedula },
-          { columnIndex: 2, value: fechaStr },
+        deleteRowByValues("Disponibilidades", [
+          { index: 0, value: user.nombre },
+          { index: 2, value: fechaStr },
         ]).catch(console.error);
       }
       if (tipoValido === "DISPONIBLE") {
-        deleteRowByMatch("Disponibilidades", [
-          { columnIndex: 1, value: cedula },
-          { columnIndex: 2, value: fechaStr },
+        deleteRowByValues("Disponibilidades", [
+          { index: 0, value: user.nombre },
+          { index: 2, value: fechaStr },
         ]).catch(console.error);
         appendRow("Disponibilidades", [
           user.nombre,
-          cedula,
+          user.cedula ?? "",
           fechaStr,
           80000,
         ]).catch(console.error);
