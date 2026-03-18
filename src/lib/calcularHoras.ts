@@ -1,150 +1,204 @@
 /**
- * Cálculo de horas enlazado con la malla de turnos.
- * Reglas Código Sustantivo del Trabajo Colombia: jornada 44h/semana, ordinaria diurna 06:00-21:00, nocturna 21:00-06:00.
+ * Motor de cálculo de horas alineado con AppScript.
+ * Diurna 06:00-19:00, nocturna resto. Regla 44h semanales para recargo vs HE dom/festivo.
  */
+
+const DIURNA_START = 6 * 60; // 06:00
+const DIURNA_END = 19 * 60; // 19:00
+const HE_THRESHOLD = 0.5; // mínimo 0.5h para contar HE
 
 export interface Turno {
   horaEntrada: Date;
   horaSalida: Date;
+  fecha?: Date; // fecha del turno (para día de la semana y festivos)
 }
 
 export interface MallaDia {
   tipo: string;
+  valor?: string | null; // texto malla para getOrdinaryMinutes (ej. "Trabajo", "Disponible", "Vacacion")
   horaInicio?: string | null;
   horaFin?: string | null;
 }
 
-function parseTime(h: string): number {
-  const [hh, mm] = h.split(":").map(Number);
-  return (hh ?? 0) * 60 + (mm ?? 0);
+/** Minutos del día en zona Colombia (UTC-5) para clasificar diurna/nocturna. */
+function getMinutesOfDayColombia(d: Date): number {
+  const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
+  return colombia.getUTCHours() * 60 + colombia.getUTCMinutes();
+}
+
+/** Día de la semana (0=domingo .. 6=sábado) en Colombia. */
+function getDayOfWeekColombia(d: Date): number {
+  const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
+  return colombia.getUTCDay();
+}
+
+/**
+ * Minutos ordinarios del día según malla (reglas AppScript).
+ * dow 0 = domingo → 0.
+ * vacacion/descanso/dia de la familia/semana santa/keynote/disponible → 0.
+ * medio dia cumple: 240 (sábado 0).
+ * sábado: 240. Lunes-viernes: 540.
+ */
+export function getOrdinaryMinutes(dow: number, mallaVal: string | null | undefined): number {
+  if (dow === 0) return 0;
+  const v = (mallaVal ?? "").toLowerCase().trim();
+  if (
+    v.includes("vacacion") ||
+    v.includes("dia de la familia") ||
+    v.includes("semana santa") ||
+    v.includes("keynote") ||
+    v.includes("descanso")
+  )
+    return 0;
+  if (v === "disponible") return 0;
+  if (v.includes("medio dia") && v.includes("cumple")) {
+    if (dow === 6) return 0;
+    return 240;
+  }
+  if (dow === 6) return 240; // Sábado = 4h
+  return 540; // Lunes-Viernes = 9h
 }
 
 export function calcularMinutosEntre(horaInicio: string, horaFin: string): number {
-  let start = parseTime(horaInicio);
-  let end = parseTime(horaFin);
+  const [hh1, mm1] = horaInicio.split(":").map(Number);
+  const [hh2, mm2] = horaFin.split(":").map(Number);
+  let start = (hh1 ?? 0) * 60 + (mm1 ?? 0);
+  let end = (hh2 ?? 0) * 60 + (mm2 ?? 0);
   if (end <= start) end += 24 * 60;
   return end - start;
 }
 
-function getMinutesOfDay(d: Date): number {
-  return d.getHours() * 60 + d.getMinutes();
+interface CalcMinutesResult {
+  heDiurna: number;
+  heNocturna: number;
+  heFestDiurna: number;
+  heFestNocturna: number;
+  recNocturno: number;
+  recFestDiurno: number;
+  recFestNocturno: number;
 }
 
-/** Separa minutos extra en diurnas (06:00-21:00) y nocturnas (21:00-06:00) según la hora de salida. */
-function separarDiurnasNocturnas(
-  salida: Date,
-  minutosExtra: number
-): { diurnas: number; nocturnas: number } {
-  if (minutosExtra <= 0) return { diurnas: 0, nocturnas: 0 };
-  const minSalida = getMinutesOfDay(salida);
-  const inicioNocturno = 21 * 60;
-  const finNocturno = 6 * 60;
-  let diurnas = 0;
-  let nocturnas = 0;
-  let restantes = minutosExtra;
-  let cursor = minSalida;
-  while (restantes > 0) {
-    const esNocturno = cursor >= inicioNocturno || cursor < finNocturno;
-    const hastaFrontera = esNocturno
-      ? cursor < finNocturno
-        ? finNocturno - cursor
-        : 24 * 60 - cursor + finNocturno
-      : inicioNocturno - cursor;
-    const usar = Math.min(restantes, hastaFrontera);
-    if (esNocturno) nocturnas += usar;
-    else diurnas += usar;
-    restantes -= usar;
-    cursor = (cursor + usar) % (24 * 60);
+/**
+ * Cálculo minuto a minuto (reglas AppScript).
+ * withinOrd = primeros ordMin minutos.
+ * Dentro de ordinarias: si nocturno y no festivo → recNocturno; si applyDomRecargo → recFest diurno/nocturno.
+ * Fuera de ordinarias: si festivo → heFest diurna/nocturna; si no → heDiurna/heNocturna.
+ */
+function calcMinutes(
+  start: Date,
+  totalMin: number,
+  ordMin: number,
+  isFestivo: boolean,
+  applyDomRecargo: boolean
+): CalcMinutesResult {
+  let heDiurna = 0;
+  let heNocturna = 0;
+  let heFestDiurna = 0;
+  let heFestNocturna = 0;
+  let recNocturno = 0;
+  let recFestDiurno = 0;
+  let recFestNocturno = 0;
+
+  for (let m = 0; m < totalMin; m++) {
+    const t = new Date(start.getTime() + m * 60000);
+    const mod = getMinutesOfDayColombia(t);
+    const isDiurna = mod >= DIURNA_START && mod < DIURNA_END;
+    const isNocturna = !isDiurna;
+    const withinOrd = ordMin > 0 ? m < ordMin : false;
+
+    if (withinOrd) {
+      if (isNocturna && !isFestivo) recNocturno++;
+      if (applyDomRecargo) {
+        if (isDiurna) recFestDiurno++;
+        else recFestNocturno++;
+      }
+    } else {
+      if (isFestivo) {
+        if (isDiurna) heFestDiurna++;
+        else heFestNocturna++;
+      } else {
+        if (isDiurna) heDiurna++;
+        else heNocturna++;
+      }
+    }
   }
-  return { diurnas, nocturnas };
+
+  // Mínimo 0.5h para contar HE
+  const totalHEMin = heDiurna + heNocturna + heFestDiurna + heFestNocturna;
+  if (totalHEMin < HE_THRESHOLD * 60) {
+    heDiurna = 0;
+    heNocturna = 0;
+    heFestDiurna = 0;
+    heFestNocturna = 0;
+  }
+
+  return {
+    heDiurna,
+    heNocturna,
+    heFestDiurna,
+    heFestNocturna,
+    recNocturno,
+    recFestDiurno,
+    recFestNocturno,
+  };
 }
 
-/** Recargo nocturno dentro de las horas ordinarias (35%). */
-function calcularRecargoNocturnoEnOrdinarias(entrada: Date, minutosOrdinarios: number): number {
-  if (minutosOrdinarios <= 0) return 0;
-  const minEntrada = getMinutesOfDay(entrada);
-  const inicioNocturno = 21 * 60;
-  const finNocturno = 6 * 60;
-  let nocturnos = 0;
-  let restantes = minutosOrdinarios;
-  let cursor = minEntrada;
-  while (restantes > 0) {
-    const esNocturno = cursor >= inicioNocturno || cursor < finNocturno;
-    const hastaFrontera = esNocturno
-      ? cursor < finNocturno
-        ? finNocturno - cursor
-        : 24 * 60 - cursor + finNocturno
-      : inicioNocturno - cursor;
-    const usar = Math.min(restantes, hastaFrontera);
-    if (esNocturno) nocturnos += usar;
-    restantes -= usar;
-    cursor = (cursor + usar) % (24 * 60);
-  }
-  return nocturnos;
+function dateKey(d: Date): string {
+  return d.toISOString().split("T")[0];
 }
 
 export interface ResultadoCalcularHoras {
   horasOrdinarias: number;
   horasExtraDiurna: number;
   horasExtraNocturna: number;
+  horasExtraFestivaDiurna: number;
+  horasExtraFestivaNocturna: number;
   horasRecargoNocturno: number;
-  horasRecargoDominical: number;
-  horasRecargoFestivoNocturno: number;
+  horasRecargoDomFestDiurno: number;
+  horasRecargoDomFestNocturno: number;
 }
 
-export function calcularHorasTurno(turno: Turno, mallaDia: MallaDia | null): ResultadoCalcularHoras {
+/**
+ * Calcula horas del turno con reglas AppScript.
+ * weeklyOrdHours = acumulado de horas ordinarias de la semana (otros turnos ya cerrados).
+ * Si acumulado < 44h y es domingo/festivo → recargo dom/fest; si >= 44h → HE festiva.
+ */
+export function calcularHorasTurno(
+  turno: Turno,
+  mallaDia: MallaDia | null,
+  holidaySet: Set<string>,
+  weeklyOrdHours: number
+): ResultadoCalcularHoras {
   const entrada = new Date(turno.horaEntrada);
   const salida = new Date(turno.horaSalida);
-  const minutosTrabajados = (salida.getTime() - entrada.getTime()) / 60000;
-  const diaSemana = entrada.getDay();
-  const esFestivo = mallaDia?.tipo === "FESTIVO";
-  const esDescanso = mallaDia?.tipo === "DESCANSO";
-  const esDominical = diaSemana === 0;
-  const esFinDeSemanaNoLaboral = esDominical || esFestivo || esDescanso;
+  const fechaTurno = turno.fecha ? new Date(turno.fecha) : entrada;
+  const totalMin = Math.max(0, (salida.getTime() - entrada.getTime()) / 60000);
+  const dow = getDayOfWeekColombia(fechaTurno);
+  const esFestivo = holidaySet.has(dateKey(fechaTurno));
+  const mallaVal = mallaDia?.valor ?? null;
+  const ordMin = getOrdinaryMinutes(dow, mallaVal);
 
-  const minutosEsperados =
-    mallaDia?.horaInicio && mallaDia?.horaFin
-      ? calcularMinutosEntre(mallaDia.horaInicio, mallaDia.horaFin)
-      : diaSemana === 6
-        ? 240
-        : diaSemana === 0
-          ? 0
-          : 480;
+  // Regla 44h: si acumulado semanal < 44h y es domingo/festivo → recargo; si no → HE festiva
+  const applyDomRecargo =
+    (dow === 0 || esFestivo) && weeklyOrdHours < 44;
 
-  let minutosOrdinarios = 0;
-  let minutosExtraDiurno = 0;
-  let minutosExtraNocturno = 0;
-  let minutosRecargoNocturno = 0;
-  let minutosRecargoDominical = 0;
-  let minutosRecargoFestivoNocturno = 0;
+  const r = calcMinutes(entrada, totalMin, ordMin, esFestivo, applyDomRecargo);
 
-  if (esFinDeSemanaNoLaboral) {
-    minutosRecargoDominical = minutosTrabajados;
-    if (esFestivo || esDominical) {
-      const { diurnas, nocturnas } = separarDiurnasNocturnas(salida, minutosTrabajados);
-      minutosRecargoDominical = diurnas;
-      minutosRecargoFestivoNocturno = nocturnas;
-    }
-  } else {
-    minutosOrdinarios = Math.min(minutosTrabajados, minutosEsperados);
-    const minutosExtra = Math.max(0, minutosTrabajados - minutosEsperados);
-    const { diurnas, nocturnas } = separarDiurnasNocturnas(salida, minutosExtra);
-    minutosExtraDiurno = diurnas;
-    minutosExtraNocturno = nocturnas;
-    minutosRecargoNocturno = calcularRecargoNocturnoEnOrdinarias(entrada, minutosOrdinarios);
-  }
+  const minutosOrdinarios = Math.min(ordMin, totalMin);
 
   return {
-    horasOrdinarias: Math.max(0, minutosOrdinarios / 60),
-    horasExtraDiurna: minutosExtraDiurno / 60,
-    horasExtraNocturna: minutosExtraNocturno / 60,
-    horasRecargoNocturno: minutosRecargoNocturno / 60,
-    horasRecargoDominical: minutosRecargoDominical / 60,
-    horasRecargoFestivoNocturno: minutosRecargoFestivoNocturno / 60,
+    horasOrdinarias: Math.round((minutosOrdinarios / 60) * 100) / 100,
+    horasExtraDiurna: Math.round((r.heDiurna / 60) * 100) / 100,
+    horasExtraNocturna: Math.round((r.heNocturna / 60) * 100) / 100,
+    horasExtraFestivaDiurna: Math.round((r.heFestDiurna / 60) * 100) / 100,
+    horasExtraFestivaNocturna: Math.round((r.heFestNocturna / 60) * 100) / 100,
+    horasRecargoNocturno: Math.round((r.recNocturno / 60) * 100) / 100,
+    horasRecargoDomFestDiurno: Math.round((r.recFestDiurno / 60) * 100) / 100,
+    horasRecargoDomFestNocturno: Math.round((r.recFestNocturno / 60) * 100) / 100,
   };
 }
 
-/** Mapea resultado de calcularHorasTurno a campos del modelo Turno (Prisma). */
+/** Mapea resultado a campos del modelo Turno (Prisma). */
 export function resultadoToTurnoData(r: ResultadoCalcularHoras): {
   horasOrdinarias: number;
   heDiurna: number;
@@ -156,13 +210,13 @@ export function resultadoToTurnoData(r: ResultadoCalcularHoras): {
   recNoctDominical: number;
 } {
   return {
-    horasOrdinarias: Math.round(r.horasOrdinarias * 100) / 100,
-    heDiurna: Math.round(r.horasExtraDiurna * 100) / 100,
-    heNocturna: Math.round(r.horasExtraNocturna * 100) / 100,
-    heDominical: 0,
-    heNoctDominical: 0,
-    recNocturno: Math.round(r.horasRecargoNocturno * 100) / 100,
-    recDominical: Math.round(r.horasRecargoDominical * 100) / 100,
-    recNoctDominical: Math.round(r.horasRecargoFestivoNocturno * 100) / 100,
+    horasOrdinarias: r.horasOrdinarias,
+    heDiurna: r.horasExtraDiurna,
+    heNocturna: r.horasExtraNocturna,
+    heDominical: r.horasExtraFestivaDiurna,
+    heNoctDominical: r.horasExtraFestivaNocturna,
+    recNocturno: r.horasRecargoNocturno,
+    recDominical: r.horasRecargoDomFestDiurno,
+    recNoctDominical: r.horasRecargoDomFestNocturno,
   };
 }

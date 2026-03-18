@@ -103,18 +103,28 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    const dataTurnos = turnos.map((t) => ({
-      Nombre: t.user.nombre,
-      Cédula: t.user.cedula,
-      Fecha: dateKey(t.fecha),
-      Entrada: timeColombia(t.horaEntrada),
-      Salida: t.horaSalida ? timeColombia(t.horaSalida) : "",
-      "Horas Ordinarias": t.horasOrdinarias ?? 0,
-      "HE Diurna": t.heDiurna ?? 0,
-      "HE Nocturna": t.heNocturna ?? 0,
-      "Recargo Nocturno": t.recNocturno ?? 0,
-      "Recargo Dominical": t.recDominical ?? 0,
-    }));
+    const dataTurnos = turnos.map((t) => {
+      const totalHoras =
+        t.horaSalida != null
+          ? Math.round(((t.horaSalida.getTime() - t.horaEntrada.getTime()) / (1000 * 60 * 60)) * 100) / 100
+          : 0;
+      return {
+        Nombre: t.user.nombre,
+        Cédula: t.user.cedula,
+        Fecha: dateKey(t.fecha),
+        Entrada: timeColombia(t.horaEntrada),
+        Salida: t.horaSalida ? timeColombia(t.horaSalida) : "",
+        "Total Horas": totalHoras,
+        "Horas Ordinarias": t.horasOrdinarias ?? 0,
+        "HE Diurna": t.heDiurna ?? 0,
+        "HE Nocturna": t.heNocturna ?? 0,
+        "HE Dom/Fest Diurna": t.heDominical ?? 0,
+        "HE Dom/Fest Nocturna": t.heNoctDominical ?? 0,
+        "Recargo Nocturno": t.recNocturno ?? 0,
+        "Recargo Dom/Fest Diurno": t.recDominical ?? 0,
+        "Recargo Dom/Fest Nocturno": t.recNoctDominical ?? 0,
+      };
+    });
 
     const dataDisponibilidades = mallaDisponibles.map((m) => ({
       Nombre: m.user.nombre,

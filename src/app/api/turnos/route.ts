@@ -5,7 +5,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
 import { getDay } from "date-fns";
-import { nowColombia } from "@/lib/utils";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
 
 function dateKey(d: Date): string {
@@ -28,7 +27,7 @@ export async function GET(req: NextRequest) {
   if (session.user.role === "TECNICO") {
     where.userId = session.user.userId;
   } else if (session.user.role === "COORDINADOR") {
-    const zona = zonaParam || session.user.zona;
+    const zona = (zonaParam || session.user.zona) as "BOGOTA" | "COSTA";
     const usersZona = await prisma.user.findMany({
       where: { zona, role: "TECNICO", isActive: true },
       select: { id: true },
@@ -120,36 +119,56 @@ export async function PATCH(req: NextRequest) {
     const ahoraUTC = new Date();
     const horaSalida = new Date();
 
-    const [mallaDiaRow, festivosSemana] = await Promise.all([
+    const inicioSemana = getInicioSemana(turno.fecha);
+    const finSemana = getFinSemana(turno.fecha);
+
+    const [mallaDiaRow, festivosSemana, turnosSemana] = await Promise.all([
       prisma.mallaTurno.findUnique({
         where: { userId_fecha: { userId: turno.userId, fecha: turno.fecha } },
       }),
       prisma.festivo.findMany({
-        where: { fecha: { gte: getInicioSemana(turno.fecha), lte: getFinSemana(turno.fecha) } },
+        where: { fecha: { gte: inicioSemana, lte: finSemana } },
+      }),
+      prisma.turno.findMany({
+        where: {
+          userId: turno.userId,
+          fecha: { gte: inicioSemana, lte: finSemana },
+          horaSalida: { not: null },
+          id: { not: turnoId },
+        },
+        select: { horasOrdinarias: true },
       }),
     ]);
+
     const holidaySet = new Set(festivosSemana.map((f) => dateKey(f.fecha)));
     const esFestivo = holidaySet.has(dateKey(turno.fecha));
+    const weeklyOrdHours = turnosSemana.reduce((s, t) => s + (t.horasOrdinarias ?? 0), 0);
 
-    const mallaDia = mallaDiaRow
+    type MallaRow = { tipo?: string | null; valor: string; horaInicio?: string | null; horaFin?: string | null };
+    const row = mallaDiaRow as MallaRow | null;
+    const mallaDia = row
       ? {
-          tipo: esFestivo ? "FESTIVO" : (mallaDiaRow.tipo ?? "TRABAJO"),
-          horaInicio: mallaDiaRow.horaInicio,
-          horaFin: mallaDiaRow.horaFin,
+          tipo: esFestivo ? "FESTIVO" : (row.tipo ?? "TRABAJO"),
+          valor: row.valor ?? null,
+          horaInicio: row.horaInicio,
+          horaFin: row.horaFin,
         }
       : esFestivo
-        ? { tipo: "FESTIVO" as const, horaInicio: null, horaFin: null }
+        ? { tipo: "FESTIVO" as const, valor: null, horaInicio: null, horaFin: null }
         : getDay(turno.fecha) === 0
-          ? { tipo: "DESCANSO" as const, horaInicio: null, horaFin: null }
+          ? { tipo: "DESCANSO" as const, valor: null, horaInicio: null, horaFin: null }
           : {
               tipo: "TRABAJO" as const,
+              valor: "Trabajo",
               horaInicio: "08:00",
               horaFin: getDay(turno.fecha) === 6 ? "12:00" : "17:00",
             };
 
     const resultado = calcularHorasTurno(
-      { horaEntrada: turno.horaEntrada, horaSalida },
-      mallaDia
+      { horaEntrada: turno.horaEntrada, horaSalida, fecha: turno.fecha },
+      mallaDia,
+      holidaySet,
+      weeklyOrdHours
     );
     const resultadoDb = resultadoToTurnoData(resultado);
 
