@@ -47,6 +47,7 @@ interface DetalleUsuario {
   heDiurna: number; heNocturna: number; heDominical: number; heNoctDominical: number;
   recNocturno: number; recDominical: number; recNoctDominical: number;
   totalHorasExtra: number; totalRecargos: number; totalDisponibilidades: number;
+  totalHorasTrabajadas?: number;
   totalKmRecorridos: number; registrosForaneo: number; fotos: FotoInfo[];
   turnos?: (TurnoConMalla & { fecha: string; horaEntrada: string; horaSalida?: string | null; horasOrdinarias?: number; heDiurna?: number; heNocturna?: number; recNocturno?: number; recDominical?: number; recNoctDominical?: number })[];
 }
@@ -74,7 +75,7 @@ interface ReporteData {
   alertas: Array<{ nombre: string; mensaje: string; tipo?: string }>;
 }
 
-type TabView = "turnos" | "equipo" | "disponibilidades" | "foraneos";
+type TabView = "turnos" | "equipo" | "horasTotales" | "disponibilidades" | "foraneos";
 
 export default function CoordinadorPage() {
   const { data: session } = useSession();
@@ -278,6 +279,9 @@ export default function CoordinadorPage() {
         <button onClick={() => setTabView("equipo")} className={`px-4 py-2.5 text-sm font-medium border-b-2 flex items-center gap-1.5 ${tabView === "equipo" ? "border-primary-600 text-primary-700" : "border-transparent text-gray-500"}`}>
           <HiPhotograph className="h-4 w-4" />Reporte Equipo
         </button>
+        <button onClick={() => setTabView("horasTotales")} className={`px-4 py-2.5 text-sm font-medium border-b-2 ${tabView === "horasTotales" ? "border-primary-600 text-primary-700" : "border-transparent text-gray-500"}`}>
+          Horas Totales
+        </button>
         <button onClick={() => setTabView("disponibilidades")} className={`px-4 py-2.5 text-sm font-medium border-b-2 ${tabView === "disponibilidades" ? "border-primary-600 text-primary-700" : "border-transparent text-gray-500"}`}>
           Disponibilidades
         </button>
@@ -338,6 +342,43 @@ export default function CoordinadorPage() {
           ] as never} data={data.detalle as never} searchable searchPlaceholder="Buscar técnico..." />
             </>
           ) : null}
+        </>
+      )}
+
+      {tabView === "horasTotales" && (
+        <>
+          {loadingReportes && !data ? (
+            <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
+          ) : reporteError && !data ? (
+            <div className="card text-center py-12 text-amber-700">{reporteError}</div>
+          ) : !data?.detalle?.length ? (
+            <div className="card text-center py-12 text-gray-500">No hay registros para este período</div>
+          ) : (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumen de horas por técnico</h3>
+              <DataTable
+                columns={[
+                  { key: "nombre", label: "Nombre", sortable: true },
+                  { key: "cedula", label: "Cédula", render: (d: DetalleUsuario) => d.cedula ?? "—" },
+                  { key: "totalTurnos", label: "Total Turnos" },
+                  { key: "totalHorasTrabajadas", label: "Horas Trabajadas Total", render: (d: DetalleUsuario) => d.totalHorasTrabajadas ?? 0 },
+                  { key: "horasOrdinarias", label: "Horas Ordinarias" },
+                  { key: "heDiurna", label: "HE Diurna" },
+                  { key: "heNocturna", label: "HE Nocturna" },
+                  { key: "heDominical", label: "HE Dom/Fest Diurna" },
+                  { key: "heNoctDominical", label: "HE Dom/Fest Nocturna" },
+                  { key: "recNocturno", label: "Recargo Nocturno" },
+                  { key: "recDominical", label: "Recargo Dom/Fest Diurno" },
+                  { key: "recNoctDominical", label: "Recargo Dom/Fest Nocturno" },
+                  { key: "totalHorasExtra", label: "Total HE" },
+                  { key: "totalRecargos", label: "Total Recargos" },
+                ] as never}
+                data={data.detalle as never}
+                searchable
+                searchPlaceholder="Buscar técnico..."
+              />
+            </div>
+          )}
         </>
       )}
 
