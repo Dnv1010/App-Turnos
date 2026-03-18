@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
-    const mes = searchParams.get("mes"); // yyyy-MM
+    const mes = searchParams.get("mes");
 
     if (!userId || !mes) {
       return NextResponse.json({ error: "Parámetros userId y mes requeridos" }, { status: 400 });
@@ -73,7 +73,9 @@ export async function POST(req: NextRequest) {
     }
 
     const TIPOS_VALIDOS = ["TRABAJO", "DESCANSO", "DISPONIBLE", "DIA_FAMILIA", "INCAPACITADO", "VACACIONES", "MEDIO_CUMPLE"] as const;
-    const tipoValido = typeof tipo === "string" && (TIPOS_VALIDOS as readonly string[]).includes(tipo) ? tipo as (typeof TIPOS_VALIDOS)[number] : undefined;
+    const tipoValido = typeof tipo === "string" && (TIPOS_VALIDOS as readonly string[]).includes(tipo)
+      ? tipo as (typeof TIPOS_VALIDOS)[number]
+      : undefined;
 
     let valorFinal = valor;
     if (tipoValido === "DESCANSO") valorFinal = "descanso";
@@ -106,6 +108,7 @@ export async function POST(req: NextRequest) {
       where: { id: userId },
       select: { nombre: true, cedula: true },
     });
+
     const existing = await prisma.mallaTurno.findUnique({
       where: { userId_fecha: { userId, fecha: fechaDate } },
       select: { tipo: true },
@@ -114,16 +117,14 @@ export async function POST(req: NextRequest) {
 
     if (user) {
       if (wasDisponible && tipoValido !== "DISPONIBLE") {
+        // Era DISPONIBLE y cambió a otro tipo → borrar de Sheets
         deleteRowByValues("Disponibilidades", [
           { index: 0, value: user.nombre },
           { index: 2, value: fechaStr },
         ]).catch(console.error);
       }
-      if (tipoValido === "DISPONIBLE") {
-        deleteRowByValues("Disponibilidades", [
-          { index: 0, value: user.nombre },
-          { index: 2, value: fechaStr },
-        ]).catch(console.error);
+      if (tipoValido === "DISPONIBLE" && !wasDisponible) {
+        // Era otro tipo y cambió a DISPONIBLE → agregar a Sheets
         appendRow("Disponibilidades", [
           user.nombre,
           user.cedula ?? "",
@@ -131,9 +132,15 @@ export async function POST(req: NextRequest) {
           80000,
         ]).catch(console.error);
       }
+      // Si ya era DISPONIBLE y sigue siendo DISPONIBLE → no hacer nada
     }
 
-    const updateData: { valor: string; tipo?: (typeof TIPOS_VALIDOS)[number]; horaInicio?: string | null; horaFin?: string | null } = { valor: valorFinal ?? "" };
+    const updateData: {
+      valor: string;
+      tipo?: (typeof TIPOS_VALIDOS)[number];
+      horaInicio?: string | null;
+      horaFin?: string | null;
+    } = { valor: valorFinal ?? "" };
     if (tipoValido) updateData.tipo = tipoValido;
     if (horaInicio !== undefined) updateData.horaInicio = horaInicio || null;
     if (horaFin !== undefined) updateData.horaFin = horaFin || null;
