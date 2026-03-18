@@ -44,7 +44,6 @@ export default function TecnicoDashboard() {
     if (!session?.user?.userId) return;
     setLoading(true);
     try {
-      console.log("[Filtro] desde:", desde, "hasta:", hasta);
       const [turnosRes, foraneosRes] = await Promise.all([
         fetch(`/api/turnos?desde=${desde}&hasta=${hasta}`),
         fetch(`/api/reportes/foraneos?desde=${desde}&hasta=${hasta}&userId=${session.user.userId}`),
@@ -53,33 +52,40 @@ export default function TecnicoDashboard() {
       setTurnos(Array.isArray(data) ? data : []);
       const abierto = (Array.isArray(data) ? data : []).find((t: TurnoRecord) => !t.horaSalida);
       setTurnoActivo(abierto ? { id: abierto.id, horaEntrada: abierto.horaEntrada } : null);
-
       const foraneosData = await foraneosRes.json();
       const listaForaneos = Array.isArray(foraneosData) ? foraneosData : [];
       const miForaneo = listaForaneos.find((f: { userId: string }) => f.userId === session.user.userId);
       setForaneosResumen(miForaneo ? { totalKm: miForaneo.totalKm ?? 0, totalPagar: miForaneo.totalPagar ?? 0 } : { totalKm: 0, totalPagar: 0 });
-    } catch { console.error("Error cargando turnos"); setTurnos([]); setForaneosResumen({ totalKm: 0, totalPagar: 0 }); }
-    finally { setLoading(false); }
+    } catch {
+      console.error("Error cargando turnos");
+      setTurnos([]);
+      setForaneosResumen({ totalKm: 0, totalPagar: 0 });
+    } finally {
+      setLoading(false);
+    }
   }, [session?.user?.userId, desde, hasta]);
 
   const filtrar = useCallback(async () => {
     if (!session?.user?.userId) return;
     setLoading(true);
     try {
-      console.log("[Filtro] desde:", desde, "hasta:", hasta);
       const res = await fetch(`/api/turnos?desde=${desde}&hasta=${hasta}`);
       const data = await res.json();
       setTurnos(Array.isArray(data) ? data : []);
       const abierto = (Array.isArray(data) ? data : []).find((t: TurnoRecord) => !t.horaSalida);
       setTurnoActivo(abierto ? { id: abierto.id, horaEntrada: abierto.horaEntrada } : null);
-
       const foraneosRes = await fetch(`/api/reportes/foraneos?desde=${desde}&hasta=${hasta}&userId=${session.user.userId}`);
       const foraneosData = await foraneosRes.json();
       const listaForaneos = Array.isArray(foraneosData) ? foraneosData : [];
       const miForaneo = listaForaneos.find((f: { userId: string }) => f.userId === session.user.userId);
       setForaneosResumen(miForaneo ? { totalKm: miForaneo.totalKm ?? 0, totalPagar: miForaneo.totalPagar ?? 0 } : { totalKm: 0, totalPagar: 0 });
-    } catch { console.error("Error cargando turnos"); setTurnos([]); setForaneosResumen({ totalKm: 0, totalPagar: 0 }); }
-    finally { setLoading(false); }
+    } catch {
+      console.error("Error cargando turnos");
+      setTurnos([]);
+      setForaneosResumen({ totalKm: 0, totalPagar: 0 });
+    } finally {
+      setLoading(false);
+    }
   }, [session?.user?.userId, desde, hasta]);
 
   useEffect(() => {
@@ -98,25 +104,55 @@ export default function TecnicoDashboard() {
   const totalOrdinarias = turnos.reduce((s, t) => s + Math.max(0, t.horasOrdinarias), 0);
 
   const columns = [
-    { key: "fecha", label: "Fecha", sortable: true,
+    {
+      key: "fecha",
+      label: "Fecha",
+      sortable: true,
       render: (t: TurnoRecord) => {
-        const [y, m, d] = t.fecha.split("T")[0].split("-").map(Number);
+        const fechaStr = t.fecha.split("T")[0];
+        const [y, m, d] = fechaStr.split("-").map(Number);
         return format(new Date(y, m - 1, d), "EEE dd MMM", { locale: es });
-      }
-    { key: "horaEntrada", label: "Entrada",
-      render: (t: TurnoRecord) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
-    { key: "horaSalida", label: "Salida",
-      render: (t: TurnoRecord) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
-    { key: "horasOrdinarias", label: "Ord.", sortable: true, render: (t: TurnoRecord) => Math.max(0, t.horasOrdinarias) },
-    { key: "heDiurna", label: "HE Día", render: (t: TurnoRecord) => (t.heDiurna > 0 ? t.heDiurna : "—") },
-    { key: "heNocturna", label: "HE Noc", render: (t: TurnoRecord) => (t.heNocturna > 0 ? t.heNocturna : "—") },
-    { key: "recNocturno", label: "Rec. Noc", render: (t: TurnoRecord) => (t.recNocturno > 0 ? t.recNocturno : "—") },
+      },
+    },
+    {
+      key: "horaEntrada",
+      label: "Entrada",
+      render: (t: TurnoRecord) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }),
+    },
+    {
+      key: "horaSalida",
+      label: "Salida",
+      render: (t: TurnoRecord) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—",
+    },
+    {
+      key: "horasOrdinarias",
+      label: "Ord.",
+      sortable: true,
+      render: (t: TurnoRecord) => Math.max(0, t.horasOrdinarias),
+    },
+    {
+      key: "heDiurna",
+      label: "HE Día",
+      render: (t: TurnoRecord) => t.heDiurna > 0 ? t.heDiurna : "—",
+    },
+    {
+      key: "heNocturna",
+      label: "HE Noc",
+      render: (t: TurnoRecord) => t.heNocturna > 0 ? t.heNocturna : "—",
+    },
+    {
+      key: "recNocturno",
+      label: "Rec. Noc",
+      render: (t: TurnoRecord) => t.recNocturno > 0 ? t.recNocturno : "—",
+    },
   ];
 
   if (loading) {
-    return <div className="flex items-center justify-center py-20">
-      <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
-    </div>;
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+      </div>
+    );
   }
 
   return (
@@ -155,7 +191,12 @@ export default function TecnicoDashboard() {
           }} />
         </div>
         <div className="flex justify-center">
-          <BotonFichaje userId={session?.user?.userId || ""} turnoActivo={turnoActivo} onFichaje={cargarDatos} onTurnoFinalizado={cargarDatos} />
+          <BotonFichaje
+            userId={session?.user?.userId || ""}
+            turnoActivo={turnoActivo}
+            onFichaje={cargarDatos}
+            onTurnoFinalizado={cargarDatos}
+          />
         </div>
       </div>
       {turnoActivo && turnos[0]?.latEntrada && turnos[0]?.lngEntrada && (
@@ -165,8 +206,11 @@ export default function TecnicoDashboard() {
       )}
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalle de turnos</h3>
-        <DataTable columns={columns as never} data={turnos as never}
-          emptyMessage="No hay turnos registrados este mes" />
+        <DataTable
+          columns={columns as never}
+          data={turnos as never}
+          emptyMessage="No hay turnos registrados este mes"
+        />
       </div>
     </div>
   );
