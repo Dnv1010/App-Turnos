@@ -26,6 +26,7 @@ export default function UsuariosPage() {
     pin: "",
     role: "TECNICO",
     zona: "BOGOTA",
+    isActive: true,
   });
   const [saving, setSaving] = useState(false);
 
@@ -46,7 +47,7 @@ export default function UsuariosPage() {
 
   const abrirCrear = () => {
     setEditando(null);
-    setForm({ cedula: "", nombre: "", email: "", pin: "", role: "TECNICO", zona: "BOGOTA" });
+    setForm({ cedula: "", nombre: "", email: "", pin: "", role: "TECNICO", zona: "BOGOTA", isActive: true });
     setModal(true);
   };
 
@@ -59,6 +60,7 @@ export default function UsuariosPage() {
       pin: "",
       role: u.role,
       zona: u.zona,
+      isActive: u.isActive,
     });
     setModal(true);
   };
@@ -66,16 +68,43 @@ export default function UsuariosPage() {
   const guardar = async () => {
     setSaving(true);
     try {
-      const method = editando ? "PATCH" : "POST";
-      const body = editando ? { id: editando.id, ...form } : form;
-      const res = await fetch("/api/admin/usuarios", {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) {
-        setModal(false);
-        cargarUsuarios();
+      if (editando) {
+        const body: Record<string, unknown> = {
+          nombre: form.nombre,
+          email: form.email,
+          cedula: form.cedula,
+          role: form.role,
+          zona: form.zona,
+          isActive: form.isActive,
+        };
+        if (form.pin.trim() !== "") body.pin = form.pin;
+        const res = await fetch(`/api/admin/usuarios/${editando.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          setModal(false);
+          cargarUsuarios();
+        }
+      } else {
+        const res = await fetch("/api/admin/usuarios", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cedula: form.cedula,
+            nombre: form.nombre,
+            email: form.email,
+            pin: form.pin,
+            role: form.role,
+            zona: form.zona,
+            isActive: form.isActive,
+          }),
+        });
+        if (res.ok) {
+          setModal(false);
+          cargarUsuarios();
+        }
       }
     } catch {
       console.error("Error guardando usuario");
@@ -84,16 +113,13 @@ export default function UsuariosPage() {
     }
   };
 
-  const toggleActivo = async (u: Usuario) => {
+  const eliminarUsuario = async (u: Usuario) => {
+    if (!confirm(`¿Desactivar al usuario ${u.nombre}? Se marcará como inactivo.`)) return;
     try {
-      await fetch("/api/admin/usuarios", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: u.id, isActive: !u.isActive }),
-      });
-      cargarUsuarios();
+      const res = await fetch(`/api/admin/usuarios/${u.id}`, { method: "DELETE" });
+      if (res.ok) cargarUsuarios();
     } catch {
-      console.error("Error actualizando usuario");
+      console.error("Error desactivando usuario");
     }
   };
 
@@ -143,20 +169,17 @@ export default function UsuariosPage() {
               abrirEditar(u);
             }}
             className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-primary-600"
+            title="Editar"
           >
             <HiPencil className="h-4 w-4" />
           </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
-              toggleActivo(u);
+              eliminarUsuario(u);
             }}
-            className={`p-1.5 rounded-lg hover:bg-gray-100 ${
-              u.isActive
-                ? "text-gray-500 hover:text-red-600"
-                : "text-gray-500 hover:text-green-600"
-            }`}
-            title={u.isActive ? "Desactivar" : "Activar"}
+            className="p-1.5 rounded-lg hover:bg-red-50 text-red-600 hover:text-red-700"
+            title="Eliminar (desactivar)"
           >
             <HiTrash className="h-4 w-4" />
           </button>
@@ -257,19 +280,34 @@ export default function UsuariosPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  PIN{" "}
-                  {editando && "(dejar vacío para no cambiar)"}
+                  PIN (4 dígitos)
+                  {editando && " — dejar vacío para no cambiar"}
                 </label>
                 <input
-                  type="text"
+                  type="password"
+                  inputMode="numeric"
                   value={form.pin}
                   onChange={(e) =>
-                    setForm({ ...form, pin: e.target.value })
+                    setForm({ ...form, pin: e.target.value.replace(/\D/g, "").slice(0, 4) })
                   }
                   className="input-field"
-                  maxLength={6}
+                  maxLength={4}
                   placeholder="••••"
                 />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="activo"
+                  checked={form.isActive}
+                  onChange={(e) =>
+                    setForm({ ...form, isActive: e.target.checked })
+                  }
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <label htmlFor="activo" className="text-sm font-medium text-gray-700">
+                  Activo
+                </label>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -317,7 +355,7 @@ export default function UsuariosPage() {
                   saving ||
                   !form.nombre ||
                   !form.email ||
-                  (!editando && (!form.cedula || !form.pin))
+                  (!editando && (!form.cedula || form.pin.length !== 4))
                 }
                 className="btn-primary"
               >
