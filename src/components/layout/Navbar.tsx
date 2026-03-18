@@ -21,12 +21,13 @@ const zonaBadgeClasses: Record<string, string> = {
 export default function Navbar({ nombre, role, zona, onMenuClick }: NavbarProps) {
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
-      <div className="flex items-center justify-between h-16 px-4 sm:px-6">
-        <div className="flex items-center gap-3">
-          <button onClick={onMenuClick} className="lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700">
-            <HiMenu className="h-5 w-5" />
+      <div className="flex items-center justify-between h-14 sm:h-16 px-2 sm:px-6">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button onClick={onMenuClick} className="lg:hidden p-3 sm:p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 touch-manipulation" aria-label="Abrir menú">
+            <HiMenu className="h-6 w-6 sm:h-5 sm:w-5" />
           </button>
-          <h1 className="text-lg font-semibold text-gray-900 hidden sm:block">App Turnos BIA</h1>
+          <h1 className="text-base sm:text-lg font-semibold text-gray-900 hidden sm:block">App Turnos BIA</h1>
+          <h1 className="text-sm font-semibold text-gray-900 sm:hidden">BIA Turnos</h1>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3">

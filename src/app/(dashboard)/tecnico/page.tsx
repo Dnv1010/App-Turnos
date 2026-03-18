@@ -156,14 +156,14 @@ export default function TecnicoDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Mi Dashboard</h2>
-          <p className="text-gray-500">Turnos y horas extras</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Mi Dashboard</h2>
+          <p className="text-sm text-gray-500">Turnos y horas extras</p>
         </div>
       </div>
-      <div className="card grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+      <div className="card p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-4 gap-3 sm:gap-4 items-end">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
           <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="input-field" />
@@ -179,8 +179,8 @@ export default function TecnicoDashboard() {
           </button>
         </div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="lg:col-span-2 order-2 lg:order-1">
           <KPICards data={{
             horasOrdinarias: Math.max(0, Math.round(totalOrdinarias * 100) / 100),
             totalHorasExtra: Math.round(totalHE * 100) / 100,
@@ -190,7 +190,7 @@ export default function TecnicoDashboard() {
             foraneos: foraneosResumen,
           }} />
         </div>
-        <div className="flex justify-center">
+        <div className="flex justify-center order-1 lg:order-2">
           <BotonFichaje
             userId={session?.user?.userId || ""}
             turnoActivo={turnoActivo}
@@ -204,8 +204,8 @@ export default function TecnicoDashboard() {
           <MapaUbicacion lat={turnos[0].latEntrada} lng={turnos[0].lngEntrada} label="Ubicación de entrada" />
         </div>
       )}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalle de turnos</h3>
+      <div className="min-w-0">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Detalle de turnos</h3>
         <DataTable
           columns={columns as never}
           data={turnos as never}

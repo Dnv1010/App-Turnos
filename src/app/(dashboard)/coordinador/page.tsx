@@ -243,22 +243,22 @@ export default function CoordinadorPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Dashboard Equipo</h2>
-          <p className="text-gray-500">Zona {session?.user?.zona} — {session?.user?.nombre}</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard Equipo</h2>
+          <p className="text-sm text-gray-500">Zona {session?.user?.zona} — {session?.user?.nombre}</p>
         </div>
         {data && (
-          <>
-            <button onClick={exportarCSV} className="btn-secondary flex items-center gap-2"><HiDownload className="h-5 w-5" />Exportar CSV</button>
-            <button onClick={() => void exportarExcel()} className="btn-secondary flex items-center gap-2"><HiDownload className="h-5 w-5" />Exportar Excel</button>
-            <button onClick={() => void sincronizarSheets()} disabled={syncingSheets} className="btn-secondary flex items-center gap-2"><HiRefresh className="h-5 w-5" />{syncingSheets ? "Sincronizando…" : "Sincronizar Sheets"}</button>
-          </>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={exportarCSV} className="btn-secondary flex items-center gap-2 py-2 px-3 sm:py-2.5 sm:px-5 text-sm"><HiDownload className="h-4 w-4 sm:h-5 sm:w-5" />Exportar CSV</button>
+            <button onClick={() => void exportarExcel()} className="btn-secondary flex items-center gap-2 py-2 px-3 sm:py-2.5 sm:px-5 text-sm"><HiDownload className="h-4 w-4 sm:h-5 sm:w-5" />Exportar Excel</button>
+            <button onClick={() => void sincronizarSheets()} disabled={syncingSheets} className="btn-secondary flex items-center gap-2 py-2 px-3 sm:py-2.5 sm:px-5 text-sm"><HiRefresh className="h-4 w-4 sm:h-5 sm:w-5" />{syncingSheets ? "Sincronizando…" : "Sincronizar Sheets"}</button>
+          </div>
         )}
       </div>
 
-      <div className="card">
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+      <div className="card p-4 sm:p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 sm:gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
             <input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} className="input-field" />
@@ -290,21 +290,21 @@ export default function CoordinadorPage() {
         </div>
       </div>
 
-      <div className="flex gap-2 border-b border-gray-200">
-        <button onClick={() => setTabView("turnos")} className={`px-4 py-2.5 text-sm font-medium border-b-2 ${tabView === "turnos" ? "border-primary-600 text-primary-700" : "border-transparent text-gray-500"}`}>
+      <div className="flex gap-2 border-b border-gray-200 overflow-x-auto pb-0 scrollbar-hide min-w-0">
+        <button onClick={() => setTabView("turnos")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${tabView === "turnos" ? "border-primary-600 text-primary-700" : "border-transparent text-gray-500"}`}>
           Turnos
         </button>
-        <button onClick={() => setTabView("equipo")} className={`px-4 py-2.5 text-sm font-medium border-b-2 flex items-center gap-1.5 ${tabView === "equipo" ? "border-primary-600 text-primary-700" : "border-transparent text-gray-500"}`}>
-          <HiPhotograph className="h-4 w-4" />Reporte Equipo
+        <button onClick={() => setTabView("equipo")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 flex items-center gap-1.5 whitespace-nowrap ${tabView === "equipo" ? "border-primary-600 text-primary-700" : "border-transparent text-gray-500"}`}>
+          <HiPhotograph className="h-3.5 w-3.5 sm:h-4 sm:w-4" />Reporte Equipo
         </button>
-        <button onClick={() => setTabView("horasTotales")} className={`px-4 py-2.5 text-sm font-medium border-b-2 ${tabView === "horasTotales" ? "border-primary-600 text-primary-700" : "border-transparent text-gray-500"}`}>
+        <button onClick={() => setTabView("horasTotales")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${tabView === "horasTotales" ? "border-primary-600 text-primary-700" : "border-transparent text-gray-500"}`}>
           Horas Totales
         </button>
-        <button onClick={() => setTabView("disponibilidades")} className={`px-4 py-2.5 text-sm font-medium border-b-2 ${tabView === "disponibilidades" ? "border-primary-600 text-primary-700" : "border-transparent text-gray-500"}`}>
+        <button onClick={() => setTabView("disponibilidades")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${tabView === "disponibilidades" ? "border-primary-600 text-primary-700" : "border-transparent text-gray-500"}`}>
           Disponibilidades
         </button>
-        <button onClick={() => setTabView("foraneos")} className={`px-4 py-2.5 text-sm font-medium border-b-2 flex items-center gap-1.5 ${tabView === "foraneos" ? "border-primary-600 text-primary-700" : "border-transparent text-gray-500"}`}>
-          <HiTruck className="h-4 w-4" />Foráneos / Km
+        <button onClick={() => setTabView("foraneos")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 flex items-center gap-1.5 whitespace-nowrap ${tabView === "foraneos" ? "border-primary-600 text-primary-700" : "border-transparent text-gray-500"}`}>
+          <HiTruck className="h-3.5 w-3.5 sm:h-4 sm:w-4" />Foráneos / Km
           {data && data.resumen.totalRegistrosForaneo > 0 && <span className="bg-orange-100 text-orange-700 text-xs font-bold px-1.5 py-0.5 rounded-full">{data.resumen.totalRegistrosForaneo}</span>}
         </button>
       </div>

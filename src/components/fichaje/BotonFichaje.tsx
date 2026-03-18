@@ -150,7 +150,7 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje, onTurnoFi
           <button
             onClick={handleFichajeClick}
             disabled={loading}
-            className={`relative w-40 h-40 rounded-full flex flex-col items-center justify-center text-white font-bold shadow-lg transition-all duration-300 active:scale-95 disabled:opacity-70 ${
+            className={`relative w-48 h-48 sm:w-40 sm:h-40 rounded-full flex flex-col items-center justify-center text-white font-bold shadow-lg transition-all duration-300 active:scale-95 disabled:opacity-70 ${
               estaEnTurno
                 ? "bg-gradient-to-br from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 shadow-red-200"
                 : "bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-600 hover:to-primary-800 shadow-primary-200"

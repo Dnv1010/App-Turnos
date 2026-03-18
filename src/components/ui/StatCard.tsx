@@ -25,8 +25,8 @@ export default function StatCard({ titulo, valor, subtitulo, icono: Icono, color
     <div className="card hover:shadow-md transition-shadow duration-200">
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-500">{titulo}</p>
-          <p className="mt-2 text-3xl font-bold text-gray-900">{valor}</p>
+          <p className="text-xs sm:text-sm font-medium text-gray-500">{titulo}</p>
+          <p className="mt-1 sm:mt-2 text-xl sm:text-3xl font-bold text-gray-900">{valor}</p>
           {subtitulo && <p className="mt-1 text-sm text-gray-500">{subtitulo}</p>}
           {tendencia && (
             <p className={`mt-1 text-sm font-medium ${tendencia.positivo ? "text-green-600" : "text-red-600"}`}>
