@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
 
   const ahoraUTC = new Date();
   const offsetColombia = -5 * 60; // UTC-5 en minutos
-  const horaEntrada = new Date(new Date().getTime() - 5 * 60 * 60 * 1000);
+  const horaEntrada = new Date();
 const fecha = new Date(Date.UTC(horaEntrada.getUTCFullYear(), horaEntrada.getUTCMonth(), horaEntrada.getUTCDate()));
   const turno = await prisma.turno.create({
     data: {
