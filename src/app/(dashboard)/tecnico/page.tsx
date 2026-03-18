@@ -99,7 +99,10 @@ export default function TecnicoDashboard() {
 
   const columns = [
     { key: "fecha", label: "Fecha", sortable: true,
-      render: (t: TurnoRecord) => format(new Date(t.fecha), "EEE dd MMM", { locale: es }) },
+      render: (t: TurnoRecord) => {
+        const [y, m, d] = t.fecha.split("T")[0].split("-").map(Number);
+        return format(new Date(y, m - 1, d), "EEE dd MMM", { locale: es });
+      }
     { key: "horaEntrada", label: "Entrada",
       render: (t: TurnoRecord) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
     { key: "horaSalida", label: "Salida",
