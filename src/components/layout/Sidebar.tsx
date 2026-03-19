@@ -1,8 +1,30 @@
 "use client";
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { HiHome, HiCalendar, HiCamera, HiUserGroup, HiChartBar, HiDocumentReport, HiCog, HiX, HiClock } from "react-icons/hi";
+
+// Componente del logo Bia con rayo
+function BiaLogo({ size = "sm" }: { size?: "sm" | "md" }) {
+  const rayoSize = size === "sm" ? { w: 16, h: 20 } : { w: 24, h: 30 };
+  const textSize = size === "sm" ? "text-lg" : "text-2xl";
+  
+  return (
+    <div className="flex items-center gap-0.5">
+      <svg 
+        width={rayoSize.w} 
+        height={rayoSize.h} 
+        viewBox="0 0 40 48" 
+        fill="none" 
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path d="M24 0L0 28H16L12 48L40 18H22L24 0Z" fill="#00D4AA"/>
+      </svg>
+      <span className={`font-black ${textSize} text-gray-900`} style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+        Bia
+      </span>
+    </div>
+  );
+}
 
 interface SidebarProps {
   role: string;
@@ -40,10 +62,8 @@ export default function Sidebar({ role, isOpen, onClose }: SidebarProps) {
       <aside className={`fixed top-0 left-0 z-50 h-full w-64 bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:z-auto ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">BIA</span>
-            </div>
-            <span className="font-bold text-gray-900">App Turnos</span>
+            <BiaLogo size="sm" />
+            <span className="font-semibold text-gray-600 text-sm">App Turnos</span>
           </div>
           <button onClick={onClose} className="lg:hidden text-gray-500 hover:text-gray-700">
             <HiX className="h-5 w-5" />

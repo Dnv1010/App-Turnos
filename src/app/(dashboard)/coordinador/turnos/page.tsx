@@ -5,7 +5,8 @@ import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
 import DataTable from "@/components/ui/DataTable";
-import { HiSearch, HiPencil, HiTrash, HiEye, HiLocationMarker, HiPhotograph, HiX, HiSave } from "react-icons/hi";
+import { useToast } from "@/components/ui/Toast";
+import { HiSearch, HiPencil, HiTrash, HiLocationMarker, HiPhotograph, HiX, HiSave } from "react-icons/hi";
 
 interface TurnoRow {
   id: string;
@@ -38,8 +39,6 @@ interface TecnicoOption {
 
 function calcPreviewHours(startDate: string, startTime: string, endDate: string, endTime: string): string {
   if (!startTime || !endTime) return "—";
-  const [sh, sm] = startTime.split(":").map(Number);
-  const [eh, em] = endTime.split(":").map(Number);
   const startMin = new Date(`${startDate}T${startTime}:00`).getTime();
   const endMin = new Date(`${endDate}T${endTime}:00`).getTime();
   let diff = (endMin - startMin) / (1000 * 60 * 60);
@@ -49,6 +48,7 @@ function calcPreviewHours(startDate: string, startTime: string, endDate: string,
 
 export default function CoordinadorTurnosPage() {
   const { data: session } = useSession();
+  const toast = useToast();
   const [turnos, setTurnos] = useState<TurnoRow[]>([]);
   const [tecnicos, setTecnicos] = useState<TecnicoOption[]>([]);
   const [inicio, setInicio] = useState(format(new Date(), "yyyy-MM-01"));
@@ -58,6 +58,7 @@ export default function CoordinadorTurnosPage() {
   const [loading, setLoading] = useState(true);
   const [editingTurno, setEditingTurno] = useState<TurnoRow | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; nombre: string } | null>(null);
   const [editForm, setEditForm] = useState({
     startDate: "",
     startTime: "",
@@ -124,32 +125,32 @@ export default function CoordinadorTurnosPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        alert(data.msg);
+        toast.success("Turno actualizado", `Ord: ${data.turno?.horasOrdinarias ?? 0}h, HE: ${((data.turno?.heDiurna ?? 0) + (data.turno?.heNocturna ?? 0)).toFixed(2)}h`);
         setEditingTurno(null);
         loadTurnos();
       } else {
-        alert("Error: " + (data.error || "No se pudo guardar"));
+        toast.error("Error al guardar", data.error || "No se pudo guardar el turno");
       }
     } catch (e: unknown) {
-      alert("Error: " + (e instanceof Error ? e.message : "No se pudo guardar"));
+      toast.error("Error", e instanceof Error ? e.message : "No se pudo guardar");
     }
     setSaving(false);
   }
 
-  async function deleteTurno(turnoId: string, nombre: string) {
-    if (!confirm(`¿Cancelar el turno de ${nombre}? Esta acción se puede registrar.`)) return;
+  async function deleteTurno(turnoId: string) {
     try {
       const res = await fetch(`/api/turnos/${turnoId}`, { method: "DELETE" });
       const data = await res.json();
       if (data.ok) {
-        alert("Turno cancelado");
+        toast.success("Turno cancelado", "El turno ha sido cancelado correctamente");
         loadTurnos();
       } else {
-        alert("Error: " + (data.error || "No se pudo cancelar"));
+        toast.error("Error", data.error || "No se pudo cancelar el turno");
       }
     } catch (e: unknown) {
-      alert("Error: " + (e instanceof Error ? e.message : "No se pudo cancelar"));
+      toast.error("Error", e instanceof Error ? e.message : "No se pudo cancelar");
     }
+    setConfirmDelete(null);
   }
 
   const totalHoras = (t: TurnoRow) => {
@@ -186,7 +187,7 @@ export default function CoordinadorTurnosPage() {
       render: (t: TurnoRow) => (
         <div className="flex gap-2">
           <button type="button" onClick={() => openEditModal(t)} className="text-blue-600 hover:text-blue-800 p-1" title="Editar"><HiPencil className="h-4 w-4" /></button>
-          <button type="button" onClick={() => deleteTurno(t.id, t.user?.nombre ?? "")} className="text-red-600 hover:text-red-800 p-1" title="Cancelar turno"><HiTrash className="h-4 w-4" /></button>
+          <button type="button" onClick={() => setConfirmDelete({ id: t.id, nombre: t.user?.nombre ?? "" })} className="text-red-600 hover:text-red-800 p-1" title="Cancelar turno"><HiTrash className="h-4 w-4" /></button>
         </div>
       ),
     },
@@ -238,6 +239,7 @@ export default function CoordinadorTurnosPage() {
         <DataTable columns={columns as never} data={turnos as never} searchable searchPlaceholder="Buscar técnico..." />
       )}
 
+      {/* Modal Editar Turno */}
       {editingTurno && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
@@ -300,6 +302,37 @@ export default function CoordinadorTurnosPage() {
                 {saving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <HiSave className="w-4 h-4" />}
                 Guardar y recalcular
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmar Cancelación */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <HiTrash className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">¿Cancelar turno?</h3>
+              <p className="text-gray-500 text-sm mb-6">
+                Vas a cancelar el turno de <strong>{confirmDelete.nombre}</strong>. Esta acción quedará registrada.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setConfirmDelete(null)}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                >
+                  No, volver
+                </button>
+                <button
+                  onClick={() => deleteTurno(confirmDelete.id)}
+                  className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700"
+                >
+                  Sí, cancelar
+                </button>
+              </div>
             </div>
           </div>
         </div>
