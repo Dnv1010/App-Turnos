@@ -3,9 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
-import { getDay } from "date-fns";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
-import { updateRowByMatch } from "@/lib/google-sheets";
+import { deleteRowByMatch, appendRow } from "@/lib/google-sheets";
 
 /** Convierte Date a fecha Colombia (UTC-5) como string YYYY-MM-DD */
 function dateKeyColombia(d: Date): string {
@@ -21,16 +20,19 @@ function timeColombia(d: Date): string {
   return `${hh}:${mm}`;
 }
 
-/** 
+/** Día de la semana en Colombia */
+function getDayOfWeekColombia(d: Date): number {
+  const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
+  return colombia.getUTCDay();
+}
+
+/**
  * Parsea ISO string asegurando que si NO tiene timezone, se interprete como Colombia (UTC-5)
- * Si tiene timezone (Z o +/-), lo respeta.
  */
 function parseAsColombiaTime(isoString: string): Date {
-  // Si ya tiene timezone indicator, parsear normal
   if (isoString.includes("Z") || /[+-]\d{2}:\d{2}$/.test(isoString)) {
     return new Date(isoString);
   }
-  // Si no tiene timezone, agregar -05:00 (Colombia)
   return new Date(isoString + "-05:00");
 }
 
@@ -96,7 +98,10 @@ export async function PATCH(
     }
     const { horaEntrada: horaEntradaISO, horaSalida: horaSalidaISO, observaciones: notes } = body ?? {};
 
-    // CRÍTICO: Parsear horas asumiendo Colombia si no tienen timezone
+    // Guardar fecha original para eliminar de Sheets
+    const fechaOriginal = dateKeyColombia(turno.fecha);
+
+    // Parsear horas asumiendo Colombia si no tienen timezone
     const newEntrada = horaEntradaISO ? parseAsColombiaTime(horaEntradaISO) : turno.horaEntrada;
     const newSalida = horaSalidaISO ? parseAsColombiaTime(horaSalidaISO) : turno.horaSalida;
 
@@ -142,18 +147,15 @@ export async function PATCH(
       }),
     ]);
 
-    // CRÍTICO: Usar dateKeyColombia para festivos
     const holidaySet = new Set(festivosSemana.map((f) => dateKeyColombia(f.fecha)));
     const esFestivo = holidaySet.has(fechaStr);
     const weeklyOrdHours = turnosSemana.reduce((s, t) => s + Math.max(0, t.horasOrdinarias ?? 0), 0);
 
     type MallaRow = { tipo?: string | null; valor: string; horaInicio?: string | null; horaFin?: string | null };
     const row = mallaDiaRow as MallaRow | null;
-    
-    // Día de la semana en Colombia
-    const colombiaDate = new Date(newEntrada.getTime() - 5 * 60 * 60 * 1000);
-    const dowColombia = colombiaDate.getUTCDay();
-    
+
+    const dowColombia = getDayOfWeekColombia(newEntrada);
+
     const mallaDia = row
       ? {
           tipo: esFestivo ? "FESTIVO" : (row.tipo ?? "TRABAJO"),
@@ -191,11 +193,17 @@ export async function PATCH(
       },
     });
 
+    // Sincronizar Google Sheets: eliminar fila vieja y agregar nueva
     const totalHoras = Math.round(((newSalida.getTime() - newEntrada.getTime()) / (1000 * 60 * 60)) * 100) / 100;
-    updateRowByMatch("Turnos", [
+
+    // Primero eliminar la fila con la fecha ORIGINAL
+    deleteRowByMatch("Turnos", [
       { columnIndex: 0, value: turno.user.nombre },
-      { columnIndex: 2, value: dateKeyColombia(turno.fecha) },
-    ], [
+      { columnIndex: 2, value: fechaOriginal },
+    ]).catch(console.error);
+
+    // Luego agregar la fila nueva
+    appendRow("Turnos", [
       turno.user.nombre,
       turno.user.cedula ?? "",
       fechaStr,
@@ -232,7 +240,10 @@ export async function DELETE(
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { id } = await params;
-  const turno = await prisma.turno.findUnique({ where: { id } });
+  const turno = await prisma.turno.findUnique({ 
+    where: { id },
+    include: { user: { select: { nombre: true } } },
+  });
   if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
 
   const canDelete = session.user.role === "ADMIN" || session.user.role === "MANAGER" ||
@@ -245,5 +256,12 @@ export async function DELETE(
       observaciones: `Cancelado por coordinador ${new Date().toISOString()}`,
     },
   });
+
+  // También eliminar de Sheets si existe
+  deleteRowByMatch("Turnos", [
+    { columnIndex: 0, value: turno.user.nombre },
+    { columnIndex: 2, value: dateKeyColombia(turno.fecha) },
+  ]).catch(console.error);
+
   return NextResponse.json({ ok: true, msg: "Turno cancelado" });
 }
