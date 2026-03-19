@@ -64,8 +64,8 @@ export function getOrdinaryMinutes(dow: number, mallaVal: string | null | undefi
   // Sábado
   if (dow === 6) return 240; // 4h
   
-  // Lun-Vie: 9h
-  return 540;
+ // Lun-Vie: 8h (9h jornada - 1h almuerzo)
+ return 480;
 }
 
 export function calcularMinutosEntre(horaInicio: string, horaFin: string): number {

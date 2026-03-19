@@ -41,7 +41,7 @@ export interface AlertaBIA {
 
 const DIURNA_START = 6 * 60;  // 06:00 = 360 minutos
 const DIURNA_END = 19 * 60;   // 19:00 = 1140 minutos
-const ORDINARIO_LV_MIN = 540; // 9 horas
+const ORDINARIO_LV_MIN = 480; // 8 horas (9h jornada - 1h almuerzo)
 const ORDINARIO_SAB_MIN = 240; // 4 horas
 const UMBRAL_HE = 0.5;
 
