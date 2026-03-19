@@ -141,9 +141,29 @@ export default function TecnicoDashboard() {
       render: (t: TurnoRecord) => t.heNocturna > 0 ? t.heNocturna : "—",
     },
     {
+      key: "heDominical",
+      label: "HE Dom/Fest Día",
+      render: (t: TurnoRecord) => t.heDominical > 0 ? t.heDominical : "—",
+    },
+    {
+      key: "heNoctDominical",
+      label: "HE Dom/Fest Noc",
+      render: (t: TurnoRecord) => t.heNoctDominical > 0 ? t.heNoctDominical : "—",
+    },
+    {
       key: "recNocturno",
       label: "Rec. Noc",
       render: (t: TurnoRecord) => t.recNocturno > 0 ? t.recNocturno : "—",
+    },
+    {
+      key: "recDominical",
+      label: "Rec Dom/Fest Día",
+      render: (t: TurnoRecord) => t.recDominical > 0 ? t.recDominical : "—",
+    },
+    {
+      key: "recNoctDominical",
+      label: "Rec Dom/Fest Noc",
+      render: (t: TurnoRecord) => t.recNoctDominical > 0 ? t.recNoctDominical : "—",
     },
   ];
 
@@ -206,11 +226,13 @@ export default function TecnicoDashboard() {
       )}
       <div className="min-w-0">
         <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Detalle de turnos</h3>
-        <DataTable
-          columns={columns as never}
-          data={turnos as never}
-          emptyMessage="No hay turnos registrados este mes"
-        />
+        <div className="overflow-x-auto w-full">
+          <DataTable
+            columns={columns as never}
+            data={turnos as never}
+            emptyMessage="No hay turnos registrados este mes"
+          />
+        </div>
       </div>
     </div>
   );
