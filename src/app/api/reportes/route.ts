@@ -3,11 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { calcularTurno, calcularHorasSemanalesConMalla, getInicioSemana, getFinSemana, checkMallaAlerts } from "@/lib/bia/calc-engine";
-import { getDay } from "date-fns";
+import { calcularTurno, calcularHorasSemanalesConMalla, getInicioSemana, getFinSemana, checkMallaAlerts, dateKeyColombia } from "@/lib/bia/calc-engine";
 
-function dateKey(d: Date): string {
-  return d.toISOString().split("T")[0];
+/** Día de la semana en Colombia (0=Dom, 1=Lun, ..., 6=Sáb) */
+function getDayOfWeekColombia(d: Date): number {
+  const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
+  return colombia.getUTCDay();
 }
 
 export async function GET(req: NextRequest) {
@@ -77,18 +78,21 @@ export async function GET(req: NextRequest) {
   });
   const mallaMap = new Map<string, string>();
   for (const m of mallaDB) {
-    mallaMap.set(`${m.userId}|${dateKey(m.fecha)}`, m.valor);
+    // CRÍTICO: Usar dateKeyColombia para la malla
+    mallaMap.set(`${m.userId}|${dateKeyColombia(m.fecha)}`, m.valor);
   }
 
   const festivos = await prisma.festivo.findMany({
     where: { fecha: { gte: fechaInicio, lte: fechaFin } },
   });
-  const holidaySet = new Set(festivos.map((f) => dateKey(f.fecha)));
+  // CRÍTICO: Usar dateKeyColombia para festivos
+  const holidaySet = new Set(festivos.map((f) => dateKeyColombia(f.fecha)));
 
   const alertasMalla: Array<{ userId: string; nombre: string; mensaje: string; tipo?: string }> = [];
 
   const detalle = usuarios.map((user) => {
-    const mallaGetter = (fecha: Date) => mallaMap.get(`${user.id}|${dateKey(fecha)}`) ?? null;
+    // CRÍTICO: Usar dateKeyColombia al buscar en mallaMap
+    const mallaGetter = (fecha: Date) => mallaMap.get(`${user.id}|${dateKeyColombia(fecha)}`) ?? null;
 
     const turnosConMalla = user.turnos.map((t) => {
       const mallaVal = mallaGetter(t.fecha);
@@ -101,24 +105,25 @@ export async function GET(req: NextRequest) {
         fecha: x.fecha,
         horaEntrada: x.horaEntrada,
         horaSalida: x.horaSalida!,
-        esFestivo: holidaySet.has(dateKey(x.fecha)),
-        esDomingo: getDay(x.fecha) === 0,
+        // CRÍTICO: Usar dateKeyColombia y getDayOfWeekColombia
+        esFestivo: holidaySet.has(dateKeyColombia(x.fecha)),
+        esDomingo: getDayOfWeekColombia(x.fecha) === 0,
       }));
-      const resumenSemanal = calcularHorasSemanalesConMalla(turnosData, (f) => mallaMap.get(`${user.id}|${dateKey(f)}`) ?? null, holidaySet);
+      const resumenSemanal = calcularHorasSemanalesConMalla(turnosData, (f) => mallaMap.get(`${user.id}|${dateKeyColombia(f)}`) ?? null, holidaySet);
       const totalHoras = (t.horaSalida!.getTime() - t.horaEntrada.getTime()) / (1000 * 60 * 60);
       const resultado = calcularTurno(
         {
           fecha: t.fecha,
           horaEntrada: t.horaEntrada,
           horaSalida: t.horaSalida!,
-          esFestivo: holidaySet.has(dateKey(t.fecha)),
-          esDomingo: getDay(t.fecha) === 0,
+          esFestivo: holidaySet.has(dateKeyColombia(t.fecha)),
+          esDomingo: getDayOfWeekColombia(t.fecha) === 0,
         },
         resumenSemanal,
         mallaVal,
         holidaySet
       );
-      const alerts = checkMallaAlerts(t.id, user.email ?? "", t.fecha, mallaVal, holidaySet.has(dateKey(t.fecha)), totalHoras);
+      const alerts = checkMallaAlerts(t.id, user.email ?? "", t.fecha, mallaVal, holidaySet.has(dateKeyColombia(t.fecha)), totalHoras);
       alerts.forEach((a) => alertasMalla.push({ userId: user.id, nombre: user.nombre, mensaje: a.detalle, tipo: a.tipo }));
 
       return {

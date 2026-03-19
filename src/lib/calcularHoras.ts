@@ -1,6 +1,7 @@
 /**
  * Motor de cálculo de horas alineado con AppScript.
- * Diurna 06:00-19:00, nocturna resto. Regla 44h semanales para recargo vs HE dom/festivo.
+ * Diurna 06:00-19:00 Colombia, nocturna resto.
+ * Regla 44h semanales para recargo vs HE dom/festivo.
  */
 
 const DIURNA_START = 6 * 60; // 06:00
@@ -20,6 +21,8 @@ export interface MallaDia {
   horaFin?: string | null;
 }
 
+// ============ FUNCIONES DE TIMEZONE COLOMBIA ============
+
 function getMinutesOfDayColombia(d: Date): number {
   const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
   return colombia.getUTCHours() * 60 + colombia.getUTCMinutes();
@@ -30,9 +33,18 @@ function getDayOfWeekColombia(d: Date): number {
   return colombia.getUTCDay();
 }
 
+function dateKeyColombia(d: Date): string {
+  const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
+  return colombia.toISOString().split("T")[0];
+}
+
+// ============ HORAS ORDINARIAS SEGÚN MALLA ============
+
 export function getOrdinaryMinutes(dow: number, mallaVal: string | null | undefined): number {
-  if (dow === 0) return 0;
+  if (dow === 0) return 0; // Domingo
   const v = (mallaVal ?? "").toLowerCase().trim();
+  
+  // Bloqueos
   if (
     v.includes("vacacion") ||
     v.includes("dia de la familia") ||
@@ -40,12 +52,19 @@ export function getOrdinaryMinutes(dow: number, mallaVal: string | null | undefi
     v.includes("keynote") ||
     v.includes("descanso")
   ) return 0;
+  
   if (v === "disponible") return 0;
+  
+  // Medio día cumpleaños
   if (v.includes("medio") && v.includes("cumple")) {
     if (dow === 6) return 0;
-    return 240;
+    return 240; // 4h
   }
-  if (dow === 6) return 240;
+  
+  // Sábado
+  if (dow === 6) return 240; // 4h
+  
+  // Lun-Vie: 9h
   return 540;
 }
 
@@ -57,6 +76,8 @@ export function calcularMinutosEntre(horaInicio: string, horaFin: string): numbe
   if (end <= start) end += 24 * 60;
   return end - start;
 }
+
+// ============ CÁLCULO MINUTO A MINUTO ============
 
 interface CalcMinutesResult {
   heDiurna: number;
@@ -91,12 +112,14 @@ function calcMinutes(
     const withinOrd = ordMin > 0 ? m < ordMin : false;
 
     if (withinOrd) {
+      // Dentro de horas ordinarias
       if (isNocturna && !isFestivo) recNocturno++;
       if (applyDomRecargo) {
         if (isDiurna) recFestDiurno++;
         else recFestNocturno++;
       }
     } else {
+      // Fuera de horas ordinarias = HE
       if (isFestivo) {
         if (isDiurna) heFestDiurna++;
         else heFestNocturna++;
@@ -127,9 +150,7 @@ function calcMinutes(
   };
 }
 
-function dateKey(d: Date): string {
-  return d.toISOString().split("T")[0];
-}
+// ============ RESULTADO ============
 
 export interface ResultadoCalcularHoras {
   horasOrdinarias: number;
@@ -152,14 +173,21 @@ export function calcularHorasTurno(
   const salida = new Date(turno.horaSalida);
   const fechaTurno = turno.fecha ? new Date(turno.fecha) : entrada;
   const totalMin = Math.max(0, (salida.getTime() - entrada.getTime()) / 60000);
+  
+  // CRÍTICO: Usar timezone Colombia
   const dow = getDayOfWeekColombia(fechaTurno);
-  const esFestivo = holidaySet.has(dateKey(fechaTurno));
+  const fechaKey = dateKeyColombia(fechaTurno);
+  const esFestivo = holidaySet.has(fechaKey);
+  const esDomingo = dow === 0;
+  const esDomFestivo = esDomingo || esFestivo;
+  
   const mallaVal = mallaDia?.valor ?? null;
-  const ordMin = getOrdinaryMinutes(dow, mallaVal);
+  const ordMin = esDomFestivo ? 0 : getOrdinaryMinutes(dow, mallaVal);
 
-  const applyDomRecargo = (dow === 0 || esFestivo) && weeklyOrdHours < 44;
+  // Regla 44h
+  const applyDomRecargo = esDomFestivo && weeklyOrdHours < 44;
 
-  const r = calcMinutes(entrada, totalMin, ordMin, esFestivo, applyDomRecargo);
+  const r = calcMinutes(entrada, totalMin, ordMin, esDomFestivo, applyDomRecargo);
 
   const minutosOrdinarios = Math.min(ordMin, totalMin);
 
