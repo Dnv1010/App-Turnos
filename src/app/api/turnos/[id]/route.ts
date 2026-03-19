@@ -2,20 +2,36 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { calcularTurno, calcularHorasSemanalesConMalla, getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
+import { getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
 import { getDay } from "date-fns";
+import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
 import { updateRowByMatch } from "@/lib/google-sheets";
 
-function dateKey(d: Date): string {
-  return d.toISOString().split("T")[0];
+/** Convierte Date a fecha Colombia (UTC-5) como string YYYY-MM-DD */
+function dateKeyColombia(d: Date): string {
+  const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
+  return colombia.toISOString().split("T")[0];
 }
 
+/** Hora Colombia como HH:MM */
 function timeColombia(d: Date): string {
-  return new Date(d).toLocaleTimeString("es-CO", {
-    timeZone: "America/Bogota",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
+  const hh = String(colombia.getUTCHours()).padStart(2, "0");
+  const mm = String(colombia.getUTCMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+/** 
+ * Parsea ISO string asegurando que si NO tiene timezone, se interprete como Colombia (UTC-5)
+ * Si tiene timezone (Z o +/-), lo respeta.
+ */
+function parseAsColombiaTime(isoString: string): Date {
+  // Si ya tiene timezone indicator, parsear normal
+  if (isoString.includes("Z") || /[+-]\d{2}:\d{2}$/.test(isoString)) {
+    return new Date(isoString);
+  }
+  // Si no tiene timezone, agregar -05:00 (Colombia)
+  return new Date(isoString + "-05:00");
 }
 
 async function checkCoordinadorZona(turnoUserId: string, session: { user: { zona?: string; role: string } }) {
@@ -80,10 +96,14 @@ export async function PATCH(
     }
     const { horaEntrada: horaEntradaISO, horaSalida: horaSalidaISO, observaciones: notes } = body ?? {};
 
-    const newEntrada = horaEntradaISO ? new Date(horaEntradaISO) : turno.horaEntrada;
-    const newSalida = horaSalidaISO ? new Date(horaSalidaISO) : turno.horaSalida;
+    // CRÍTICO: Parsear horas asumiendo Colombia si no tienen timezone
+    const newEntrada = horaEntradaISO ? parseAsColombiaTime(horaEntradaISO) : turno.horaEntrada;
+    const newSalida = horaSalidaISO ? parseAsColombiaTime(horaSalidaISO) : turno.horaSalida;
 
-    const fecha = new Date(Date.UTC(newEntrada.getFullYear(), newEntrada.getMonth(), newEntrada.getDate(), 12, 0, 0));
+    // Calcular fecha en Colombia (UTC-5)
+    const fechaStr = dateKeyColombia(newEntrada);
+    const [y, m, d] = fechaStr.split("-").map(Number);
+    const fecha = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
 
     if (!newSalida) {
       await prisma.turno.update({
@@ -100,58 +120,65 @@ export async function PATCH(
     const inicioSemana = getInicioSemana(fecha);
     const finSemana = getFinSemana(fecha);
 
-    const [mallaSemana, festivosSemana] = await Promise.all([
-      prisma.mallaTurno.findMany({
-        where: { userId: turno.userId, fecha: { gte: inicioSemana, lte: finSemana } },
+    const [mallaDiaRow, festivosSemana, turnosSemana] = await Promise.all([
+      prisma.mallaTurno.findUnique({
+        where: { userId_fecha: { userId: turno.userId, fecha } },
       }),
-      prisma.festivo.findMany({ where: { fecha: { gte: inicioSemana, lte: finSemana } } }),
+      prisma.festivo.findMany({
+        where: { fecha: { gte: inicioSemana, lte: finSemana } },
+      }),
+      prisma.turno.findMany({
+        where: {
+          userId: turno.userId,
+          fecha: { gte: inicioSemana, lte: finSemana },
+          horaSalida: { not: null },
+          id: { not: id },
+          OR: [
+            { observaciones: null },
+            { observaciones: { not: { startsWith: "Cancelado" } } },
+          ],
+        },
+        select: { horasOrdinarias: true },
+      }),
     ]);
-    const mallaMap = new Map<string, string>();
-    mallaSemana.forEach((m) => mallaMap.set(dateKey(m.fecha), m.valor));
-    const holidaySet = new Set(festivosSemana.map((f) => dateKey(f.fecha)));
 
-    const turnosSemana = await prisma.turno.findMany({
-      where: {
-        userId: turno.userId,
-        fecha: { gte: inicioSemana, lte: finSemana },
-        horaSalida: { not: null },
-        id: { not: id },
-        OR: [
-          { observaciones: null },
-          { observaciones: { not: { startsWith: "Cancelado" } } },
-        ],
-      },
-    });
-    const turnosData = turnosSemana.map((t) => ({
-      fecha: t.fecha,
-      horaEntrada: t.horaEntrada,
-      horaSalida: t.horaSalida!,
-      esFestivo: holidaySet.has(dateKey(t.fecha)),
-      esDomingo: getDay(t.fecha) === 0,
-    }));
-    turnosData.push({
-      fecha,
-      horaEntrada: newEntrada,
-      horaSalida: newSalida,
-      esFestivo: holidaySet.has(dateKey(fecha)),
-      esDomingo: getDay(fecha) === 0,
-    });
+    // CRÍTICO: Usar dateKeyColombia para festivos
+    const holidaySet = new Set(festivosSemana.map((f) => dateKeyColombia(f.fecha)));
+    const esFestivo = holidaySet.has(fechaStr);
+    const weeklyOrdHours = turnosSemana.reduce((s, t) => s + Math.max(0, t.horasOrdinarias ?? 0), 0);
 
-    const mallaGetter = (f: Date) => mallaMap.get(dateKey(f)) ?? null;
-    const resumenSemanal = calcularHorasSemanalesConMalla(turnosData, mallaGetter, holidaySet);
-    const mallaVal = mallaMap.get(dateKey(fecha)) ?? null;
-    const resultado = calcularTurno(
-      {
-        fecha,
-        horaEntrada: newEntrada,
-        horaSalida: newSalida,
-        esFestivo: holidaySet.has(dateKey(fecha)),
-        esDomingo: getDay(fecha) === 0,
-      },
-      resumenSemanal,
-      mallaVal,
-      holidaySet
+    type MallaRow = { tipo?: string | null; valor: string; horaInicio?: string | null; horaFin?: string | null };
+    const row = mallaDiaRow as MallaRow | null;
+    
+    // Día de la semana en Colombia
+    const colombiaDate = new Date(newEntrada.getTime() - 5 * 60 * 60 * 1000);
+    const dowColombia = colombiaDate.getUTCDay();
+    
+    const mallaDia = row
+      ? {
+          tipo: esFestivo ? "FESTIVO" : (row.tipo ?? "TRABAJO"),
+          valor: row.valor ?? null,
+          horaInicio: row.horaInicio,
+          horaFin: row.horaFin,
+        }
+      : esFestivo
+        ? { tipo: "FESTIVO" as const, valor: null, horaInicio: null, horaFin: null }
+        : dowColombia === 0
+          ? { tipo: "DESCANSO" as const, valor: null, horaInicio: null, horaFin: null }
+          : {
+              tipo: "TRABAJO" as const,
+              valor: "Trabajo",
+              horaInicio: "08:00",
+              horaFin: dowColombia === 6 ? "12:00" : "17:00",
+            };
+
+    const resultado = calcularHorasTurno(
+      { horaEntrada: newEntrada, horaSalida: newSalida, fecha },
+      mallaDia,
+      holidaySet,
+      weeklyOrdHours
     );
+    const resultadoDb = resultadoToTurnoData(resultado);
 
     await prisma.turno.update({
       where: { id },
@@ -160,39 +187,35 @@ export async function PATCH(
         horaEntrada: newEntrada,
         horaSalida: newSalida,
         observaciones: notes ? `${notes} [Editado ${new Date().toISOString()}]` : turno.observaciones,
-        ...resultado,
+        ...resultadoDb,
       },
     });
 
-    const totalHoras =
-      Math.round(
-        ((newSalida.getTime() - newEntrada.getTime()) / (1000 * 60 * 60)) * 100
-      ) / 100;
-    const rowValues = [
+    const totalHoras = Math.round(((newSalida.getTime() - newEntrada.getTime()) / (1000 * 60 * 60)) * 100) / 100;
+    updateRowByMatch("Turnos", [
+      { columnIndex: 0, value: turno.user.nombre },
+      { columnIndex: 2, value: dateKeyColombia(turno.fecha) },
+    ], [
       turno.user.nombre,
       turno.user.cedula ?? "",
-      dateKey(fecha),
+      fechaStr,
       timeColombia(newEntrada),
       timeColombia(newSalida),
       totalHoras,
-      Math.max(0, resultado.horasOrdinarias ?? 0),
-      resultado.heDiurna ?? 0,
-      resultado.heNocturna ?? 0,
-      resultado.heDominical ?? 0,
-      resultado.heNoctDominical ?? 0,
-      resultado.recNocturno ?? 0,
-      resultado.recDominical ?? 0,
-      resultado.recNoctDominical ?? 0,
-    ];
-    updateRowByMatch("Turnos", [
-      { columnIndex: 0, value: turno.user.nombre },
-      { columnIndex: 2, value: dateKey(turno.fecha) },
-    ], rowValues).catch(console.error);
+      Math.max(0, resultadoDb.horasOrdinarias ?? 0),
+      resultadoDb.heDiurna ?? 0,
+      resultadoDb.heNocturna ?? 0,
+      resultadoDb.heDominical ?? 0,
+      resultadoDb.heNoctDominical ?? 0,
+      resultadoDb.recNocturno ?? 0,
+      resultadoDb.recDominical ?? 0,
+      resultadoDb.recNoctDominical ?? 0,
+    ]).catch(console.error);
 
-    const totalHE = resultado.heDiurna + resultado.heNocturna + resultado.heDominical + resultado.heNoctDominical;
     return NextResponse.json({
       ok: true,
-      msg: `Turno actualizado. Total: ${resultado.horasOrdinarias}h ord, HE: ${totalHE}h`,
+      msg: `Turno actualizado. Ord: ${resultadoDb.horasOrdinarias}h, HE: ${resultadoDb.heDiurna + resultadoDb.heNocturna}h`,
+      turno: { ...resultadoDb, fecha: fechaStr },
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Error al editar";
