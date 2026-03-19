@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
+import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
 import KPICards from "@/components/dashboard/KPICards";
 import DataTable from "@/components/ui/DataTable";
 import { HiDownload, HiSearch, HiTruck, HiExternalLink } from "react-icons/hi";
@@ -204,14 +205,14 @@ export default function ReportesPage() {
     { key: "cedula", label: "Cédula", render: (d: DetalleUsuario) => d.cedula ?? "—" },
     { key: "zona", label: "Zona", render: (d: DetalleUsuario) => <span className={d.zona === "BOGOTA" ? "badge-blue" : "badge-green"}>{d.zona}</span> },
     { key: "totalTurnos", label: "Turnos", sortable: true },
-    { key: "horasOrdinarias", label: "Ord.", sortable: true },
-    { key: "heDiurna", label: "HE Día", sortable: true },
-    { key: "heNocturna", label: "HE Noc", sortable: true },
-    { key: "heDominical", label: "HE Dom/Fest Día" },
-    { key: "heNoctDominical", label: "HE Dom/Fest Noc" },
-    { key: "recNocturno", label: "Rec. Noc" },
-    { key: "recDominical", label: "Rec Dom/Fest Día" },
-    { key: "recNoctDominical", label: "Rec Dom/Fest Noc" },
+    { key: "horasOrdinarias", label: "Ord.", sortable: true, render: (d: DetalleUsuario) => Math.max(0, d.horasOrdinarias) },
+    { key: "heDiurna", label: "HE Día", sortable: true, render: (d: DetalleUsuario) => d.heDiurna > 0 ? d.heDiurna : "—" },
+    { key: "heNocturna", label: "HE Noc", sortable: true, render: (d: DetalleUsuario) => d.heNocturna > 0 ? d.heNocturna : "—" },
+    { key: "heDominical", label: "HE Dom/Fest Día", render: (d: DetalleUsuario) => d.heDominical > 0 ? d.heDominical : "—" },
+    { key: "heNoctDominical", label: "HE Dom/Fest Noc", render: (d: DetalleUsuario) => d.heNoctDominical > 0 ? d.heNoctDominical : "—" },
+    { key: "recNocturno", label: "Rec. Noc", render: (d: DetalleUsuario) => d.recNocturno > 0 ? d.recNocturno : "—" },
+    { key: "recDominical", label: "Rec Dom/Fest Día", render: (d: DetalleUsuario) => d.recDominical > 0 ? d.recDominical : "—" },
+    { key: "recNoctDominical", label: "Rec Dom/Fest Noc", render: (d: DetalleUsuario) => d.recNoctDominical > 0 ? d.recNoctDominical : "—" },
     { key: "totalHorasExtra", label: "Total HE", sortable: true },
     { key: "totalRecargos", label: "Total Rec.", sortable: true },
     { key: "regForaneos", label: "Reg. Foráneos", render: (d: DetalleUsuario) => {
@@ -333,7 +334,7 @@ export default function ReportesPage() {
                   columns={[
                     { key: "nombre", label: "Nombre", sortable: true },
                     { key: "cedula", label: "Cédula" },
-                    { key: "fecha", label: "Fecha" },
+                    { key: "fecha", label: "Fecha", render: (r: { fecha: string }) => formatFechaTurnoDdMmmYyyy(r.fecha) },
                     { key: "valor", label: "Valor ($80.000/día)", render: (r: { valor: number }) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(r.valor) },
                   ] as never}
                   data={disponibilidadesList as never}

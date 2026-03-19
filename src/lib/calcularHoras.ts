@@ -5,7 +5,7 @@
 
 const DIURNA_START = 6 * 60; // 06:00
 const DIURNA_END = 19 * 60; // 19:00
-const HE_THRESHOLD = 0.5; // mínimo 0.5h para contar HE y recargos
+const HE_THRESHOLD = 0.5; // mínimo 0.5h para contar HE (recargos sin umbral)
 
 export interface Turno {
   horaEntrada: Date;
@@ -114,14 +114,6 @@ function calcMinutes(
     heNocturna = 0;
     heFestDiurna = 0;
     heFestNocturna = 0;
-  }
-
-  // Mínimo 0.5h para contar recargos
-  const totalRecMin = recNocturno + recFestDiurno + recFestNocturno;
-  if (totalRecMin < HE_THRESHOLD * 60) {
-    recNocturno = 0;
-    recFestDiurno = 0;
-    recFestNocturno = 0;
   }
 
   return {

@@ -1,5 +1,6 @@
 "use client";
 
+/* Fechas de turnos en tablas: usar formatFechaTurnoDdMmmYyyy desde @/lib/formatFechaTurno (evita desfase UTC). */
 import { useState, useEffect, useCallback } from "react";
 import DataTable from "@/components/ui/DataTable";
 import { HiPlus, HiPencil, HiTrash, HiX, HiRefresh } from "react-icons/hi";

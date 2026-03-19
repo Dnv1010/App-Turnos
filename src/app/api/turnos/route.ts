@@ -12,6 +12,45 @@ function dateKey(d: Date): string {
   return d.toISOString().split("T")[0];
 }
 
+/** YYYY-MM-DD + delta días (calendario UTC, coherente con fechas de turno almacenadas). */
+function addDaysYmd(ymd: string, delta: number): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + delta));
+  return dt.toISOString().split("T")[0];
+}
+
+/** Entrada en horario nocturno Colombia (fuera de 06:00–19:00), alineado con calcularHoras. */
+function isNocturnalEntradaBogota(horaEntrada: Date): boolean {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/Bogota",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(horaEntrada);
+  const hh = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10);
+  const mm = parseInt(parts.find((p) => p.type === "minute")?.value ?? "0", 10);
+  const mins = hh * 60 + mm;
+  const DIURNA_START = 6 * 60;
+  const DIURNA_END = 19 * 60;
+  return mins < DIURNA_START || mins >= DIURNA_END;
+}
+
+/** Incluye turnos con fecha = día anterior y entrada nocturna que “pertenecen” al día siguiente en el filtro. */
+function turnoEnRangoFechaCalendario(
+  t: { fecha: Date; horaEntrada: Date },
+  desde: string,
+  hasta: string
+): boolean {
+  const F = dateKey(new Date(t.fecha));
+  if (F >= desde && F <= hasta) return true;
+  const siguiente = addDaysYmd(F, 1);
+  return (
+    siguiente >= desde &&
+    siguiente <= hasta &&
+    isNocturnalEntradaBogota(new Date(t.horaEntrada))
+  );
+}
+
 function timeColombia(d: Date): string {
   return new Date(d).toLocaleTimeString("es-CO", {
     timeZone: "America/Bogota",
@@ -48,17 +87,22 @@ export async function GET(req: NextRequest) {
   }
 
   if (desde && hasta) {
+    const desdeExpanded = addDaysYmd(desde, -1);
     where.fecha = {
-      gte: new Date(desde + "T00:00:00.000Z"),
+      gte: new Date(desdeExpanded + "T00:00:00.000Z"),
       lte: new Date(hasta + "T23:59:59.000-05:00"),
     };
   }
 
-  const turnos = await prisma.turno.findMany({
+  let turnos = await prisma.turno.findMany({
     where,
     orderBy: [{ fecha: "desc" }, { horaEntrada: "desc" }],
     include: { user: { select: { nombre: true, zona: true } } },
   });
+
+  if (desde && hasta) {
+    turnos = turnos.filter((t) => turnoEnRangoFechaCalendario(t, desde, hasta));
+  }
 
   return NextResponse.json(turnos);
 }
