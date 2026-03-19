@@ -204,11 +204,14 @@ export default function ReportesPage() {
     { key: "cedula", label: "Cédula", render: (d: DetalleUsuario) => d.cedula ?? "—" },
     { key: "zona", label: "Zona", render: (d: DetalleUsuario) => <span className={d.zona === "BOGOTA" ? "badge-blue" : "badge-green"}>{d.zona}</span> },
     { key: "totalTurnos", label: "Turnos", sortable: true },
-    { key: "horasOrdinarias", label: "Ordinarias", sortable: true },
+    { key: "horasOrdinarias", label: "Ord.", sortable: true },
     { key: "heDiurna", label: "HE Día", sortable: true },
     { key: "heNocturna", label: "HE Noc", sortable: true },
-    { key: "heDominical", label: "HE Dom." },
-    { key: "recNocturno", label: "Rec. Noc." },
+    { key: "heDominical", label: "HE Dom/Fest Día" },
+    { key: "heNoctDominical", label: "HE Dom/Fest Noc" },
+    { key: "recNocturno", label: "Rec. Noc" },
+    { key: "recDominical", label: "Rec Dom/Fest Día" },
+    { key: "recNoctDominical", label: "Rec Dom/Fest Noc" },
     { key: "totalHorasExtra", label: "Total HE", sortable: true },
     { key: "totalRecargos", label: "Total Rec.", sortable: true },
     { key: "regForaneos", label: "Reg. Foráneos", render: (d: DetalleUsuario) => {
@@ -228,12 +231,6 @@ export default function ReportesPage() {
       } },
     { key: "totalKmRecorridos", label: "Km",
       render: (d: DetalleUsuario) => d.totalKmRecorridos > 0 ? `${d.totalKmRecorridos}` : "—" },
-    { key: "regForaneos", label: "Reg. Foráneos",
-      render: (d: DetalleUsuario) => {
-        const km = d.fotos.filter((f) => f.tipo === "FORANEO" && f.kmInicial != null && f.kmFinal != null)
-          .reduce((s, f) => s + (f.kmFinal! - f.kmInicial!), 0);
-        return km > 0 ? `${Math.round(km * 100) / 100} km` : "—";
-      } },
   ];
 
   return (

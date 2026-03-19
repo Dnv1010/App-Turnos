@@ -15,6 +15,14 @@ interface TurnoRow {
   fecha: string;
   horaEntrada: string;
   horaSalida: string | null;
+  horasOrdinarias?: number;
+  heDiurna?: number;
+  heNocturna?: number;
+  heDominical?: number;
+  heNoctDominical?: number;
+  recNocturno?: number;
+  recDominical?: number;
+  recNoctDominical?: number;
   latEntrada: number | null;
   lngEntrada: number | null;
   latSalida: number | null;
@@ -226,6 +234,14 @@ export default function CoordinadorPage() {
     { key: "fecha", label: "Fecha", render: (t: TurnoRow) => format(new Date(t.fecha), "dd MMM yyyy", { locale: es }) },
     { key: "horaEntrada", label: "Entrada", render: (t: TurnoRow) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
     { key: "horaSalida", label: "Salida", render: (t: TurnoRow) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
+    { key: "horasOrdinarias", label: "Ord.", render: (t: TurnoRow) => Math.max(0, t.horasOrdinarias ?? 0) },
+    { key: "heDiurna", label: "HE Día", render: (t: TurnoRow) => t.heDiurna ?? 0 },
+    { key: "heNocturna", label: "HE Noc", render: (t: TurnoRow) => t.heNocturna ?? 0 },
+    { key: "heDominical", label: "HE Dom/Fest Día", render: (t: TurnoRow) => t.heDominical ?? 0 },
+    { key: "heNoctDominical", label: "HE Dom/Fest Noc", render: (t: TurnoRow) => t.heNoctDominical ?? 0 },
+    { key: "recNocturno", label: "Rec. Noc", render: (t: TurnoRow) => t.recNocturno ?? 0 },
+    { key: "recDominical", label: "Rec Dom/Fest Día", render: (t: TurnoRow) => t.recDominical ?? 0 },
+    { key: "recNoctDominical", label: "Rec Dom/Fest Noc", render: (t: TurnoRow) => t.recNoctDominical ?? 0 },
     { key: "latEntrada", label: "Ubicación inicio", render: (t: TurnoRow) => t.latEntrada != null && t.lngEntrada != null ? <a href={`https://www.google.com/maps?q=${t.latEntrada},${t.lngEntrada}`} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline flex items-center gap-1"><HiLocationMarker className="h-3.5 w-3.5" />Mapa</a> : "—" },
     { key: "latSalida", label: "Ubicación fin", render: (t: TurnoRow) => t.latSalida != null && t.lngSalida != null ? <a href={`https://www.google.com/maps?q=${t.latSalida},${t.lngSalida}`} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline flex items-center gap-1"><HiLocationMarker className="h-3.5 w-3.5" />Mapa</a> : "—" },
     { key: "startPhotoUrl", label: "Foto inicio", render: (t: TurnoRow) => t.startPhotoUrl ? <a href={t.startPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline text-xs">Ver</a> : "—" },
