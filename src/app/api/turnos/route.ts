@@ -29,7 +29,6 @@ export async function GET(req: NextRequest) {
   const desde = searchParams.get("desde") ?? searchParams.get("inicio");
   const hasta = searchParams.get("hasta") ?? searchParams.get("fin");
   const zonaParam = searchParams.get("zona");
-  console.log("[Turnos GET] desde:", desde, "hasta:", hasta);
 
   let where: Record<string, unknown> = {};
 
@@ -54,14 +53,12 @@ export async function GET(req: NextRequest) {
       lte: new Date(hasta + "T23:59:59.000-05:00"),
     };
   }
-  console.log("[Turnos GET] where:", JSON.stringify(where));
 
   const turnos = await prisma.turno.findMany({
     where,
     orderBy: [{ fecha: "desc" }, { horaEntrada: "desc" }],
     include: { user: { select: { nombre: true, zona: true } } },
   });
-  console.log("[Turnos GET] total encontrados:", turnos.length);
 
   return NextResponse.json(turnos);
 }
@@ -85,10 +82,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Ya hay un turno abierto", turno: turnoAbierto }, { status: 400 });
   }
 
-  const ahoraUTC = new Date();
-  const offsetColombia = -5 * 60; // UTC-5 en minutos
+  // Hora actual en UTC
   const horaEntrada = new Date();
-const fecha = new Date(Date.UTC(horaEntrada.getUTCFullYear(), horaEntrada.getUTCMonth(), horaEntrada.getUTCDate()));
+  // Calcular fecha en Colombia (UTC-5)
+  const ahoraColombia = new Date(horaEntrada.getTime() - 5 * 60 * 60 * 1000);
+  const fecha = new Date(Date.UTC(
+    ahoraColombia.getUTCFullYear(),
+    ahoraColombia.getUTCMonth(),
+    ahoraColombia.getUTCDate()
+  ));
+
   const turno = await prisma.turno.create({
     data: {
       userId: uid,
@@ -125,7 +128,6 @@ export async function PATCH(req: NextRequest) {
     if (turno.userId !== session.user.userId) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     if (turno.horaSalida) return NextResponse.json({ error: "Turno ya cerrado" }, { status: 400 });
 
-    const ahoraUTC = new Date();
     const horaSalida = new Date();
 
     const inicioSemana = getInicioSemana(turno.fecha);
@@ -196,9 +198,9 @@ export async function PATCH(req: NextRequest) {
     const totalHoras =
       Math.round(
         ((turnoActualizado.horaSalida!.getTime() - turnoActualizado.horaEntrada.getTime()) /
-          (1000 * 60 * 60)) *
-          100
+          (1000 * 60 * 60)) * 100
       ) / 100;
+
     appendRow("Turnos", [
       turnoActualizado.user?.nombre ?? "",
       turnoActualizado.user?.cedula ?? "",
@@ -223,4 +225,3 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
-
