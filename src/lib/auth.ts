@@ -6,6 +6,9 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import type { Adapter } from "next-auth/adapters";
 
+// Dominio permitido para Google SSO
+const ALLOWED_DOMAIN = "bia.app";
+
 declare module "next-auth" {
   interface User {
     userId: string;
@@ -43,7 +46,6 @@ if (typeof process !== "undefined" && process.env.NODE_ENV === "development" && 
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
-  // Solo usar adapter con OAuth (Google). Con solo Credentials, el adapter puede provocar fallos de login.
   adapter: useGoogleProvider ? (PrismaAdapter(prisma) as Adapter) : undefined,
   session: { strategy: "jwt" },
   pages: {
@@ -139,15 +141,38 @@ export const authOptions: NextAuthOptions = {
       };
     },
     async signIn({ user, account }) {
+      // Google SSO: Solo permitir correos @bia.app
       if (account?.provider === "google") {
+        const email = user.email?.toLowerCase() ?? "";
+        
+        // Verificar dominio
+        if (!email.endsWith(`@${ALLOWED_DOMAIN}`)) {
+          console.warn(`[auth] Google SSO rechazado: ${email} no es del dominio @${ALLOWED_DOMAIN}`);
+          return false;
+        }
+
+        // Verificar que el usuario exista en la BD y esté activo
         const dbUser = await prisma.user.findUnique({
-          where: { email: user.email! },
+          where: { email },
         });
-        if (!dbUser || !dbUser.isActive) return false;
+        
+        if (!dbUser) {
+          console.warn(`[auth] Google SSO rechazado: ${email} no existe en la BD`);
+          return false;
+        }
+        
+        if (!dbUser.isActive) {
+          console.warn(`[auth] Google SSO rechazado: ${email} está inactivo`);
+          return false;
+        }
+
+        // Asignar datos del usuario de la BD
         user.userId = dbUser.id;
         user.role = dbUser.role;
         user.zona = dbUser.zona;
       }
+      
+      // Credenciales: Ya se valida en authorize(), siempre permitir aquí
       return true;
     },
   },
