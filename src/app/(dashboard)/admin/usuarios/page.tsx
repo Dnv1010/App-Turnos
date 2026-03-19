@@ -29,6 +29,8 @@ export default function UsuariosPage() {
     isActive: true,
   });
   const [saving, setSaving] = useState(false);
+  const [syncingSheets, setSyncingSheets] = useState(false);
+  const [recalculando, setRecalculando] = useState(false);
 
   const cargarUsuarios = useCallback(async () => {
     try {
@@ -129,6 +131,20 @@ export default function UsuariosPage() {
     }
   };
 
+  const recalcularTurnos = async () => {
+    if (!confirm("¿Recalcular todos los turnos? Esto puede tardar unos segundos.")) return;
+    setRecalculando(true);
+    try {
+      const res = await fetch("/api/admin/recalcular", { method: "POST" });
+      const data = await res.json();
+      alert(`Completado: ${data.actualizados ?? 0} turnos actualizados, ${data.errores ?? 0} errores`);
+    } catch {
+      alert("Error al recalcular");
+    } finally {
+      setRecalculando(false);
+    }
+  };
+
   const eliminarUsuario = async (u: Usuario) => {
     if (!confirm(`¿Desactivar al usuario ${u.nombre}? Se marcará como inactivo.`)) return;
     try {
@@ -218,7 +234,15 @@ export default function UsuariosPage() {
         <h2 className="text-2xl font-bold text-gray-900">
           Gestión de Usuarios
         </h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => void recalcularTurnos()}
+            disabled={recalculando}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <HiRefresh className="h-5 w-5" />
+            {recalculando ? "Recalculando…" : "Recalcular Turnos"}
+          </button>
           <button
             onClick={() => void sincronizarSheets()}
             disabled={syncingSheets}
