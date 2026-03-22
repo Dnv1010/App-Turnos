@@ -116,10 +116,14 @@ model FotoRegistro {
   driveFileId     String?
   driveUrl        String?
   driveFileIdFinal String?
-  driveUrlFinal    String?
+  driveUrlFinal   String?
   base64Fallback  String?  @db.Text
   kmInicial       Float?
-  kmFinal        Float?
+  kmFinal         Float?
+  latInicial      Float?
+  lngInicial      Float?
+  latFinal        Float?
+  lngFinal        Float?
   observaciones   String?
   createdAt       DateTime @default(now())
 }

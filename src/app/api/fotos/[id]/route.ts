@@ -6,6 +6,7 @@ import { getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
 import { getDay } from "date-fns";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
 import { updateRowByMatch } from "@/lib/google-sheets";
+import { uploadToDrive } from "@/lib/drive-upload";
 
 function dateKey(d: Date): string {
   return d.toISOString().split("T")[0];
@@ -59,6 +60,92 @@ export async function PATCH(
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
     const { id } = await params;
+
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 });
+    }
+
+    // ——— FotoRegistro (foráneo: finalizar con foto + km, o editar km/obs) ———
+    const fotoRec = await prisma.fotoRegistro.findUnique({ where: { id } });
+    if (fotoRec) {
+      if (session.user.role !== "TECNICO" || fotoRec.userId !== session.user.userId) {
+        return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+      }
+
+      const base64Data = body.base64Data as string | undefined;
+      const hasFinalize = base64Data != null && base64Data !== "" && body.kmFinal != null && body.kmFinal !== "";
+
+      if (hasFinalize) {
+        if (fotoRec.tipo !== "FORANEO" || fotoRec.kmFinal != null) {
+          return NextResponse.json({ error: "Foráneo ya finalizado o no es un registro foráneo activo" }, { status: 400 });
+        }
+        const kmFinalNum = parseFloat(String(body.kmFinal));
+        if (Number.isNaN(kmFinalNum) || fotoRec.kmInicial == null || kmFinalNum <= fotoRec.kmInicial) {
+          return NextResponse.json({ error: "Km final inválido" }, { status: 400 });
+        }
+
+        const latFinal = body.latFinal;
+        const lngFinal = body.lngFinal;
+
+        let driveFileIdFinal: string | null = null;
+        let driveUrlFinal: string | null = null;
+        try {
+          const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+          const fileName = `foraneo_fin_${fotoRec.userId}_${timestamp}.jpg`;
+          const result = await uploadToDrive(base64Data, fileName);
+          driveFileIdFinal = result.fileId;
+          driveUrlFinal = result.webViewLink;
+        } catch (e) {
+          console.error("[PATCH /api/fotos/[id]] Error subiendo foto final a Drive:", e);
+          return NextResponse.json({ error: "No se pudo subir la foto final a Drive" }, { status: 500 });
+        }
+
+        const actualizado = await prisma.fotoRegistro.update({
+          where: { id },
+          data: {
+            kmFinal: kmFinalNum,
+            driveFileIdFinal,
+            driveUrlFinal,
+            latFinal: latFinal != null ? parseFloat(String(latFinal)) : null,
+            lngFinal: lngFinal != null ? parseFloat(String(lngFinal)) : null,
+          },
+        });
+        return NextResponse.json({ ok: true, registro: actualizado });
+      }
+
+      const data: {
+        kmInicial?: number | null;
+        kmFinal?: number | null;
+        observaciones?: string | null;
+      } = {};
+      if ("kmInicial" in body) {
+        data.kmInicial =
+          body.kmInicial != null && body.kmInicial !== ""
+            ? parseFloat(String(body.kmInicial))
+            : null;
+      }
+      if ("kmFinal" in body) {
+        data.kmFinal =
+          body.kmFinal != null && body.kmFinal !== "" ? parseFloat(String(body.kmFinal)) : null;
+      }
+      if ("observaciones" in body) {
+        data.observaciones = (body.observaciones as string) || null;
+      }
+      if (Object.keys(data).length === 0) {
+        return NextResponse.json({ error: "Sin campos para actualizar" }, { status: 400 });
+      }
+
+      const actualizado = await prisma.fotoRegistro.update({
+        where: { id },
+        data,
+      });
+      return NextResponse.json({ ok: true, registro: actualizado });
+    }
+
+    // ——— Turno (coordinador / admin / manager) ———
     const turno = await prisma.turno.findUnique({
       where: { id },
       include: { user: true },
@@ -73,13 +160,9 @@ export async function PATCH(
       return NextResponse.json({ error: "No se puede editar un turno cancelado" }, { status: 400 });
     }
 
-    let body: { horaEntrada?: string; horaSalida?: string; observaciones?: string };
-    try {
-      body = await req.json();
-    } catch {
-      return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 });
-    }
-    const { horaEntrada: horaEntradaISO, horaSalida: horaSalidaISO, observaciones: notes } = body ?? {};
+    const horaEntradaISO = body.horaEntrada as string | undefined;
+    const horaSalidaISO = body.horaSalida as string | undefined;
+    const notes = body.observaciones as string | undefined;
 
     const newEntrada = horaEntradaISO ? new Date(horaEntradaISO) : turno.horaEntrada;
     const newSalida = horaSalidaISO ? new Date(horaSalidaISO) : turno.horaSalida;
@@ -200,7 +283,7 @@ export async function PATCH(
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Error al editar";
-    console.error("[PATCH /api/turnos/[id]]", error);
+    console.error("[PATCH /api/fotos/[id]]", error);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

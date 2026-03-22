@@ -9,13 +9,23 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    let body: { userId?: string; base64Data?: string; tipo?: string; turnoId?: string; observaciones?: string; kmInicial?: number; kmFinal?: number };
+    let body: {
+      userId?: string;
+      base64Data?: string;
+      tipo?: string;
+      turnoId?: string;
+      observaciones?: string;
+      kmInicial?: number;
+      kmFinal?: number;
+      latInicial?: number;
+      lngInicial?: number;
+    };
     try {
       body = await req.json();
     } catch {
       return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 });
     }
-    const { userId, base64Data, tipo, turnoId, observaciones, kmInicial, kmFinal } = body ?? {};
+    const { userId, base64Data, tipo, turnoId, observaciones, kmInicial, kmFinal, latInicial, lngInicial } = body ?? {};
 
     const uid = userId || session.user.userId;
     if (tipo === "FORANEO") {
@@ -63,6 +73,8 @@ export async function POST(req: NextRequest) {
         observaciones: observaciones || (turnoId ? `Turno: ${turnoId}` : null),
         kmInicial: kmInicial != null ? parseFloat(String(kmInicial)) : null,
         kmFinal: tipo === "FORANEO" ? null : (kmFinal != null ? parseFloat(String(kmFinal)) : null),
+        latInicial: latInicial != null ? parseFloat(String(latInicial)) : null,
+        lngInicial: lngInicial != null ? parseFloat(String(lngInicial)) : null,
       },
     });
 

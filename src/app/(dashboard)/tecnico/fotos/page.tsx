@@ -21,6 +21,28 @@ const CameraCapture = dynamic(() => import("@/components/fotos/CameraCapture"), 
 type TipoFoto = "FORANEO" | "GENERAL" | "ENTRADA" | "SALIDA";
 type Tab = "registrar" | "historial";
 
+async function getLocationOptional(): Promise<{ lat: number; lng: number } | null> {
+  try {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return null;
+    return await new Promise((resolve) => {
+      const timeout = setTimeout(() => resolve(null), 5000);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          clearTimeout(timeout);
+          resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        },
+        () => {
+          clearTimeout(timeout);
+          resolve(null);
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
+      );
+    });
+  } catch {
+    return null;
+  }
+}
+
 interface FotoRecord {
   id: string;
   tipo: string;
@@ -115,6 +137,7 @@ export default function FotosPage() {
     }
     setLoading(true);
     try {
+      const location = await getLocationOptional();
       const res = await fetch("/api/fotos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -124,6 +147,8 @@ export default function FotosPage() {
           tipo: "FORANEO",
           kmInicial: parseFloat(kmInicial),
           observaciones: observaciones || undefined,
+          latInicial: location?.lat,
+          lngInicial: location?.lng,
         }),
       });
       if (res.ok) {
@@ -158,12 +183,15 @@ export default function FotosPage() {
     }
     setLoadingFinalizar(true);
     try {
+      const location = await getLocationOptional();
       const res = await fetch(`/api/fotos/${foraneoActivo.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           kmFinal: kmF,
           base64Data: pasoFinalFotoBase64,
+          latFinal: location?.lat,
+          lngFinal: location?.lng,
         }),
       });
       if (res.ok) {
