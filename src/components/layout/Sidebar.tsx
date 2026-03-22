@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HiHome, HiCalendar, HiCamera, HiUserGroup, HiChartBar, HiDocumentReport, HiCog, HiX, HiClock } from "react-icons/hi";
+import { HiHome, HiCalendar, HiCamera, HiUserGroup, HiChartBar, HiDocumentReport, HiCog, HiX, HiClock, HiTruck } from "react-icons/hi";
 
 // Componente del logo Bia con rayo
 function BiaLogo({ size = "sm" }: { size?: "sm" | "md" }) {
@@ -47,6 +47,7 @@ const navItems: NavItem[] = [
   { label: "Turnos Equipo", href: "/coordinador/turnos", icon: HiClock, roles: ["COORDINADOR"] },
   { label: "Mi Equipo", href: "/coordinador/equipo", icon: HiUserGroup, roles: ["COORDINADOR"] },
   { label: "Malla de Turnos", href: "/coordinador/malla", icon: HiCalendar, roles: ["COORDINADOR"] },
+  { label: "Foráneos", href: "/coordinador/foraneos", icon: HiTruck, roles: ["COORDINADOR"] },
   { label: "Reportes", href: "/manager/reportes", icon: HiDocumentReport, roles: ["COORDINADOR", "MANAGER", "ADMIN"] },
   { label: "Dashboard Global", href: "/manager", icon: HiChartBar, roles: ["MANAGER", "ADMIN"] },
   { label: "Usuarios", href: "/admin/usuarios", icon: HiCog, roles: ["ADMIN"] },
