@@ -35,6 +35,7 @@ export default function TecnicoDashboard() {
   const [turnos, setTurnos] = useState<TurnoRecord[]>([]);
   const [turnoActivo, setTurnoActivo] = useState<{ id: string; horaEntrada: string } | null>(null);
   const [foraneosResumen, setForaneosResumen] = useState<{ totalKm: number; totalPagar: number }>({ totalKm: 0, totalPagar: 0 });
+  const [bloqueoMalla, setBloqueoMalla] = useState<{ estado: string; fecha: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const ahora = new Date();
   const primerDiaMes = format(startOfMonth(ahora), "yyyy-MM-dd");
@@ -71,6 +72,21 @@ export default function TecnicoDashboard() {
       const listaForaneos = Array.isArray(foraneosData) ? foraneosData : [];
       const miForaneo = listaForaneos.find((f: { userId: string }) => f.userId === session.user.userId);
       setForaneosResumen(miForaneo ? { totalKm: miForaneo.totalKm ?? 0, totalPagar: miForaneo.totalPagar ?? 0 } : { totalKm: 0, totalPagar: 0 });
+
+      // Verificar si hoy está bloqueado por malla
+      try {
+        const mallaRes = await fetch("/api/malla/verificar-hoy");
+        if (mallaRes.ok) {
+          const mallaData = await parseResponseJson<{ bloqueado: boolean; estado?: string; fecha?: string }>(mallaRes);
+          if (mallaData?.bloqueado) {
+            setBloqueoMalla({ estado: mallaData.estado ?? "", fecha: mallaData.fecha ?? "" });
+          } else {
+            setBloqueoMalla(null);
+          }
+        }
+      } catch {
+        /* ignorar si falla */
+      }
     } catch {
       setTurnos([]);
       setForaneosResumen({ totalKm: 0, totalPagar: 0 });
@@ -172,6 +188,18 @@ export default function TecnicoDashboard() {
           </button>
         </div>
       </div>
+      {bloqueoMalla && (
+        <div className="bg-amber-50 border-2 border-amber-400 rounded-xl p-4 flex items-start gap-3">
+          <span className="text-2xl flex-shrink-0">⚠️</span>
+          <div>
+            <h3 className="font-bold text-amber-900">Hoy estás en &quot;{bloqueoMalla.estado}&quot;</h3>
+            <p className="text-sm text-amber-800 mt-1">
+              Según la malla de turnos, el día {bloqueoMalla.fecha} no tienes jornada laboral asignada. Si esto es un error,
+              comunícale la novedad a tu coordinador.
+            </p>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="lg:col-span-2 order-2 lg:order-1">
           <KPICards data={{
@@ -189,6 +217,7 @@ export default function TecnicoDashboard() {
             turnoActivo={turnoActivo}
             onFichaje={cargarDatos}
             onTurnoFinalizado={cargarDatos}
+            mallaBloqueaInicio={!!bloqueoMalla}
           />
         </div>
       </div>

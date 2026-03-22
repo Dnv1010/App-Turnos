@@ -8,55 +8,62 @@ import { getDay } from "date-fns";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
 import { appendRow } from "@/lib/google-sheets";
 
-function dateKey(d: Date): string {
-  return d.toISOString().split("T")[0];
+/** Convierte Date a fecha Colombia (UTC-5) como string YYYY-MM-DD */
+function dateKeyColombia(d: Date): string {
+  const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
+  return colombia.toISOString().split("T")[0];
 }
 
-/** YYYY-MM-DD + delta días (calendario UTC, coherente con fechas de turno almacenadas). */
+/** YYYY-MM-DD + delta días (calendario). */
 function addDaysYmd(ymd: string, delta: number): string {
   const [y, m, d] = ymd.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + delta));
   return dt.toISOString().split("T")[0];
 }
 
-/** Entrada en horario nocturno Colombia (fuera de 06:00–19:00), alineado con calcularHoras. */
-function isNocturnalEntradaBogota(horaEntrada: Date): boolean {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "America/Bogota",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(horaEntrada);
-  const hh = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10);
-  const mm = parseInt(parts.find((p) => p.type === "minute")?.value ?? "0", 10);
-  const mins = hh * 60 + mm;
+/** Minutos del día en Colombia (UTC-5) */
+function getMinutesOfDayColombia(d: Date): number {
+  const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
+  return colombia.getUTCHours() * 60 + colombia.getUTCMinutes();
+}
+
+/** Entrada en horario nocturno Colombia (fuera de 06:00–19:00) */
+function isNocturnalEntradaColombia(horaEntrada: Date): boolean {
+  const mins = getMinutesOfDayColombia(horaEntrada);
   const DIURNA_START = 6 * 60;
   const DIURNA_END = 19 * 60;
   return mins < DIURNA_START || mins >= DIURNA_END;
 }
 
-/** Incluye turnos con fecha = día anterior y entrada nocturna que “pertenecen” al día siguiente en el filtro. */
+/** Incluye turnos con fecha = día anterior y entrada nocturna que "pertenecen" al día siguiente en el filtro. */
 function turnoEnRangoFechaCalendario(
   t: { fecha: Date; horaEntrada: Date },
   desde: string,
   hasta: string
 ): boolean {
-  const F = dateKey(new Date(t.fecha));
+  // CRÍTICO: Usar fecha Colombia, no UTC
+  const F = dateKeyColombia(new Date(t.fecha));
   if (F >= desde && F <= hasta) return true;
   const siguiente = addDaysYmd(F, 1);
   return (
     siguiente >= desde &&
     siguiente <= hasta &&
-    isNocturnalEntradaBogota(new Date(t.horaEntrada))
+    isNocturnalEntradaColombia(new Date(t.horaEntrada))
   );
 }
 
+/** Hora Colombia como HH:MM */
 function timeColombia(d: Date): string {
-  return new Date(d).toLocaleTimeString("es-CO", {
-    timeZone: "America/Bogota",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
+  const hh = String(colombia.getUTCHours()).padStart(2, "0");
+  const mm = String(colombia.getUTCMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+/** Día de la semana en Colombia */
+function getDayOfWeekColombia(d: Date): number {
+  const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
+  return colombia.getUTCDay();
 }
 
 export async function GET(req: NextRequest) {
@@ -87,10 +94,11 @@ export async function GET(req: NextRequest) {
   }
 
   if (desde && hasta) {
+    // Expandir rango para capturar turnos nocturnos del día anterior
     const desdeExpanded = addDaysYmd(desde, -1);
     where.fecha = {
       gte: new Date(desdeExpanded + "T00:00:00.000Z"),
-      lte: new Date(hasta + "T23:59:59.000-05:00"),
+      lte: new Date(hasta + "T23:59:59.999Z"),
     };
   }
 
@@ -100,9 +108,13 @@ export async function GET(req: NextRequest) {
     include: { user: { select: { nombre: true, zona: true } } },
   });
 
+  // Filtrar por rango usando fecha Colombia
   if (desde && hasta) {
     turnos = turnos.filter((t) => turnoEnRangoFechaCalendario(t, desde, hasta));
   }
+
+  // Excluir turnos cancelados
+  turnos = turnos.filter((t) => !t.observaciones?.startsWith("Cancelado"));
 
   return NextResponse.json(turnos);
 }
@@ -135,6 +147,43 @@ export async function POST(req: NextRequest) {
     ahoraColombia.getUTCMonth(),
     ahoraColombia.getUTCDate()
   ));
+
+  // Verificar malla del día — bloquear si es estado no laboral
+  const mallaHoy = await prisma.mallaTurno.findUnique({
+    where: { userId_fecha: { userId: uid, fecha } },
+  });
+
+  if (mallaHoy) {
+    const valorMalla = (mallaHoy.valor ?? "").toLowerCase().trim();
+    const estadosBloqueantes = [
+      "descanso",
+      "vacacion",
+      "vacaciones",
+      "dia de la familia",
+      "día de la familia",
+      "incapacitado",
+      "incapacidad",
+      "semana santa",
+      "keynote",
+    ];
+
+    const estaBloqueado = estadosBloqueantes.some((estado) => valorMalla.includes(estado));
+
+    if (estaBloqueado) {
+      const fechaStr = fecha.toISOString().split("T")[0].split("-").reverse().join("/");
+      const estadoMostrar = mallaHoy.valor || "No laboral";
+
+      return NextResponse.json(
+        {
+          error: `El día ${fechaStr} estás en "${estadoMostrar}" según la malla de turnos. No puedes abrir turno. Comunícale la novedad a tu coordinador.`,
+          bloqueadoPorMalla: true,
+          estadoMalla: estadoMostrar,
+          fechaMalla: fechaStr,
+        },
+        { status: 403 }
+      );
+    }
+  }
 
   const turno = await prisma.turno.create({
     data: {
@@ -195,12 +244,17 @@ export async function PATCH(req: NextRequest) {
       }),
     ]);
 
-    const holidaySet = new Set(festivosSemana.map((f) => dateKey(f.fecha)));
-    const esFestivo = holidaySet.has(dateKey(turno.fecha));
+    // CRÍTICO: Usar dateKeyColombia para festivos
+    const holidaySet = new Set(festivosSemana.map((f) => dateKeyColombia(f.fecha)));
+    const esFestivo = holidaySet.has(dateKeyColombia(turno.fecha));
     const weeklyOrdHours = turnosSemana.reduce((s, t) => s + (t.horasOrdinarias ?? 0), 0);
 
     type MallaRow = { tipo?: string | null; valor: string; horaInicio?: string | null; horaFin?: string | null };
     const row = mallaDiaRow as MallaRow | null;
+    
+    // Usar día de la semana en Colombia
+    const dowColombia = getDayOfWeekColombia(turno.fecha);
+    
     const mallaDia = row
       ? {
           tipo: esFestivo ? "FESTIVO" : (row.tipo ?? "TRABAJO"),
@@ -210,13 +264,13 @@ export async function PATCH(req: NextRequest) {
         }
       : esFestivo
         ? { tipo: "FESTIVO" as const, valor: null, horaInicio: null, horaFin: null }
-        : getDay(turno.fecha) === 0
+        : dowColombia === 0
           ? { tipo: "DESCANSO" as const, valor: null, horaInicio: null, horaFin: null }
           : {
               tipo: "TRABAJO" as const,
               valor: "Trabajo",
               horaInicio: "08:00",
-              horaFin: getDay(turno.fecha) === 6 ? "12:00" : "17:00",
+              horaFin: dowColombia === 6 ? "12:00" : "17:00",
             };
 
     const resultado = calcularHorasTurno(
@@ -248,7 +302,7 @@ export async function PATCH(req: NextRequest) {
     appendRow("Turnos", [
       turnoActualizado.user?.nombre ?? "",
       turnoActualizado.user?.cedula ?? "",
-      dateKey(turnoActualizado.fecha),
+      dateKeyColombia(turnoActualizado.fecha),
       timeColombia(turnoActualizado.horaEntrada),
       timeColombia(turnoActualizado.horaSalida!),
       totalHoras,

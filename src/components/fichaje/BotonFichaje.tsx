@@ -31,13 +31,26 @@ interface BotonFichajeProps {
   onFichaje: () => void;
   /** Se llama después de abrir o cerrar un turno para recargar datos de la página (p. ej. detalle de turnos). */
   onTurnoFinalizado?: () => void;
+  /** Si true, no se puede iniciar turno (p. ej. malla del día bloqueante, detectado en el dashboard). */
+  mallaBloqueaInicio?: boolean;
 }
 
 type Step = "idle" | "camera" | "preview" | "uploading";
 
-export default function BotonFichaje({ userId, turnoActivo, onFichaje, onTurnoFinalizado }: BotonFichajeProps) {
+export default function BotonFichaje({
+  userId,
+  turnoActivo,
+  onFichaje,
+  onTurnoFinalizado,
+  mallaBloqueaInicio = false,
+}: BotonFichajeProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bloqueoMalla, setBloqueoMalla] = useState<{
+    mensaje: string;
+    estado: string;
+    fecha: string;
+  } | null>(null);
   const [ubicacion, setUbicacion] = useState<{ lat: number; lng: number } | null>(null);
   const [step, setStep] = useState<Step>("idle");
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
@@ -123,6 +136,18 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje, onTurnoFi
         });
         const data = await parseJsonFromResponse(res);
         if (!res.ok) {
+          if (data.bloqueadoPorMalla) {
+            setBloqueoMalla({
+              mensaje: data.error as string,
+              estado: data.estadoMalla as string,
+              fecha: data.fechaMalla as string,
+            });
+            setCapturedPhoto(null);
+            setStep("idle");
+            setIsCerrandoTurno(false);
+            setLoading(false);
+            return;
+          }
           throw new Error((data.error as string) || "Error al iniciar turno");
         }
       }
@@ -149,7 +174,7 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje, onTurnoFi
         <>
           <button
             onClick={handleFichajeClick}
-            disabled={loading}
+            disabled={loading || (!estaEnTurno && (!!bloqueoMalla || mallaBloqueaInicio))}
             className={`relative w-48 h-48 sm:w-40 sm:h-40 rounded-full flex flex-col items-center justify-center text-white font-bold shadow-lg transition-all duration-300 active:scale-95 disabled:opacity-70 ${
               estaEnTurno
                 ? "bg-gradient-to-br from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 shadow-red-200"
@@ -235,6 +260,32 @@ export default function BotonFichaje({ userId, turnoActivo, onFichaje, onTurnoFi
         <div className="flex items-center gap-1 text-xs text-gray-400">
           <HiLocationMarker className="h-3 w-3" />
           <span>{ubicacion.lat.toFixed(4)}, {ubicacion.lng.toFixed(4)}</span>
+        </div>
+      )}
+      {bloqueoMalla && step === "idle" && (
+        <div className="w-full bg-amber-50 border-2 border-amber-400 rounded-2xl p-5 shadow-lg">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-xl">⚠️</span>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-base font-bold text-amber-900 mb-1">No puedes abrir turno</h3>
+              <p className="text-sm text-amber-800 mb-3">
+                El día <strong>{bloqueoMalla.fecha}</strong> estás en <strong>&quot;{bloqueoMalla.estado}&quot;</strong> según
+                la malla de turnos.
+              </p>
+              <p className="text-sm text-amber-700 font-medium">
+                Por favor comunícale la novedad a tu coordinador.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setBloqueoMalla(null)}
+            className="mt-4 w-full text-center text-sm font-medium text-amber-700 hover:text-amber-900 underline"
+          >
+            Cerrar aviso
+          </button>
         </div>
       )}
       {error && <p className="text-sm text-red-600 bg-red-50 px-4 py-2 rounded-lg">{error}</p>}
