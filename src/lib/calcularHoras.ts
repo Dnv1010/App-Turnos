@@ -197,9 +197,11 @@ export function calcularHorasTurno(
   const salida = new Date(turno.horaSalida);
   const fechaTurno = turno.fecha ? new Date(turno.fecha) : entrada;
   const totalMin = Math.max(0, (salida.getTime() - entrada.getTime()) / 60000);
-  
-  const dow = getDayOfWeekColombia(fechaTurno);
-  const fechaKey = dateKeyColombia(fechaTurno);
+
+  // fecha ya es la fecha Colombia almacenada como midnight UTC
+  // NO aplicar offset de timezone, solo leer directamente
+  const dow = fechaTurno.getUTCDay();
+  const fechaKey = fechaTurno.toISOString().split("T")[0];
   const esFestivo = holidaySet.has(fechaKey);
   const esDomingo = dow === 0;
   const esDomFestivo = esDomingo || esFestivo;
