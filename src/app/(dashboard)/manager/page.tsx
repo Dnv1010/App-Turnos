@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { parseResponseJson } from "@/lib/parseFetchJson";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { useTurnosStream } from "@/hooks/useTurnosStream";
@@ -26,27 +27,44 @@ export default function ManagerPage() {
   const [data, setData] = useState<ReporteData | null>(null);
   const [zonaFilter, setZonaFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
+  /** Invalida datos cuando SSE notifica cambios (antes se re-disparaba el effect vía `loading` en deps). */
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const ahora = new Date();
   const inicio = format(startOfMonth(ahora), "yyyy-MM-dd");
   const fin = format(endOfMonth(ahora), "yyyy-MM-dd");
 
   useTurnosStream(
-    (data) => {
+    () => {
       console.log("Turno eliminado, recargando reportes");
-      setLoading(true);
+      setRefreshKey((k) => k + 1);
     },
-    (data) => {
+    () => {
       console.log("Turno editado, recargando reportes");
-      setLoading(true);
+      setRefreshKey((k) => k + 1);
     }
   );
 
   useEffect(() => {
-    fetch(`/api/reportes?inicio=${inicio}&fin=${fin}&zona=${zonaFilter}`)
-      .then((r) => r.json()).then((d) => { setData(d); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [inicio, fin, zonaFilter, loading]);
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/reportes?inicio=${inicio}&fin=${fin}&zona=${zonaFilter}`);
+        const d = await parseResponseJson<ReporteData>(res);
+        if (cancelled) return;
+        if (res.ok && d && Array.isArray(d.detalle) && d.resumen) setData(d);
+        else setData(null);
+      } catch {
+        if (!cancelled) setData(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [inicio, fin, zonaFilter, refreshKey]);
 
   if (loading) return <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>;
   if (!data) return null;

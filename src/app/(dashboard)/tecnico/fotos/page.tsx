@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { HiPhotograph, HiUpload, HiTruck, HiCamera, HiClipboardList, HiX, HiPencil, HiTrash } from "react-icons/hi";
+import { parseResponseJson } from "@/lib/parseFetchJson";
 
 const CameraCapture = dynamic(() => import("@/components/fotos/CameraCapture"), {
   ssr: false,
@@ -67,8 +68,8 @@ export default function FotosPage() {
     try {
       const res = await fetch(`/api/fotos?activoForaneo=1`);
       if (res.ok) {
-        const data = await res.json();
-        setForaneoActivo(data && typeof data === "object" && data.id ? data : null);
+        const data = await parseResponseJson<FotoRecord & { id?: string }>(res);
+        setForaneoActivo(data && typeof data === "object" && data.id ? (data as FotoRecord) : null);
       }
     } catch { setForaneoActivo(null); }
     finally { setLoadingForaneoActivo(false); }
@@ -79,7 +80,10 @@ export default function FotosPage() {
     setLoadingHistorial(true);
     try {
       const res = await fetch(`/api/fotos?userId=${session.user.userId}&inicio=${filtroInicio}&fin=${filtroFin}`);
-      if (res.ok) setHistorial(await res.json());
+      if (res.ok) {
+        const h = await parseResponseJson<FotoRecord[]>(res);
+        setHistorial(Array.isArray(h) ? h : []);
+      }
     } catch { /* silently fail */ }
     finally { setLoadingHistorial(false); }
   }, [session?.user?.userId, filtroInicio, filtroFin]);
@@ -133,8 +137,8 @@ export default function FotosPage() {
         await cargarForaneoActivo();
         await cargarHistorial();
       } else {
-        const d = await res.json();
-        alert(d.error || "Error al iniciar foráneo");
+        const d = await parseResponseJson<{ error?: string }>(res);
+        alert(d?.error || "Error al iniciar foráneo");
       }
     } catch { alert("Error de conexión"); }
     finally { setLoading(false); }
@@ -172,8 +176,8 @@ export default function FotosPage() {
         await cargarForaneoActivo();
         await cargarHistorial();
       } else {
-        const d = await res.json();
-        alert(d.error || "Error al finalizar foráneo");
+        const d = await parseResponseJson<{ error?: string }>(res);
+        alert(d?.error || "Error al finalizar foráneo");
       }
     } catch { alert("Error de conexión"); }
     finally { setLoadingFinalizar(false); }
@@ -238,8 +242,8 @@ export default function FotosPage() {
         setEditandoId(null);
         cargarHistorial();
       } else {
-        const d = await res.json();
-        alert(d.error || "Error al guardar");
+        const d = await parseResponseJson<{ error?: string }>(res);
+        alert(d?.error || "Error al guardar");
       }
     } catch { alert("Error de conexión"); }
     finally { setGuardando(false); }

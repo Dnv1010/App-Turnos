@@ -4,11 +4,12 @@ import { useSession } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
+import { parseResponseJson } from "@/lib/parseFetchJson";
 import { useTurnosStream } from "@/hooks/useTurnosStream";
 import KPICards from "@/components/dashboard/KPICards";
 import GraficoHoras from "@/components/dashboard/GraficoHoras";
 import DataTable from "@/components/ui/DataTable";
-import { HiDownload, HiSearch, HiTruck, HiPhotograph, HiExternalLink, HiLocationMarker, HiRefresh } from "react-icons/hi";
+import { HiDownload, HiSearch, HiTruck, HiPhotograph, HiExternalLink, HiLocationMarker, HiRefresh, HiTrash } from "react-icons/hi";
 
 interface TurnoRow {
   id: string;
@@ -111,10 +112,12 @@ export default function CoordinadorPage() {
     (data) => {
       console.log("Removiendo turno:", data.id);
       setTurnos((prev) => prev.filter((t) => t.id !== data.id));
+      setData((prev) => prev ? { ...prev, detalle: prev.detalle.map(d => ({ ...d, turnos: d.turnos?.filter(t => t.id !== data.id) })) } : null);
     },
     (data) => {
       console.log("Reloading turnos por edicion");
       cargarTurnos();
+      cargarReportes();
     }
   );
 
@@ -125,7 +128,9 @@ export default function CoordinadorPage() {
       const params = new URLSearchParams({ inicio, fin, zona: session.user.zona });
       if (tecnicoFilter !== "ALL") params.set("userId", tecnicoFilter);
       const res = await fetch(`/api/turnos?${params}`);
-      let list: TurnoRow[] = await res.json();
+      const raw = await parseResponseJson<TurnoRow[] | { error?: string }>(res);
+      let list: TurnoRow[] = Array.isArray(raw) ? raw : [];
+      if (!res.ok) list = [];
       if (estadoFilter === "ACTIVO") list = list.filter((t) => !t.horaSalida);
       if (estadoFilter === "FINALIZADO") list = list.filter((t) => t.horaSalida);
       setTurnos(list);
@@ -141,13 +146,13 @@ export default function CoordinadorPage() {
     if (tecnicoFilter !== "ALL") params.set("userId", tecnicoFilter);
     try {
       const res = await fetch(`/api/reportes?${params}`);
-      const json = await res.json().catch(() => null);
-      if (!res.ok) {
+      const json = await parseResponseJson<ReporteData & { error?: string }>(res);
+      if (!res.ok || !json || !Array.isArray(json.detalle) || !json.resumen) {
         setData(null);
-        setReporteError(json?.error || `Error ${res.status}`);
+        setReporteError(!res.ok ? (json?.error || `Error ${res.status}`) : "Respuesta inválida del servidor");
         return;
       }
-      setData(json);
+      setData(json as ReporteData);
     } catch (e) {
       setData(null);
       setReporteError(e instanceof Error ? e.message : "Error al cargar reportes");
@@ -162,7 +167,10 @@ export default function CoordinadorPage() {
     if (tabView === "disponibilidades" && session?.user?.zona) {
       setLoadingDisp(true);
       fetch(`/api/reportes/disponibilidades?desde=${inicio}&hasta=${fin}${tecnicoFilter !== "ALL" ? `&userId=${tecnicoFilter}` : ""}`)
-        .then((r) => r.json())
+        .then(async (r) => {
+          const j = await parseResponseJson<typeof disponibilidadesList>(r);
+          return Array.isArray(j) ? j : [];
+        })
         .then(setDisponibilidadesList)
         .catch(() => setDisponibilidadesList([]))
         .finally(() => setLoadingDisp(false));
@@ -172,7 +180,10 @@ export default function CoordinadorPage() {
     if (tabView === "foraneos" && session?.user?.zona) {
       setLoadingForaneos(true);
       fetch(`/api/reportes/foraneos?desde=${inicio}&hasta=${fin}${tecnicoFilter !== "ALL" ? `&userId=${tecnicoFilter}` : ""}`)
-        .then((r) => r.json())
+        .then(async (r) => {
+          const j = await parseResponseJson<typeof foraneosList>(r);
+          return Array.isArray(j) ? j : [];
+        })
         .then(setForaneosList)
         .catch(() => setForaneosList([]))
         .finally(() => setLoadingForaneos(false));
@@ -182,8 +193,10 @@ export default function CoordinadorPage() {
   useEffect(() => {
     if (!session?.user?.zona) return;
     fetch(`/api/usuarios?zona=${session.user.zona}&role=TECNICO`)
-      .then((r) => r.json())
-      .then((d) => { if (d.tecnicos) setTecnicosList(d.tecnicos.map((u: { id: string; nombre: string }) => ({ id: u.id, nombre: u.nombre }))); })
+      .then(async (r) => parseResponseJson<{ tecnicos?: { id: string; nombre: string }[] }>(r))
+      .then((d) => {
+        if (d?.tecnicos) setTecnicosList(d.tecnicos.map((u) => ({ id: u.id, nombre: u.nombre })));
+      })
       .catch(() => {});
   }, [session?.user?.zona]);
 
@@ -231,13 +244,28 @@ export default function CoordinadorPage() {
       const res = await fetch("/api/sheets/sync", { method: "POST" });
       if (res.ok) alert("Google Sheets sincronizados correctamente.");
       else {
-        const err = await res.json().catch(() => ({}));
+        const err = await parseResponseJson<{ error?: string }>(res);
         alert(err?.error ?? "Error al sincronizar Sheets.");
       }
     } catch {
       alert("Error al sincronizar Sheets.");
     } finally {
       setSyncingSheets(false);
+    }
+  };
+
+  const handleEliminarTurno = async (turnoId: string) => {
+    if (!confirm("¿Eliminar este turno?")) return;
+    try {
+      const res = await fetch(`/api/turnos/${turnoId}`, { method: "DELETE" });
+      if (res.ok) {
+        setTurnos((prev) => prev.filter((t) => t.id !== turnoId));
+        setData((prev) => prev ? { ...prev, detalle: prev.detalle.map(d => ({ ...d, turnos: d.turnos?.filter(t => t.id !== turnoId) })) } : null);
+      } else {
+        alert("Error al eliminar turno");
+      }
+    } catch (e) {
+      alert("Error: " + (e instanceof Error ? e.message : "desconocido"));
     }
   };
 
@@ -259,6 +287,7 @@ export default function CoordinadorPage() {
     { key: "startPhotoUrl", label: "Foto inicio", render: (t: TurnoRow) => t.startPhotoUrl ? <a href={t.startPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline text-xs">Ver</a> : "—" },
     { key: "endPhotoUrl", label: "Foto fin", render: (t: TurnoRow) => t.endPhotoUrl ? <a href={t.endPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline text-xs">Ver</a> : "—" },
     { key: "estado", label: "Estado", render: (t: TurnoRow) => t.horaSalida ? <span className="badge-blue">FINALIZADO</span> : <span className="badge-green">ACTIVO</span> },
+    { key: "acciones", label: "Acciones", render: (t: TurnoRow) => <button onClick={() => handleEliminarTurno(t.id)} className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs flex items-center gap-1"><HiTrash className="h-3 w-3" />Eliminar</button> },
   ];
 
   if (loadingTurnos && tabView === "turnos" && turnos.length === 0) {

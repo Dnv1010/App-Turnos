@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { useTurnosStream } from "@/hooks/useTurnosStream";
+import { parseResponseJson } from "@/lib/parseFetchJson";
 import KPICards from "@/components/dashboard/KPICards";
 import DataTable from "@/components/ui/DataTable";
 import BotonFichaje from "@/components/fichaje/BotonFichaje";
@@ -61,11 +62,12 @@ export default function TecnicoDashboard() {
         fetch(`/api/turnos?desde=${desde}&hasta=${hasta}`),
         fetch(`/api/reportes/foraneos?desde=${desde}&hasta=${hasta}&userId=${session.user.userId}`),
       ]);
-      const data = await turnosRes.json();
-      setTurnos(Array.isArray(data) ? data : []);
-      const abierto = (Array.isArray(data) ? data : []).find((t: TurnoRecord) => !t.horaSalida);
+      const data = await parseResponseJson<TurnoRecord[]>(turnosRes);
+      const list = Array.isArray(data) ? data : [];
+      setTurnos(list);
+      const abierto = list.find((t) => !t.horaSalida);
       setTurnoActivo(abierto ? { id: abierto.id, horaEntrada: abierto.horaEntrada } : null);
-      const foraneosData = await foraneosRes.json();
+      const foraneosData = await parseResponseJson<unknown[]>(foraneosRes);
       const listaForaneos = Array.isArray(foraneosData) ? foraneosData : [];
       const miForaneo = listaForaneos.find((f: { userId: string }) => f.userId === session.user.userId);
       setForaneosResumen(miForaneo ? { totalKm: miForaneo.totalKm ?? 0, totalPagar: miForaneo.totalPagar ?? 0 } : { totalKm: 0, totalPagar: 0 });
@@ -82,12 +84,13 @@ export default function TecnicoDashboard() {
     setLoading(true);
     try {
       const res = await fetch(`/api/turnos?desde=${desde}&hasta=${hasta}`);
-      const data = await res.json();
-      setTurnos(Array.isArray(data) ? data : []);
-      const abierto = (Array.isArray(data) ? data : []).find((t: TurnoRecord) => !t.horaSalida);
+      const data = await parseResponseJson<TurnoRecord[]>(res);
+      const list = Array.isArray(data) ? data : [];
+      setTurnos(list);
+      const abierto = list.find((t) => !t.horaSalida);
       setTurnoActivo(abierto ? { id: abierto.id, horaEntrada: abierto.horaEntrada } : null);
       const foraneosRes = await fetch(`/api/reportes/foraneos?desde=${desde}&hasta=${hasta}&userId=${session.user.userId}`);
-      const foraneosData = await foraneosRes.json();
+      const foraneosData = await parseResponseJson<unknown[]>(foraneosRes);
       const listaForaneos = Array.isArray(foraneosData) ? foraneosData : [];
       const miForaneo = listaForaneos.find((f: { userId: string }) => f.userId === session.user.userId);
       setForaneosResumen(miForaneo ? { totalKm: miForaneo.totalKm ?? 0, totalPagar: miForaneo.totalPagar ?? 0 } : { totalKm: 0, totalPagar: 0 });

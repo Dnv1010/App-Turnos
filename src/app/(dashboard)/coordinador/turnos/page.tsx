@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
+import { parseResponseJson } from "@/lib/parseFetchJson";
 import DataTable from "@/components/ui/DataTable";
 import { useToast } from "@/components/ui/Toast";
 import { HiSearch, HiPencil, HiTrash, HiLocationMarker, HiPhotograph, HiX, HiSave } from "react-icons/hi";
@@ -74,7 +75,9 @@ export default function CoordinadorTurnosPage() {
       const params = new URLSearchParams({ inicio, fin, zona: session.user.zona });
       if (tecnicoFilter !== "ALL") params.set("userId", tecnicoFilter);
       const res = await fetch(`/api/turnos?${params}`);
-      let list: TurnoRow[] = await res.json();
+      const raw = await parseResponseJson<TurnoRow[]>(res);
+      let list: TurnoRow[] = Array.isArray(raw) ? raw : [];
+      if (!res.ok) list = [];
       if (estadoFilter === "ACTIVO") list = list.filter((t) => !t.horaSalida);
       if (estadoFilter === "FINALIZADO") list = list.filter((t) => t.horaSalida);
       list = list.filter((t) => !t.observaciones?.startsWith("Cancelado"));
@@ -90,8 +93,10 @@ export default function CoordinadorTurnosPage() {
   useEffect(() => {
     if (!session?.user?.zona) return;
     fetch(`/api/usuarios?zona=${session.user.zona}&role=TECNICO`)
-      .then((r) => r.json())
-      .then((d) => { if (d.tecnicos) setTecnicos(d.tecnicos); })
+      .then(async (r) => parseResponseJson<{ tecnicos?: TecnicoOption[] }>(r))
+      .then((d) => {
+        if (d?.tecnicos) setTecnicos(d.tecnicos);
+      })
       .catch(() => {});
   }, [session?.user?.zona]);
 
@@ -123,13 +128,13 @@ export default function CoordinadorTurnosPage() {
           observaciones: editForm.notes || undefined,
         }),
       });
-      const data = await res.json();
-      if (data.ok) {
+      const data = await parseResponseJson<{ ok?: boolean; error?: string; turno?: TurnoRow }>(res);
+      if (res.ok && data?.ok) {
         toast.success("Turno actualizado", `Ord: ${data.turno?.horasOrdinarias ?? 0}h, HE: ${((data.turno?.heDiurna ?? 0) + (data.turno?.heNocturna ?? 0)).toFixed(2)}h`);
         setEditingTurno(null);
         loadTurnos();
       } else {
-        toast.error("Error al guardar", data.error || "No se pudo guardar el turno");
+        toast.error("Error al guardar", data?.error || "No se pudo guardar el turno");
       }
     } catch (e: unknown) {
       toast.error("Error", e instanceof Error ? e.message : "No se pudo guardar");
@@ -140,12 +145,12 @@ export default function CoordinadorTurnosPage() {
   async function deleteTurno(turnoId: string) {
     try {
       const res = await fetch(`/api/turnos/${turnoId}`, { method: "DELETE" });
-      const data = await res.json();
-      if (data.ok) {
-        toast.success("Turno cancelado", "El turno ha sido cancelado correctamente");
+      const data = await parseResponseJson<{ success?: boolean; error?: string; message?: string }>(res);
+      if (res.ok && data?.success) {
+        toast.success("Turno eliminado", data.message || "El turno ha sido eliminado correctamente");
         loadTurnos();
       } else {
-        toast.error("Error", data.error || "No se pudo cancelar el turno");
+        toast.error("Error", data?.error || "No se pudo eliminar el turno");
       }
     } catch (e: unknown) {
       toast.error("Error", e instanceof Error ? e.message : "No se pudo cancelar");

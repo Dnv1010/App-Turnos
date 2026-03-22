@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
+import { parseResponseJson } from "@/lib/parseFetchJson";
 import KPICards from "@/components/dashboard/KPICards";
 import DataTable from "@/components/ui/DataTable";
 import { HiDownload, HiSearch, HiTruck, HiExternalLink } from "react-icons/hi";
@@ -103,8 +104,10 @@ export default function ReportesPage() {
       if (zona !== "ALL") params.set("zona", zona);
       if (rol !== "ALL") params.set("rol", rol);
       const res = await fetch(`/api/reportes?${params}`);
-      setData(await res.json());
-    } catch { /* silently fail */ }
+      const parsed = await parseResponseJson<ReporteData>(res);
+      if (res.ok && parsed && Array.isArray(parsed.detalle) && parsed.resumen) setData(parsed);
+      else setData(null);
+    } catch { setData(null); }
     finally { setLoading(false); }
   };
 
@@ -128,7 +131,10 @@ export default function ReportesPage() {
       if (zona !== "ALL") params.set("zona", zona);
       if (rol !== "ALL") params.set("rol", rol);
       fetch(`/api/reportes/foraneos?${params}`)
-        .then((r) => r.json())
+        .then(async (r) => {
+          const j = await parseResponseJson<typeof foraneosList>(r);
+          return Array.isArray(j) ? j : [];
+        })
         .then(setForaneosList)
         .catch(() => setForaneosList([]))
         .finally(() => setLoadingForaneos(false));
