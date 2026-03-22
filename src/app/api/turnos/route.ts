@@ -149,11 +149,12 @@ export async function POST(req: NextRequest) {
   ));
 
   // Verificar malla del día — bloquear si es estado no laboral
+  console.log("[POST /turnos] Buscando malla para userId:", uid, "fecha:", fecha.toISOString());
   const mallaHoy = await prisma.mallaTurno.findUnique({
     where: { userId_fecha: { userId: uid, fecha } },
   });
 
-  if (mallaHoy) {
+  if (mallaHoy) {console.log("[POST /turnos] Malla encontrada:", mallaHoy.valor, "tipo:", mallaHoy.tipo);
     const valorMalla = (mallaHoy.valor ?? "").toLowerCase().trim();
     const estadosBloqueantes = [
       "descanso",
@@ -167,7 +168,7 @@ export async function POST(req: NextRequest) {
       "keynote",
     ];
 
-    const estaBloqueado = estadosBloqueantes.some((estado) => valorMalla.includes(estado));
+    const estaBloqueado = console.log("[POST /turnos] estaBloqueado:", estaBloqueado, "valorMalla:", valorMalla);estadosBloqueantes.some((estado) => valorMalla.includes(estado));
 
     if (estaBloqueado) {
       const fechaStr = fecha.toISOString().split("T")[0].split("-").reverse().join("/");
