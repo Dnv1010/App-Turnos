@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
+import { useTurnosStream } from "@/hooks/useTurnosStream";
 import KPICards from "@/components/dashboard/KPICards";
 import DataTable from "@/components/ui/DataTable";
 import BotonFichaje from "@/components/fichaje/BotonFichaje";
@@ -40,6 +41,18 @@ export default function TecnicoDashboard() {
   const [desde, setDesde] = useState(primerDiaMes);
   const [hasta, setHasta] = useState(hoy);
 
+  useTurnosStream(
+    (data) => {
+      setTurnos((prev) => prev.filter((t) => t.id !== data.id));
+    },
+    (data) => {
+      cargarDatos();
+    },
+    (data) => {
+      cargarDatos();
+    }
+  );
+
   const cargarDatos = useCallback(async () => {
     if (!session?.user?.userId) return;
     setLoading(true);
@@ -57,7 +70,6 @@ export default function TecnicoDashboard() {
       const miForaneo = listaForaneos.find((f: { userId: string }) => f.userId === session.user.userId);
       setForaneosResumen(miForaneo ? { totalKm: miForaneo.totalKm ?? 0, totalPagar: miForaneo.totalPagar ?? 0 } : { totalKm: 0, totalPagar: 0 });
     } catch {
-      console.error("Error cargando turnos");
       setTurnos([]);
       setForaneosResumen({ totalKm: 0, totalPagar: 0 });
     } finally {
@@ -80,7 +92,6 @@ export default function TecnicoDashboard() {
       const miForaneo = listaForaneos.find((f: { userId: string }) => f.userId === session.user.userId);
       setForaneosResumen(miForaneo ? { totalKm: miForaneo.totalKm ?? 0, totalPagar: miForaneo.totalPagar ?? 0 } : { totalKm: 0, totalPagar: 0 });
     } catch {
-      console.error("Error cargando turnos");
       setTurnos([]);
       setForaneosResumen({ totalKm: 0, totalPagar: 0 });
     } finally {
@@ -96,75 +107,24 @@ export default function TecnicoDashboard() {
       return;
     }
     cargarDatos();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
+  }, [session, router, cargarDatos]);
 
   const totalHE = turnos.reduce((s, t) => s + t.heDiurna + t.heNocturna + t.heDominical + t.heNoctDominical, 0);
   const totalRecargos = turnos.reduce((s, t) => s + t.recNocturno + t.recDominical + t.recNoctDominical, 0);
   const totalOrdinarias = turnos.reduce((s, t) => s + Math.max(0, t.horasOrdinarias), 0);
 
   const columns = [
-    {
-      key: "fecha",
-      label: "Fecha",
-      sortable: true,
-      render: (t: TurnoRecord) => {
-        const fechaStr = t.fecha.split("T")[0];
-        const [y, m, d] = fechaStr.split("-").map(Number);
-        return format(new Date(y, m - 1, d), "EEE dd MMM", { locale: es });
-      },
-    },
-    {
-      key: "horaEntrada",
-      label: "Entrada",
-      render: (t: TurnoRecord) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }),
-    },
-    {
-      key: "horaSalida",
-      label: "Salida",
-      render: (t: TurnoRecord) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—",
-    },
-    {
-      key: "horasOrdinarias",
-      label: "Ord.",
-      sortable: true,
-      render: (t: TurnoRecord) => Math.max(0, t.horasOrdinarias),
-    },
-    {
-      key: "heDiurna",
-      label: "HE Día",
-      render: (t: TurnoRecord) => t.heDiurna > 0 ? t.heDiurna : "—",
-    },
-    {
-      key: "heNocturna",
-      label: "HE Noc",
-      render: (t: TurnoRecord) => t.heNocturna > 0 ? t.heNocturna : "—",
-    },
-    {
-      key: "heDominical",
-      label: "HE Dom/Fest Día",
-      render: (t: TurnoRecord) => t.heDominical > 0 ? t.heDominical : "—",
-    },
-    {
-      key: "heNoctDominical",
-      label: "HE Dom/Fest Noc",
-      render: (t: TurnoRecord) => t.heNoctDominical > 0 ? t.heNoctDominical : "—",
-    },
-    {
-      key: "recNocturno",
-      label: "Rec. Noc",
-      render: (t: TurnoRecord) => t.recNocturno > 0 ? t.recNocturno : "—",
-    },
-    {
-      key: "recDominical",
-      label: "Rec Dom/Fest Día",
-      render: (t: TurnoRecord) => t.recDominical > 0 ? t.recDominical : "—",
-    },
-    {
-      key: "recNoctDominical",
-      label: "Rec Dom/Fest Noc",
-      render: (t: TurnoRecord) => t.recNoctDominical > 0 ? t.recNoctDominical : "—",
-    },
+    { key: "fecha", label: "Fecha", sortable: true, render: (t: TurnoRecord) => { const fechaStr = t.fecha.split("T")[0]; const [y, m, d] = fechaStr.split("-").map(Number); return format(new Date(y, m - 1, d), "EEE dd MMM", { locale: es }); } },
+    { key: "horaEntrada", label: "Entrada", render: (t: TurnoRecord) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
+    { key: "horaSalida", label: "Salida", render: (t: TurnoRecord) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
+    { key: "horasOrdinarias", label: "Ord.", sortable: true, render: (t: TurnoRecord) => Math.max(0, t.horasOrdinarias) },
+    { key: "heDiurna", label: "HE Día", render: (t: TurnoRecord) => t.heDiurna > 0 ? t.heDiurna : "—" },
+    { key: "heNocturna", label: "HE Noc", render: (t: TurnoRecord) => t.heNocturna > 0 ? t.heNocturna : "—" },
+    { key: "heDominical", label: "HE Dom/Fest Día", render: (t: TurnoRecord) => t.heDominical > 0 ? t.heDominical : "—" },
+    { key: "heNoctDominical", label: "HE Dom/Fest Noc", render: (t: TurnoRecord) => t.heNoctDominical > 0 ? t.heNoctDominical : "—" },
+    { key: "recNocturno", label: "Rec. Noc", render: (t: TurnoRecord) => t.recNocturno > 0 ? t.recNocturno : "—" },
+    { key: "recDominical", label: "Rec Dom/Fest Día", render: (t: TurnoRecord) => t.recDominical > 0 ? t.recDominical : "—" },
+    { key: "recNoctDominical", label: "Rec Dom/Fest Noc", render: (t: TurnoRecord) => t.recNoctDominical > 0 ? t.recNoctDominical : "—" },
   ];
 
   if (loading) {
@@ -221,17 +181,13 @@ export default function TecnicoDashboard() {
       </div>
       {turnoActivo && turnos[0]?.latEntrada && turnos[0]?.lngEntrada && (
         <div className="max-w-md">
-          <MapaUbicacion lat={turnos[0].latEntrada} lng={turnos[0].lngEntrada} label="Ubicación de entrada" />
+          <MapaUbicacion lat={turnos[0].latEntrada} lng={turnos[0].lngEntrada} label="Ubicacion de entrada" />
         </div>
       )}
       <div className="min-w-0">
         <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Detalle de turnos</h3>
         <div className="overflow-x-auto w-full">
-          <DataTable
-            columns={columns as never}
-            data={turnos as never}
-            emptyMessage="No hay turnos registrados este mes"
-          />
+          <DataTable columns={columns as never} data={turnos as never} emptyMessage="No hay turnos registrados este mes" />
         </div>
       </div>
     </div>

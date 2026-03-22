@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
+import { useTurnosStream } from "@/hooks/useTurnosStream";
 import KPICards from "@/components/dashboard/KPICards";
 import GraficoHoras from "@/components/dashboard/GraficoHoras";
 import DataTable from "@/components/ui/DataTable";
@@ -30,11 +31,22 @@ export default function ManagerPage() {
   const inicio = format(startOfMonth(ahora), "yyyy-MM-dd");
   const fin = format(endOfMonth(ahora), "yyyy-MM-dd");
 
+  useTurnosStream(
+    (data) => {
+      console.log("Turno eliminado, recargando reportes");
+      setLoading(true);
+    },
+    (data) => {
+      console.log("Turno editado, recargando reportes");
+      setLoading(true);
+    }
+  );
+
   useEffect(() => {
     fetch(`/api/reportes?inicio=${inicio}&fin=${fin}&zona=${zonaFilter}`)
       .then((r) => r.json()).then((d) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [inicio, fin, zonaFilter]);
+  }, [inicio, fin, zonaFilter, loading]);
 
   if (loading) return <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>;
   if (!data) return null;

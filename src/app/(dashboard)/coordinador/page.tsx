@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
+import { useTurnosStream } from "@/hooks/useTurnosStream";
 import KPICards from "@/components/dashboard/KPICards";
 import GraficoHoras from "@/components/dashboard/GraficoHoras";
 import DataTable from "@/components/ui/DataTable";
@@ -105,6 +106,17 @@ export default function CoordinadorPage() {
   const [loadingForaneos, setLoadingForaneos] = useState(false);
   const [reporteError, setReporteError] = useState<string | null>(null);
   const [syncingSheets, setSyncingSheets] = useState(false);
+
+  useTurnosStream(
+    (data) => {
+      console.log("Removiendo turno:", data.id);
+      setTurnos((prev) => prev.filter((t) => t.id !== data.id));
+    },
+    (data) => {
+      console.log("Reloading turnos por edicion");
+      cargarTurnos();
+    }
+  );
 
   const cargarTurnos = useCallback(async () => {
     if (!session?.user?.zona) return;
