@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isToday } from "date-fns";
 import { es } from "date-fns/locale";
 import { HiChevronLeft, HiChevronRight } from "react-icons/hi";
+import { parseResponseJson } from "@/lib/parseFetchJson";
 
 interface TurnoEntry {
   fecha: string;
@@ -43,8 +44,15 @@ export default function CalendarioPage() {
     const fin = format(endOfMonth(mesActual), "yyyy-MM-dd");
     setLoading(true);
     Promise.all([
-      fetch(`/api/turnos?userId=${session.user.userId}&inicio=${inicio}&fin=${fin}`).then((r) => r.json()),
-      fetch(`/api/malla?userId=${session.user.userId}&mes=${mesKey}`).then((r) => r.ok ? r.json() : []),
+      fetch(`/api/turnos?userId=${session.user.userId}&inicio=${inicio}&fin=${fin}`).then(async (r) => {
+        const j = await parseResponseJson<TurnoEntry[]>(r);
+        return Array.isArray(j) ? j : [];
+      }),
+      fetch(`/api/malla?userId=${session.user.userId}&mes=${mesKey}`).then(async (r) => {
+        if (!r.ok) return [];
+        const j = await parseResponseJson<MallaItem[]>(r);
+        return Array.isArray(j) ? j : [];
+      }),
     ])
       .then(([turnosData, mallaData]) => {
         setTurnos(Array.isArray(turnosData) ? turnosData : []);

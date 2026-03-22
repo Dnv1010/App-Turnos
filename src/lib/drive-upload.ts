@@ -1,4 +1,5 @@
 import { SignJWT, importPKCS8 } from "jose";
+import { parseResponseJson } from "@/lib/parseFetchJson";
 
 /** OAuth2 token para Drive usando service account (jose + fetch, sin googleapis). */
 async function getAccessToken(): Promise<string> {
@@ -24,8 +25,8 @@ async function getAccessToken(): Promise<string> {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
   });
-  const data = (await res.json()) as { access_token?: string };
-  if (!data.access_token) throw new Error("[Drive] No se obtuvo access_token");
+  const data = await parseResponseJson<{ access_token?: string }>(res);
+  if (!data?.access_token) throw new Error("[Drive] No se obtuvo access_token");
   return data.access_token;
 }
 
@@ -69,8 +70,8 @@ export async function uploadToDrive(base64Data: string, fileName: string): Promi
     throw new Error(`[Drive] Upload failed ${uploadRes.status}: ${errText}`);
   }
 
-  const file = (await uploadRes.json()) as { id?: string; webViewLink?: string };
-  if (!file.id) throw new Error("[Drive] Respuesta sin id");
+  const file = await parseResponseJson<{ id?: string; webViewLink?: string }>(uploadRes);
+  if (!file?.id) throw new Error("[Drive] Respuesta sin id");
 
   await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`, {
     method: "POST",

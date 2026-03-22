@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
+import { parseResponseJson } from "@/lib/parseFetchJson";
 import { useState, useEffect, useCallback } from "react";
 import { HiUserAdd, HiPencil, HiTrash, HiX } from "react-icons/hi";
 
@@ -32,8 +33,8 @@ export default function CoordinadorEquipoPage() {
     setLoading(true);
     try {
       const res = await fetch(`/api/usuarios?zona=${session.user.zona}&role=TECNICO`);
-      const data = await res.json();
-      setList(data.tecnicos || []);
+      const data = await parseResponseJson<{ tecnicos?: Tecnico[] }>(res);
+      setList(data?.tecnicos || []);
     } catch { setList([]); }
     finally { setLoading(false); }
   }, [session?.user?.zona]);
@@ -64,8 +65,8 @@ export default function CoordinadorEquipoPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cedula: cedula.trim(), nombre: nombre.trim(), email: email.trim().toLowerCase(), pin }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error al crear");
+      const data = await parseResponseJson<{ error?: string }>(res);
+      if (!res.ok) throw new Error(data?.error || "Error al crear");
       closeModal();
       cargar();
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
@@ -84,8 +85,8 @@ export default function CoordinadorEquipoPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nombre: nombre.trim(), email: email.trim().toLowerCase(), ...(pin ? { pin } : {}) }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error al actualizar");
+      const data = await parseResponseJson<{ error?: string }>(res);
+      if (!res.ok) throw new Error(data?.error || "Error al actualizar");
       closeModal();
       cargar();
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
@@ -96,7 +97,10 @@ export default function CoordinadorEquipoPage() {
     if (!confirm(`¿Desactivar a ${t.nombre}? No podrá iniciar sesión.`)) return;
     try {
       const res = await fetch(`/api/usuarios/${t.id}`, { method: "DELETE" });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      if (!res.ok) {
+        const d = await parseResponseJson<{ error?: string }>(res);
+        throw new Error(d?.error || "Error al desactivar");
+      }
       cargar();
     } catch (e) { alert(e instanceof Error ? e.message : "Error"); }
   };

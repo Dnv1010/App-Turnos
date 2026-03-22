@@ -38,6 +38,20 @@ export async function DELETE(
 
     console.log("Turno eliminado:", turnoId);
 
+    try {
+      const origin = new URL(req.url).origin;
+      const cookie = req.headers.get("cookie") ?? "";
+      await fetch(`${origin}/api/sheets/sync`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(cookie ? { Cookie: cookie } : {}),
+        },
+      });
+    } catch (sheetErr) {
+      console.error("Error sincronizando Sheets tras eliminar turno:", sheetErr);
+    }
+
     turnoEventEmitter.emit("turno-eliminado", {
       id: turnoId,
       usuarioTecnico: turnoAnterior.userId,

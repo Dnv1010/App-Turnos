@@ -2,6 +2,7 @@
 
 /* Fechas de turnos en tablas: usar formatFechaTurnoDdMmmYyyy desde @/lib/formatFechaTurno (evita desfase UTC). */
 import { useState, useEffect, useCallback } from "react";
+import { parseResponseJson } from "@/lib/parseFetchJson";
 import DataTable from "@/components/ui/DataTable";
 import { HiPlus, HiPencil, HiTrash, HiX, HiRefresh } from "react-icons/hi";
 
@@ -36,7 +37,10 @@ export default function UsuariosPage() {
   const cargarUsuarios = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/usuarios");
-      if (res.ok) setUsuarios(await res.json());
+      if (res.ok) {
+        const list = await parseResponseJson<Usuario[]>(res);
+        setUsuarios(Array.isArray(list) ? list : []);
+      }
     } catch {
       console.error("Error cargando usuarios");
     } finally {
@@ -122,7 +126,7 @@ export default function UsuariosPage() {
       const res = await fetch("/api/sheets/sync", { method: "POST" });
       if (res.ok) alert("Google Sheets sincronizados correctamente.");
       else {
-        const err = await res.json().catch(() => ({}));
+        const err = await parseResponseJson<{ error?: string }>(res);
         alert(err?.error ?? "Error al sincronizar Sheets.");
       }
     } catch {
@@ -137,8 +141,8 @@ export default function UsuariosPage() {
     setRecalculando(true);
     try {
       const res = await fetch("/api/admin/recalcular", { method: "POST" });
-      const data = await res.json();
-      alert(`Completado: ${data.actualizados ?? 0} turnos actualizados, ${data.errores ?? 0} errores`);
+      const data = await parseResponseJson<{ actualizados?: number; errores?: number }>(res);
+      alert(`Completado: ${data?.actualizados ?? 0} turnos actualizados, ${data?.errores ?? 0} errores`);
     } catch {
       alert("Error al recalcular");
     } finally {

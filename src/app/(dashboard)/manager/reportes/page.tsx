@@ -118,7 +118,10 @@ export default function ReportesPage() {
       if (zona !== "ALL") params.set("zona", zona);
       if (rol !== "ALL") params.set("rol", rol);
       fetch(`/api/reportes/disponibilidades?${params}`)
-        .then((r) => r.json())
+        .then(async (r) => {
+          const j = await parseResponseJson<typeof disponibilidadesList>(r);
+          return Array.isArray(j) ? j : [];
+        })
         .then(setDisponibilidadesList)
         .catch(() => setDisponibilidadesList([]))
         .finally(() => setLoadingDisp(false));

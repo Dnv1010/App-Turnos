@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useState, useEffect, useCallback, useRef, type CSSProperties } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay } from "date-fns";
 import { HiChevronDown } from "react-icons/hi";
+import { parseResponseJson } from "@/lib/parseFetchJson";
 
 const OPCIONES_TURNO = ["8-17", "6-14", "14-22", "22-6", "8-14"];
 const OPCIONES_NOVEDAD = ["Disponible", "Descanso", "Vacaciones", "Día de la familia", "Semana Santa", "Medio día cumpleaños", "Keynote"];
@@ -51,8 +52,8 @@ export default function CoordinadorMallaPage() {
   const cargarTecnicos = useCallback(async () => {
     if (!session?.user?.zona) return;
     const res = await fetch(`/api/usuarios?zona=${session.user.zona}&role=TECNICO`);
-    const data = await res.json();
-    setTecnicos(data.tecnicos || []);
+    const data = await parseResponseJson<{ tecnicos?: Tecnico[] }>(res);
+    setTecnicos(data?.tecnicos || []);
   }, [session?.user?.zona]);
 
   const cargarMalla = useCallback(async (userId: string, autoPrecarga = true) => {
@@ -60,14 +61,8 @@ export default function CoordinadorMallaPage() {
     setLoading(true);
     try {
       const res = await fetch(`/api/malla?userId=${userId}&mes=${mes}`);
-      let data: unknown = [];
-      try {
-        const text = await res.text();
-        data = text ? JSON.parse(text) : [];
-      } catch {
-        data = [];
-      }
-      const list = Array.isArray(data) ? data : [];
+      const parsed = await parseResponseJson<unknown>(res);
+      const list = Array.isArray(parsed) ? parsed : [];
       setMalla(list);
       if (list.length === 0 && autoPrecarga) {
         const precargaRes = await fetch("/api/malla/precarga", {
@@ -75,10 +70,10 @@ export default function CoordinadorMallaPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId, mes }),
         });
-        const precargaData = precargaRes.ok ? await precargaRes.json().catch(() => ({})) : null;
+        const precargaData = precargaRes.ok ? await parseResponseJson<{ ok?: boolean }>(precargaRes) : null;
         if (precargaData?.ok) {
           const res2 = await fetch(`/api/malla?userId=${userId}&mes=${mes}`);
-          const data2 = await res2.json().catch(() => []);
+          const data2 = await parseResponseJson<MallaItem[]>(res2);
           setMalla(Array.isArray(data2) ? data2 : []);
         }
       }
@@ -96,8 +91,8 @@ export default function CoordinadorMallaPage() {
     const inicioStr = format(start, "yyyy-MM-dd");
     const finStr = format(end, "yyyy-MM-dd");
     fetch(`/api/festivos?inicio=${inicioStr}&fin=${finStr}`)
-      .then((r) => r.json())
-      .then((data: { festivos?: string[] }) => setFestivosSet(new Set(data.festivos ?? [])))
+      .then(async (r) => parseResponseJson<{ festivos?: string[] }>(r))
+      .then((data) => setFestivosSet(new Set(data?.festivos ?? [])))
       .catch(() => setFestivosSet(new Set()));
   }, [mes]);
 
@@ -189,11 +184,11 @@ export default function CoordinadorMallaPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: primaryTecnico, mes }),
       });
-      const data = await res.json();
-      if (data.ok) {
-        alert(`Malla precargada: ${data.registros} días (L-V 08:00-17:00, Sáb 08:00-12:00, Dom y festivos descanso)`);
+      const data = await parseResponseJson<{ ok?: boolean; registros?: number; error?: string }>(res);
+      if (data?.ok) {
+        alert(`Malla precargada: ${data.registros ?? 0} días (L-V 08:00-17:00, Sáb 08:00-12:00, Dom y festivos descanso)`);
         cargarMalla(primaryTecnico);
-      } else alert("Error: " + (data.error || "No se pudo precargar"));
+      } else alert("Error: " + (data?.error || "No se pudo precargar"));
     } catch (e) { alert("Error: " + (e instanceof Error ? e.message : "No se pudo precargar")); }
     setPrecargando(false);
   };
@@ -260,14 +255,14 @@ export default function CoordinadorMallaPage() {
           valor,
         }),
       });
-      const data = await res.json();
-      if (data.ok) {
-        alert(`✓ Malla "${valor}" asignada a ${selectedTecnicos.size} técnico(s) en ${selectedDays.size} día(s) = ${data.registros} registros`);
+      const data = await parseResponseJson<{ ok?: boolean; registros?: number; error?: string }>(res);
+      if (data?.ok) {
+        alert(`✓ Malla "${valor}" asignada a ${selectedTecnicos.size} técnico(s) en ${selectedDays.size} día(s) = ${data.registros ?? 0} registros`);
         setSelectedDays(new Set());
         setMallaModalOpen(false);
         if (primaryTecnico) cargarMalla(primaryTecnico);
       } else {
-        alert("Error: " + (data.error || "No se pudo asignar"));
+        alert("Error: " + (data?.error || "No se pudo asignar"));
       }
     } catch (e: unknown) {
       alert("Error: " + (e instanceof Error ? e.message : "No se pudo asignar"));
