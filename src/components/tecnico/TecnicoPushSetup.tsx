@@ -1,31 +1,54 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { HiBell, HiCheck } from "react-icons/hi";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { HiBell } from "react-icons/hi";
 import { pushSupported, urlBase64ToUint8Array } from "@/lib/push-client";
 import { parseResponseJson } from "@/lib/parseFetchJson";
 import { SERVICE_WORKER_SCRIPT } from "@/lib/service-worker-url";
 
-export default function TecnicoPushSetup() {
-  const [status, setStatus] = useState<"idle" | "loading" | "ok" | "err">("idle");
-  const [msg, setMsg] = useState<string | null>(null);
+type Status = "idle" | "loading" | "ok" | "err";
 
-  const activar = useCallback(async () => {
+function getNotificationPermission(): NotificationPermission | "unsupported" {
+  if (typeof window === "undefined" || typeof Notification === "undefined") return "unsupported";
+  return Notification.permission;
+}
+
+export default function TecnicoPushSetup() {
+  const [status, setStatus] = useState<Status>("idle");
+  const [msg, setMsg] = useState<string | null>(null);
+  const autoStartedRef = useRef(false);
+  /** Si hubo error antes, seguimos mostrando la tarjeta de reintento aunque status pase a "loading". */
+  const everFailedRef = useRef(false);
+
+  const activar = useCallback(async (opts?: { skipPermissionPrompt?: boolean }) => {
     setStatus("loading");
     setMsg(null);
     try {
       const vapid = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
       if (!vapid) {
+        everFailedRef.current = true;
         setMsg("Falta configurar notificaciones en el servidor.");
         setStatus("err");
         return;
       }
-      const perm = await Notification.requestPermission();
-      if (perm !== "granted") {
-        setMsg("Debes permitir notificaciones en el navegador.");
-        setStatus("err");
-        return;
+
+      if (opts?.skipPermissionPrompt) {
+        if (Notification.permission !== "granted") {
+          everFailedRef.current = true;
+          setMsg("Permiso de notificaciones no concedido.");
+          setStatus("err");
+          return;
+        }
+      } else {
+        const perm = await Notification.requestPermission();
+        if (perm !== "granted") {
+          everFailedRef.current = true;
+          setMsg("Debes permitir notificaciones en el navegador.");
+          setStatus("err");
+          return;
+        }
       }
+
       const reg = await navigator.serviceWorker.register(SERVICE_WORKER_SCRIPT, {
         scope: "/",
         updateViaCache: "none",
@@ -52,49 +75,66 @@ export default function TecnicoPushSetup() {
       if (!res.ok || !data?.ok) {
         throw new Error(data?.error || "No se pudo guardar la suscripción");
       }
+      everFailedRef.current = false;
       setStatus("ok");
-      setMsg("Listo. Recibirás avisos en este dispositivo (PWA o navegador con la app abierta o en segundo plano según el sistema).");
+      setMsg(null);
     } catch (e: unknown) {
+      everFailedRef.current = true;
       setStatus("err");
       setMsg(e instanceof Error ? e.message : "Error al activar avisos");
     }
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || !pushSupported()) return;
+    if (autoStartedRef.current) return;
+    const perm = Notification.permission;
+    if (perm === "denied") return;
+    autoStartedRef.current = true;
+    void activar(perm === "granted" ? { skipPermissionPrompt: true } : undefined);
+  }, [activar]);
+
   if (!pushSupported()) return null;
 
-  if (status === "ok") {
+  const perm = getNotificationPermission();
+  if (perm === "unsupported") return null;
+
+  if (status === "ok") return null;
+
+  if (perm === "denied") {
     return (
-      <div className="card p-4 border border-green-200 bg-green-50/80 flex items-start gap-3">
-        <HiCheck className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="font-medium text-green-900">Avisos push activados</p>
-          <p className="text-sm text-green-800 mt-1">{msg}</p>
-        </div>
+      <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-900">
+        Para recibir alertas de jornada, activa las notificaciones en Ajustes de tu navegador.
       </div>
     );
   }
 
-  return (
-    <div className="card p-4 border border-blue-200 bg-blue-50/50 flex flex-col sm:flex-row sm:items-center gap-3">
-      <div className="flex items-start gap-3 flex-1">
-        <HiBell className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="font-medium text-gray-900">Avisos en el celular</p>
-          <p className="text-sm text-gray-600 mt-1">
-            Activa las notificaciones para recibir el recordatorio 15 min antes del fin de jornada. En <strong>iOS</strong> debes
-            añadir la app a la pantalla de inicio (PWA).
-          </p>
-          {msg && status === "err" && <p className="text-sm text-red-600 mt-2">{msg}</p>}
+  const showRetryCard = perm !== "denied" && (status === "err" || (status === "loading" && everFailedRef.current));
+  if (showRetryCard) {
+    return (
+      <div className="card p-4 border border-blue-200 bg-blue-50/50 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex items-start gap-3 flex-1">
+          <HiBell className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium text-gray-900">No se pudieron activar los avisos</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Reintenta o comprueba la conexión. En <strong>iOS</strong> añade la app a la pantalla de inicio (PWA).
+            </p>
+            {msg && <p className="text-sm text-red-600 mt-2">{msg}</p>}
+          </div>
         </div>
+        <button
+          type="button"
+          onClick={() => void activar()}
+          disabled={status === "loading"}
+          className="btn-primary whitespace-nowrap shrink-0"
+        >
+          {status === "loading" ? "Activando…" : "Reintentar"}
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={() => void activar()}
-        disabled={status === "loading"}
-        className="btn-primary whitespace-nowrap shrink-0"
-      >
-        {status === "loading" ? "Activando…" : "Activar avisos"}
-      </button>
-    </div>
-  );
+    );
+  }
+
+  /* idle o loading con permiso default o granted: sin UI (prompt del sistema o renovación silenciosa) */
+  return null;
 }
