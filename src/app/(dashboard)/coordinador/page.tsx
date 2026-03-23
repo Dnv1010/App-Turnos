@@ -9,8 +9,7 @@ import { useTurnosStream } from "@/hooks/useTurnosStream";
 import KPICards from "@/components/dashboard/KPICards";
 import GraficoHoras from "@/components/dashboard/GraficoHoras";
 import DataTable from "@/components/ui/DataTable";
-import CoordinadorForaneosPanel from "@/components/foraneos/CoordinadorForaneosPanel";
-import { HiDownload, HiSearch, HiTruck, HiPhotograph, HiExternalLink, HiLocationMarker, HiRefresh, HiTrash } from "react-icons/hi";
+import { HiDownload, HiSearch, HiPhotograph, HiLocationMarker, HiRefresh, HiTrash } from "react-icons/hi";
 
 interface TurnoRow {
   id: string;
@@ -86,7 +85,7 @@ interface ReporteData {
   alertas: Array<{ nombre: string; mensaje: string; tipo?: string }>;
 }
 
-type TabView = "turnos" | "equipo" | "disponibilidades" | "foraneos";
+type TabView = "turnos" | "equipo" | "disponibilidades";
 
 export default function CoordinadorPage() {
   const { data: session } = useSession();
@@ -101,7 +100,6 @@ export default function CoordinadorPage() {
   const [data, setData] = useState<ReporteData | null>(null);
   const [loadingReportes, setLoadingReportes] = useState(true);
   const [tabView, setTabView] = useState<TabView>("turnos");
-  const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [disponibilidadesList, setDisponibilidadesList] = useState<Array<{ nombre: string; cedula: string; fecha: string; valor: number }>>([]);
   const [loadingDisp, setLoadingDisp] = useState(false);
   const [reporteError, setReporteError] = useState<string | null>(null);
@@ -353,10 +351,6 @@ export default function CoordinadorPage() {
         <button onClick={() => setTabView("disponibilidades")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${tabView === "disponibilidades" ? "border-primary-600 text-primary-700" : "border-transparent text-gray-500"}`}>
           Disponibilidades
         </button>
-        <button onClick={() => setTabView("foraneos")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 flex items-center gap-1.5 whitespace-nowrap ${tabView === "foraneos" ? "border-primary-600 text-primary-700" : "border-transparent text-gray-500"}`}>
-          <HiTruck className="h-3.5 w-3.5 sm:h-4 sm:w-4" />Foráneos / Km
-          {data && data.resumen.totalRegistrosForaneo > 0 && <span className="bg-orange-100 text-orange-700 text-xs font-bold px-1.5 py-0.5 rounded-full">{data.resumen.totalRegistrosForaneo}</span>}
-        </button>
       </div>
 
       {tabView === "turnos" && (
@@ -430,16 +424,6 @@ export default function CoordinadorPage() {
             />
           )}
         </>
-      )}
-
-      {tabView === "foraneos" && session?.user?.zona && (
-        <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-gray-900">Foráneos — aprobación y detalle</h3>
-          <p className="text-sm text-gray-500">
-            Usa las mismas fechas y filtro de técnico de arriba. Solo los registros <strong>aprobados</strong> cuentan en reportes y nómina.
-          </p>
-          <CoordinadorForaneosPanel desde={inicio} hasta={fin} tecnicoFilter={tecnicoFilter} />
-        </div>
       )}
 
       {tabView === "equipo" && loadingReportes && !data && (

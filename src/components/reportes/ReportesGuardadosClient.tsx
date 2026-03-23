@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { parseResponseJson } from "@/lib/parseFetchJson";
-import { HiDownload, HiTrash, HiRefresh, HiCheckCircle } from "react-icons/hi";
+import { HiDownload, HiTrash, HiRefresh, HiCheckCircle, HiDocumentText } from "react-icons/hi";
 
 const TARIFA_KM = 1100;
 
@@ -203,6 +203,28 @@ export default function ReportesGuardadosClient() {
 
   async function onDescargarExcel(id: string) {
     window.location.href = `/api/reportes/guardados/${id}/excel`;
+  }
+
+  async function descargarCSV(id: string, nombreReporte: string) {
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/reportes/guardados/${id}/csv`);
+      if (!res.ok) {
+        const err = await parseResponseJson<{ error?: string }>(res);
+        setMsg({ type: "err", text: err?.error ?? `Error ${res.status}` });
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const base = nombreReporte.replace(/[/\\?%*:|"<>]/g, "-").trim().replace(/\.csv$/i, "") || "reporte";
+      a.download = `${base}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setMsg({ type: "err", text: e instanceof Error ? e.message : "Error al descargar CSV" });
+    }
   }
 
   async function onConfirmarEliminar() {
@@ -503,7 +525,7 @@ export default function ReportesGuardadosClient() {
                   <th className="text-right p-2">Foráneos</th>
                   <th className="text-left p-2">Creado</th>
                   <th className="text-left p-2">Por</th>
-                  <th className="p-2 w-32">Acciones</th>
+                  <th className="p-2 w-40">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -519,14 +541,23 @@ export default function ReportesGuardadosClient() {
                     <td className="p-2 whitespace-nowrap">{format(parseISO(r.createdAt), "dd/MM/yyyy HH:mm")}</td>
                     <td className="p-2">{r.creadoPorUser.nombre}</td>
                     <td className="p-2">
-                      <div className="flex gap-1">
+                      <div className="flex flex-wrap gap-1 items-center">
                         <button
                           type="button"
-                          title="Excel"
+                          title="Descargar Excel"
                           onClick={() => onDescargarExcel(r.id)}
                           className="p-2 rounded-lg text-primary-600 hover:bg-primary-50"
                         >
                           <HiDownload className="h-5 w-5" />
+                        </button>
+                        <button
+                          type="button"
+                          title="Descargar CSV"
+                          onClick={() => void descargarCSV(r.id, r.nombre)}
+                          className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-gray-700 hover:bg-gray-100 text-xs font-medium"
+                        >
+                          <HiDocumentText className="h-4 w-4" />
+                          CSV
                         </button>
                         <button
                           type="button"

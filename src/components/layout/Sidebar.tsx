@@ -51,7 +51,6 @@ const navItems: NavItem[] = [
   { label: "Reportes", href: "/coordinador/reportes", icon: HiDocumentReport, roles: ["COORDINADOR"] },
   { label: "Reportes", href: "/manager/reportes/guardados", icon: HiDocumentReport, roles: ["MANAGER"] },
   { label: "Reportes", href: "/admin/reportes", icon: HiDocumentReport, roles: ["ADMIN"] },
-  { label: "Análisis período", href: "/manager/reportes", icon: HiChartBar, roles: ["COORDINADOR", "MANAGER", "ADMIN"] },
   { label: "Dashboard Global", href: "/manager", icon: HiChartBar, roles: ["MANAGER", "ADMIN"] },
   { label: "Usuarios", href: "/admin/usuarios", icon: HiCog, roles: ["ADMIN"] },
 ];
