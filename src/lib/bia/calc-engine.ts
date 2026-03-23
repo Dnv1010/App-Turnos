@@ -272,7 +272,7 @@ function calcMinutes(
   start: Date,
   totalMin: number,
   jornadaMin: number,
-  isFestivo: boolean,
+  esDomFestivo: boolean,
   applyDomRecargo: boolean
 ): CalcMinutesResult {
   let heDiurna = 0;
@@ -288,18 +288,19 @@ function calcMinutes(
     const mod = getMinutesOfDayColombia(t);
     const isDiurna = mod >= DIURNA_START && mod < DIURNA_END;
     const isNocturna = !isDiurna;
-    const withinJornada = jornadaMin > 0 ? m < jornadaMin : false;
+    const withinOrd = jornadaMin > 0 && m < jornadaMin;
 
-    if (withinJornada) {
-      if (isNocturna && !isFestivo) recNocturno++;
+    if (esDomFestivo) {
       if (applyDomRecargo) {
         if (isDiurna) recFestDiurno++;
         else recFestNocturno++;
-      }
-    } else {
-      if (isFestivo) {
+      } else {
         if (isDiurna) heFestDiurna++;
         else heFestNocturna++;
+      }
+    } else {
+      if (withinOrd) {
+        if (isNocturna) recNocturno++;
       } else {
         if (isDiurna) heDiurna++;
         else heNocturna++;

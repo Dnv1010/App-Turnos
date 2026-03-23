@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { calcularTurno, calcularHorasSemanalesConMalla, getInicioSemana, getFinSemana, checkMallaAlerts, dateKeyColombia } from "@/lib/bia/calc-engine";
+import { calcularTurno, getInicioSemana, getFinSemana, checkMallaAlerts, dateKeyColombia } from "@/lib/bia/calc-engine";
+import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
 
 /** Día de la semana en Colombia (0=Dom, 1=Lun, ..., 6=Sáb) */
 function getDayOfWeekColombia(d: Date): number {
@@ -101,15 +102,18 @@ export async function GET(req: NextRequest) {
       const turnosSemana = user.turnos.filter(
         (x) => x.fecha >= inicioSemana && x.fecha <= finSemana
       );
-      const turnosData = turnosSemana.map((x) => ({
-        fecha: x.fecha,
-        horaEntrada: x.horaEntrada,
-        horaSalida: x.horaSalida!,
-        // CRÍTICO: Usar dateKeyColombia y getDayOfWeekColombia
-        esFestivo: holidaySet.has(dateKeyColombia(x.fecha)),
-        esDomingo: getDayOfWeekColombia(x.fecha) === 0,
-      }));
-      const resumenSemanal = calcularHorasSemanalesConMalla(turnosData, (f) => mallaMap.get(`${user.id}|${dateKeyColombia(f)}`) ?? null, holidaySet);
+      const weeklyOrdParaRegla44 = sumWeeklyOrdHoursMonSat(
+        turnosSemana.map((x) => ({
+          id: x.id,
+          fecha: x.fecha,
+          horasOrdinarias: x.horasOrdinarias,
+        })),
+        t.id
+      );
+      const resumenSemanal = {
+        horasOrdinariasSemana: Math.round(weeklyOrdParaRegla44 * 100) / 100,
+        aplicaRegla44h: weeklyOrdParaRegla44 < 44,
+      };
       const totalHoras = (t.horaSalida!.getTime() - t.horaEntrada.getTime()) / (1000 * 60 * 60);
       const resultado = calcularTurno(
         {

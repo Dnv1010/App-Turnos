@@ -117,7 +117,7 @@ function calcMinutes(
   start: Date,
   totalMin: number,
   jornadaMin: number,
-  isFestivo: boolean,
+  esDomFestivo: boolean,
   applyDomRecargo: boolean
 ): CalcMinutesResult {
   let heDiurna = 0;
@@ -133,20 +133,21 @@ function calcMinutes(
     const mod = getMinutesOfDayColombia(t);
     const isDiurna = mod >= DIURNA_START && mod < DIURNA_END;
     const isNocturna = !isDiurna;
-    const withinJornada = jornadaMin > 0 ? m < jornadaMin : false;
+    /** Umbral HE en días hábiles: siempre jornada (540/240/etc.), nunca ordinarias pagadas */
+    const withinOrd = jornadaMin > 0 && m < jornadaMin;
 
-    if (withinJornada) {
-      // Dentro de jornada laboral
-      if (isNocturna && !isFestivo) recNocturno++;
+    if (esDomFestivo) {
+      // Domingo o festivo: no hay “jornada” ordinaria; todo va a recargo o HE según regla 44h
       if (applyDomRecargo) {
         if (isDiurna) recFestDiurno++;
         else recFestNocturno++;
-      }
-    } else {
-      // Fuera de jornada = HE
-      if (isFestivo) {
+      } else {
         if (isDiurna) heFestDiurna++;
         else heFestNocturna++;
+      }
+    } else {
+      if (withinOrd) {
+        if (isNocturna) recNocturno++;
       } else {
         if (isDiurna) heDiurna++;
         else heNocturna++;

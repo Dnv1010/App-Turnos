@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { turnoEventEmitter } from "@/lib/turno-event-emitter";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
+import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
 import { startOfWeek, endOfWeek } from "date-fns";
 import { dateKeyColombia } from "@/lib/bia/calc-engine";
 
@@ -79,13 +80,13 @@ export async function PATCH(
           id: { not: turnoId },
           horaSalida: { not: null },
         },
-        select: { horasOrdinarias: true },
+        select: { fecha: true, horasOrdinarias: true },
       }),
     ]);
 
     const holidaySet = new Set(festivosSemana.map((f) => dateKeyColombia(f.fecha)));
     const esFestivo = holidaySet.has(dateKeyColombia(fecha));
-    const weeklyOrdHours = turnosSemana.reduce((s, t) => s + (t.horasOrdinarias ?? 0), 0);
+    const weeklyOrdHours = sumWeeklyOrdHoursMonSat(turnosSemana);
 
     type MallaRow = { tipo?: string | null; valor: string; horaInicio?: string | null; horaFin?: string | null };
     const row = mallaDiaRow as MallaRow | null;

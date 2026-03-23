@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
 import { getDay } from "date-fns";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
+import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
 
 function dateKey(d: Date): string {
   return d.toISOString().split("T")[0];
@@ -44,13 +45,13 @@ export async function POST() {
             horaSalida: { not: null },
             id: { not: turno.id },
           },
-          select: { horasOrdinarias: true },
+          select: { fecha: true, horasOrdinarias: true },
         }),
       ]);
 
       const holidaySet = new Set(festivosSemana.map((f) => dateKey(f.fecha)));
       const esFestivo = holidaySet.has(dateKey(turno.fecha));
-      const weeklyOrdHours = turnosSemana.reduce((s, t) => s + Math.max(0, t.horasOrdinarias ?? 0), 0);
+      const weeklyOrdHours = sumWeeklyOrdHoursMonSat(turnosSemana);
 
       type MallaRow = { tipo?: string | null; valor: string; horaInicio?: string | null; horaFin?: string | null };
       const row = mallaDiaRow as MallaRow | null;

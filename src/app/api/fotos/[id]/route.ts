@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
 import { getDay } from "date-fns";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
+import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
 import { updateRowByMatch } from "@/lib/google-sheets";
 import { uploadToDrive } from "@/lib/drive-upload";
 
@@ -208,13 +209,13 @@ export async function PATCH(
             { observaciones: { not: { startsWith: "Cancelado" } } },
           ],
         },
-        select: { horasOrdinarias: true },
+        select: { fecha: true, horasOrdinarias: true },
       }),
     ]);
 
     const holidaySet = new Set(festivosSemana.map((f) => dateKey(f.fecha)));
     const esFestivo = holidaySet.has(dateKey(fecha));
-    const weeklyOrdHours = turnosSemana.reduce((s, t) => s + Math.max(0, t.horasOrdinarias ?? 0), 0);
+    const weeklyOrdHours = sumWeeklyOrdHoursMonSat(turnosSemana);
 
     type MallaRow = { tipo?: string | null; valor: string; horaInicio?: string | null; horaFin?: string | null };
     const row = mallaDiaRow as MallaRow | null;

@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
 import { getDay } from "date-fns";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
+import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
 import { appendRow } from "@/lib/google-sheets";
 
 /** Convierte Date a fecha Colombia (UTC-5) como string YYYY-MM-DD */
@@ -241,14 +242,14 @@ export async function PATCH(req: NextRequest) {
           horaSalida: { not: null },
           id: { not: turnoId },
         },
-        select: { horasOrdinarias: true },
+        select: { fecha: true, horasOrdinarias: true },
       }),
     ]);
 
     // CRÍTICO: Usar dateKeyColombia para festivos
     const holidaySet = new Set(festivosSemana.map((f) => dateKeyColombia(f.fecha)));
     const esFestivo = holidaySet.has(dateKeyColombia(turno.fecha));
-    const weeklyOrdHours = turnosSemana.reduce((s, t) => s + (t.horasOrdinarias ?? 0), 0);
+    const weeklyOrdHours = sumWeeklyOrdHoursMonSat(turnosSemana);
 
     type MallaRow = { tipo?: string | null; valor: string; horaInicio?: string | null; horaFin?: string | null };
     const row = mallaDiaRow as MallaRow | null;
