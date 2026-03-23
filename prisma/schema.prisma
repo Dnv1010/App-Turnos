@@ -52,6 +52,7 @@ model User {
   disponibilidades Disponibilidad[]
   fotoRegistros  FotoRegistro[]
   pushSubscriptions PushSubscription[]
+  reportesCreados Reporte[] @relation("ReportesCreados")
   accounts       Account[]
   sessions       Session[]
 }
@@ -81,6 +82,7 @@ model Turno {
   jornadaAlertaPushSentAt DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  reportes       ReporteTurno[]
 
   @@index([userId, fecha])
 }
@@ -150,6 +152,43 @@ model FotoRegistro {
   fechaAprobacion    DateTime?
   notaAprobacion     String?
   createdAt          DateTime          @default(now())
+  reportes           ReporteForaneo[]
+}
+
+model Reporte {
+  id                String           @id @default(cuid())
+  nombre            String
+  fechaInicio       DateTime         @db.Date
+  fechaFin          DateTime         @db.Date
+  creadoPor         String
+  creadoPorUser     User             @relation("ReportesCreados", fields: [creadoPor], references: [id])
+  zona              String?
+  createdAt         DateTime         @default(now())
+  turnosIncluidos   ReporteTurno[]
+  foraneosIncluidos ReporteForaneo[]
+
+  @@index([zona])
+  @@index([createdAt])
+}
+
+model ReporteTurno {
+  id        String  @id @default(cuid())
+  reporteId String
+  reporte   Reporte @relation(fields: [reporteId], references: [id], onDelete: Cascade)
+  turnoId   String
+  turno     Turno   @relation(fields: [turnoId], references: [id], onDelete: Restrict)
+
+  @@unique([reporteId, turnoId])
+}
+
+model ReporteForaneo {
+  id             String       @id @default(cuid())
+  reporteId      String
+  reporte        Reporte      @relation(fields: [reporteId], references: [id], onDelete: Cascade)
+  fotoRegistroId String
+  fotoRegistro   FotoRegistro @relation(fields: [fotoRegistroId], references: [id], onDelete: Restrict)
+
+  @@unique([reporteId, fotoRegistroId])
 }
 
 model Account {

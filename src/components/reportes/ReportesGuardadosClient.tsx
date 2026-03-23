@@ -1,0 +1,579 @@
+"use client";
+
+import { useSession } from "next-auth/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { format, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
+import { parseResponseJson } from "@/lib/parseFetchJson";
+import { HiDownload, HiTrash, HiRefresh, HiCheckCircle } from "react-icons/hi";
+
+const TARIFA_KM = 1100;
+
+type PreviewTurno = {
+  id: string;
+  fecha: string;
+  horaEntrada: string;
+  horaSalida: string | null;
+  heDiurna: number;
+  heNocturna: number;
+  heDominical: number;
+  heNoctDominical: number;
+  recNocturno: number;
+  recDominical: number;
+  recNoctDominical: number;
+  horasOrdinarias: number;
+  user: { nombre: string; cedula: string | null; zona: string };
+};
+
+type PreviewForaneo = {
+  id: string;
+  createdAt: string;
+  kmInicial: number | null;
+  kmFinal: number | null;
+  user: { nombre: string; cedula: string | null; zona: string };
+};
+
+type ReporteListItem = {
+  id: string;
+  nombre: string;
+  fechaInicio: string;
+  fechaFin: string;
+  zona: string | null;
+  createdAt: string;
+  creadoPorUser: { nombre: string };
+  _count: { turnosIncluidos: number; foraneosIncluidos: number };
+};
+
+function totalHE(t: PreviewTurno): number {
+  return (
+    (t.heDiurna ?? 0) +
+    (t.heNocturna ?? 0) +
+    (t.heDominical ?? 0) +
+    (t.heNoctDominical ?? 0)
+  );
+}
+
+function totalRecargos(t: PreviewTurno): number {
+  return (t.recNocturno ?? 0) + (t.recDominical ?? 0) + (t.recNoctDominical ?? 0);
+}
+
+function kmForaneo(f: PreviewForaneo): number {
+  if (f.kmInicial != null && f.kmFinal != null && f.kmFinal > f.kmInicial) {
+    return f.kmFinal - f.kmInicial;
+  }
+  return 0;
+}
+
+function nombreSugerido(desde: string, hasta: string): string {
+  try {
+    const d1 = parseISO(desde);
+    const d2 = parseISO(hasta);
+    const mes1 = format(d1, "LLLL", { locale: es });
+    const mes2 = format(d2, "LLLL", { locale: es });
+    const y = format(d2, "yyyy");
+    return `Reporte Mes ${mes1} - ${mes2} ${y}`;
+  } catch {
+    return "Reporte guardado";
+  }
+}
+
+export default function ReportesGuardadosClient() {
+  const { data: session, status } = useSession();
+  const role = session?.user?.role ?? "";
+  const isCoord = role === "COORDINADOR";
+
+  const [desde, setDesde] = useState(() => format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), "yyyy-MM-dd"));
+  const [hasta, setHasta] = useState(() => format(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0), "yyyy-MM-dd"));
+  const [zonaFiltro, setZonaFiltro] = useState<"ALL" | "BOGOTA" | "COSTA">("ALL");
+  const [nombre, setNombre] = useState("");
+  const [preview, setPreview] = useState<{ turnos: PreviewTurno[]; foraneos: PreviewForaneo[] } | null>(null);
+  const [selTurnos, setSelTurnos] = useState<Set<string>>(new Set());
+  const [selForaneos, setSelForaneos] = useState<Set<string>>(new Set());
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [reportes, setReportes] = useState<ReporteListItem[]>([]);
+  const [loadingList, setLoadingList] = useState(true);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const zonaQuery = useMemo(() => {
+    if (isCoord) return "";
+    return zonaFiltro === "ALL" ? "" : `&zona=${zonaFiltro}`;
+  }, [isCoord, zonaFiltro]);
+
+  const loadReportes = useCallback(async () => {
+    setLoadingList(true);
+    try {
+      const q = isCoord ? "" : zonaFiltro === "ALL" ? "" : `?zona=${zonaFiltro}`;
+      const res = await fetch(`/api/reportes/guardados${q}`);
+      const data = await parseResponseJson<{ reportes: ReporteListItem[] }>(res);
+      if (!res.ok) throw new Error((data as { error?: string } | null)?.error ?? "Error al cargar");
+      setReportes(data?.reportes ?? []);
+    } catch (e) {
+      setMsg({ type: "err", text: e instanceof Error ? e.message : "Error al cargar reportes" });
+    } finally {
+      setLoadingList(false);
+    }
+  }, [isCoord, zonaFiltro]);
+
+  useEffect(() => {
+    if (status === "authenticated") loadReportes();
+  }, [status, loadReportes]);
+
+  const totalesPreview = useMemo(() => {
+    if (!preview) return { he: 0, recargos: 0, km: 0, monto: 0 };
+    let he = 0;
+    let recargos = 0;
+    let km = 0;
+    preview.turnos.forEach((t) => {
+      if (selTurnos.has(t.id)) {
+        he += totalHE(t);
+        recargos += totalRecargos(t);
+      }
+    });
+    preview.foraneos.forEach((f) => {
+      if (selForaneos.has(f.id)) {
+        const k = kmForaneo(f);
+        km += k;
+      }
+    });
+    return {
+      he: Math.round(he * 100) / 100,
+      recargos: Math.round(recargos * 100) / 100,
+      km: Math.round(km * 100) / 100,
+      monto: Math.round(km * TARIFA_KM),
+    };
+  }, [preview, selTurnos, selForaneos]);
+
+  async function onVistaPrevia() {
+    setMsg(null);
+    setLoadingPreview(true);
+    try {
+      const res = await fetch(`/api/reportes/guardados/preview?desde=${desde}&hasta=${hasta}${zonaQuery}`);
+      const data = await parseResponseJson<{ turnos: PreviewTurno[]; foraneos: PreviewForaneo[] }>(res);
+      if (!res.ok) throw new Error((data as { error?: string } | null)?.error ?? "Error en vista previa");
+      if (!data) throw new Error("Respuesta vacía");
+      setPreview(data);
+      setSelTurnos(new Set(data.turnos.map((t) => t.id)));
+      setSelForaneos(new Set(data.foraneos.map((f) => f.id)));
+      if (!nombre.trim()) setNombre(nombreSugerido(desde, hasta));
+    } catch (e) {
+      setMsg({ type: "err", text: e instanceof Error ? e.message : "Error" });
+      setPreview(null);
+    } finally {
+      setLoadingPreview(false);
+    }
+  }
+
+  async function onGuardar() {
+    if (!preview) return;
+    setMsg(null);
+    setSaving(true);
+    try {
+      const body = {
+        nombre: nombre.trim() || nombreSugerido(desde, hasta),
+        fechaInicio: desde,
+        fechaFin: hasta,
+        zona: isCoord ? undefined : zonaFiltro,
+        turnoIds: [...selTurnos],
+        foraneoIds: [...selForaneos],
+      };
+      const res = await fetch("/api/reportes/guardados", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await parseResponseJson(res);
+      if (!res.ok) throw new Error((data as { error?: string } | null)?.error ?? "No se pudo guardar");
+      setMsg({
+        type: "ok",
+        text: "Reporte guardado. Los ítems incluidos no aparecerán en futuros reportes.",
+      });
+      setPreview(null);
+      setSelTurnos(new Set());
+      setSelForaneos(new Set());
+      await loadReportes();
+    } catch (e) {
+      setMsg({ type: "err", text: e instanceof Error ? e.message : "Error al guardar" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function onDescargarExcel(id: string) {
+    window.location.href = `/api/reportes/guardados/${id}/excel`;
+  }
+
+  async function onConfirmarEliminar() {
+    if (!deleteId) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/reportes/guardados/${deleteId}`, { method: "DELETE" });
+      const data = await parseResponseJson(res);
+      if (!res.ok) throw new Error((data as { error?: string } | null)?.error ?? "No se pudo eliminar");
+      setDeleteId(null);
+      await loadReportes();
+      setMsg({ type: "ok", text: "Reporte eliminado. Los ítems vuelven a estar disponibles." });
+    } catch (e) {
+      setMsg({ type: "err", text: e instanceof Error ? e.message : "Error" });
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  function toggleAllTurnos(checked: boolean) {
+    if (!preview) return;
+    setSelTurnos(checked ? new Set(preview.turnos.map((t) => t.id)) : new Set());
+  }
+
+  function toggleAllForaneos(checked: boolean) {
+    if (!preview) return;
+    setSelForaneos(checked ? new Set(preview.foraneos.map((f) => f.id)) : new Set());
+  }
+
+  if (status === "loading") {
+    return <div className="p-6 text-gray-600">Cargando…</div>;
+  }
+
+  if (status !== "authenticated") {
+    return <div className="p-6 text-red-600">Debes iniciar sesión.</div>;
+  }
+
+  return (
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-10">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Reportes guardados</h1>
+        <p className="text-sm text-gray-600 mt-1">
+          Genera reportes por rango, guarda los ítems seleccionados y descarga Excel. Los turnos con horas extras o
+          recargos y los foráneos aprobados guardados no vuelven a aparecer hasta que elimines el reporte.
+        </p>
+      </div>
+
+      {msg && (
+        <div
+          className={`rounded-lg px-4 py-3 text-sm flex items-center gap-2 ${
+            msg.type === "ok" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
+          }`}
+        >
+          {msg.type === "ok" && <HiCheckCircle className="h-5 w-5 shrink-0" />}
+          {msg.text}
+        </div>
+      )}
+
+      <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
+        <h2 className="text-lg font-semibold text-gray-900">Generar reporte</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Nombre del reporte</label>
+            <input
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              placeholder={nombreSugerido(desde, hasta)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
+            <input
+              type="date"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              value={desde}
+              onChange={(e) => setDesde(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
+            <input
+              type="date"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              value={hasta}
+              onChange={(e) => setHasta(e.target.value)}
+            />
+          </div>
+          {!isCoord && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Zona</label>
+              <select
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                value={zonaFiltro}
+                onChange={(e) => setZonaFiltro(e.target.value as "ALL" | "BOGOTA" | "COSTA")}
+              >
+                <option value="ALL">Todas</option>
+                <option value="BOGOTA">Bogotá</option>
+                <option value="COSTA">Costa</option>
+              </select>
+            </div>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onVistaPrevia}
+            disabled={loadingPreview}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+          >
+            <HiRefresh className={`h-4 w-4 ${loadingPreview ? "animate-spin" : ""}`} />
+            Vista previa
+          </button>
+          <button
+            type="button"
+            onClick={() => setNombre(nombreSugerido(desde, hasta))}
+            className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            Usar nombre sugerido
+          </button>
+        </div>
+
+        {preview && (
+          <div className="space-y-8 pt-4 border-t border-gray-100">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-medium text-gray-900">Horas extras / recargos</h3>
+                <label className="text-sm text-gray-600 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={preview.turnos.length > 0 && selTurnos.size === preview.turnos.length}
+                    onChange={(e) => toggleAllTurnos(e.target.checked)}
+                  />
+                  Seleccionar todos
+                </label>
+              </div>
+              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th className="p-2 w-10" />
+                      <th className="text-left p-2">Técnico</th>
+                      <th className="text-left p-2">Fecha</th>
+                      <th className="text-right p-2">HE</th>
+                      <th className="text-right p-2">Rec.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.turnos.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="p-4 text-center text-gray-500">
+                          No hay turnos disponibles en este rango
+                        </td>
+                      </tr>
+                    ) : (
+                      preview.turnos.map((t) => (
+                        <tr key={t.id} className="border-t border-gray-100">
+                          <td className="p-2">
+                            <input
+                              type="checkbox"
+                              checked={selTurnos.has(t.id)}
+                              onChange={(e) => {
+                                const n = new Set(selTurnos);
+                                if (e.target.checked) n.add(t.id);
+                                else n.delete(t.id);
+                                setSelTurnos(n);
+                              }}
+                            />
+                          </td>
+                          <td className="p-2">{t.user.nombre}</td>
+                          <td className="p-2">{format(parseISO(t.fecha), "dd/MM/yyyy")}</td>
+                          <td className="p-2 text-right font-mono">{totalHE(t).toFixed(2)}</td>
+                          <td className="p-2 text-right font-mono">{totalRecargos(t).toFixed(2)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-medium text-gray-900">Foráneos aprobados</h3>
+                <label className="text-sm text-gray-600 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={preview.foraneos.length > 0 && selForaneos.size === preview.foraneos.length}
+                    onChange={(e) => toggleAllForaneos(e.target.checked)}
+                  />
+                  Seleccionar todos
+                </label>
+              </div>
+              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th className="p-2 w-10" />
+                      <th className="text-left p-2">Técnico</th>
+                      <th className="text-left p-2">Fecha registro</th>
+                      <th className="text-right p-2">Km</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.foraneos.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="p-4 text-center text-gray-500">
+                          No hay foráneos aprobados disponibles en este rango
+                        </td>
+                      </tr>
+                    ) : (
+                      preview.foraneos.map((f) => (
+                        <tr key={f.id} className="border-t border-gray-100">
+                          <td className="p-2">
+                            <input
+                              type="checkbox"
+                              checked={selForaneos.has(f.id)}
+                              onChange={(e) => {
+                                const n = new Set(selForaneos);
+                                if (e.target.checked) n.add(f.id);
+                                else n.delete(f.id);
+                                setSelForaneos(n);
+                              }}
+                            />
+                          </td>
+                          <td className="p-2">{f.user.nombre}</td>
+                          <td className="p-2">{format(parseISO(f.createdAt), "dd/MM/yyyy HH:mm")}</td>
+                          <td className="p-2 text-right font-mono">{kmForaneo(f).toFixed(2)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-4 bg-gray-50 rounded-lg p-4">
+              <div className="text-sm text-gray-700 space-y-1">
+                <div>
+                  <span className="font-medium">Total HE (selección):</span> {totalesPreview.he}
+                </div>
+                <div>
+                  <span className="font-medium">Total recargos (selección):</span> {totalesPreview.recargos}
+                </div>
+                <div>
+                  <span className="font-medium">Total km foráneos (selección):</span> {totalesPreview.km}
+                </div>
+                <div>
+                  <span className="font-medium">Total a pagar foráneos (× {TARIFA_KM}):</span> $
+                  {totalesPreview.monto.toLocaleString("es-CO")}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onGuardar}
+                disabled={saving || (selTurnos.size === 0 && selForaneos.size === 0)}
+                className="px-5 py-2.5 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 disabled:opacity-50"
+              >
+                {saving ? "Guardando…" : "Guardar reporte"}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h2 className="text-lg font-semibold text-gray-900">Reportes guardados</h2>
+          {!isCoord && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">Filtrar lista</span>
+              <select
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                value={zonaFiltro}
+                onChange={(e) => setZonaFiltro(e.target.value as "ALL" | "BOGOTA" | "COSTA")}
+              >
+                <option value="ALL">Todas las zonas</option>
+                <option value="BOGOTA">Bogotá</option>
+                <option value="COSTA">Costa</option>
+              </select>
+            </div>
+          )}
+        </div>
+
+        {loadingList ? (
+          <p className="text-gray-500 text-sm">Cargando…</p>
+        ) : reportes.length === 0 ? (
+          <p className="text-gray-500 text-sm">No hay reportes guardados.</p>
+        ) : (
+          <div className="overflow-x-auto border border-gray-200 rounded-lg">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50 text-gray-600">
+                <tr>
+                  <th className="text-left p-2">Nombre</th>
+                  <th className="text-left p-2">Rango</th>
+                  <th className="text-left p-2">Zona</th>
+                  <th className="text-right p-2">Turnos</th>
+                  <th className="text-right p-2">Foráneos</th>
+                  <th className="text-left p-2">Creado</th>
+                  <th className="text-left p-2">Por</th>
+                  <th className="p-2 w-32">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reportes.map((r) => (
+                  <tr key={r.id} className="border-t border-gray-100">
+                    <td className="p-2 font-medium text-gray-900">{r.nombre}</td>
+                    <td className="p-2 whitespace-nowrap">
+                      {format(parseISO(r.fechaInicio), "dd/MM/yy")} – {format(parseISO(r.fechaFin), "dd/MM/yy")}
+                    </td>
+                    <td className="p-2">{r.zona ?? "Todas"}</td>
+                    <td className="p-2 text-right">{r._count.turnosIncluidos}</td>
+                    <td className="p-2 text-right">{r._count.foraneosIncluidos}</td>
+                    <td className="p-2 whitespace-nowrap">{format(parseISO(r.createdAt), "dd/MM/yyyy HH:mm")}</td>
+                    <td className="p-2">{r.creadoPorUser.nombre}</td>
+                    <td className="p-2">
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          title="Excel"
+                          onClick={() => onDescargarExcel(r.id)}
+                          className="p-2 rounded-lg text-primary-600 hover:bg-primary-50"
+                        >
+                          <HiDownload className="h-5 w-5" />
+                        </button>
+                        <button
+                          type="button"
+                          title="Eliminar"
+                          onClick={() => setDeleteId(r.id)}
+                          className="p-2 rounded-lg text-red-600 hover:bg-red-50"
+                        >
+                          <HiTrash className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {deleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 space-y-4">
+            <h3 className="font-semibold text-gray-900">¿Eliminar reporte?</h3>
+            <p className="text-sm text-gray-600">
+              Los turnos y foráneos incluidos volverán a estar disponibles para futuros reportes.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg border border-gray-300 text-sm"
+                onClick={() => setDeleteId(null)}
+                disabled={deleting}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium disabled:opacity-50"
+                onClick={onConfirmarEliminar}
+                disabled={deleting}
+              >
+                {deleting ? "Eliminando…" : "Eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
