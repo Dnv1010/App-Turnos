@@ -45,6 +45,9 @@ export default function TecnicoDashboard() {
   const hoy = format(ahora, "yyyy-MM-dd");
   const [desde, setDesde] = useState(primerDiaMes);
   const [hasta, setHasta] = useState(hoy);
+  const [foraneosRows, setForaneosRows] = useState<ForaneoRow[]>([]);
+  const [estadoFiltroForaneo, setEstadoFiltroForaneo] = useState<string>("TODOS");
+  const [loadingForaneosLista, setLoadingForaneosLista] = useState(false);
 
   useTurnosStream(
     (data) => {
@@ -63,7 +66,9 @@ export default function TecnicoDashboard() {
     setLoadingForaneosLista(true);
     try {
       const params = new URLSearchParams({ desde, hasta });
-      if (estadoFiltroForaneo !== "ALL") params.set("estado", estadoFiltroForaneo);
+      if (estadoFiltroForaneo !== "ALL" && estadoFiltroForaneo !== "TODOS") {
+        params.set("estado", estadoFiltroForaneo);
+      }
       const res = await fetch(`/api/foraneos?${params}`);
       const raw = await parseResponseJson<ForaneoRow[]>(res);
       setForaneosRows(res.ok && Array.isArray(raw) ? raw : []);
@@ -271,13 +276,13 @@ export default function TecnicoDashboard() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
             <select
               value={estadoFiltroForaneo}
-              onChange={(e) => setEstadoFiltroForaneo(e.target.value as typeof estadoFiltroForaneo)}
+              onChange={(e) => setEstadoFiltroForaneo(e.target.value)}
               className="input-field"
             >
               <option value="PENDIENTE">Pendientes por autorizar</option>
               <option value="APROBADA">Aprobados</option>
               <option value="NO_APROBADA">No aprobados</option>
-              <option value="ALL">Todos</option>
+              <option value="TODOS">Todos</option>
             </select>
           </div>
           <button
