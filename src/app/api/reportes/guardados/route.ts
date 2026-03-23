@@ -13,7 +13,7 @@ import {
   zonaPersistidaParaCrear,
 } from "@/lib/reportes-guardados-api";
 import {
-  whereDisponibilidadesMallaParaReporte,
+  whereDisponibilidadesMallaCombinadaParaReporte,
   whereForaneosDisponiblesParaReporte,
   whereTurnosCoordinadorDisponiblesParaReporte,
   whereTurnosDisponiblesParaReporte,
@@ -127,7 +127,12 @@ export async function POST(req: NextRequest) {
   const { fechaInicio, fechaFin } = rango;
   const whereTurnos = whereTurnosDisponiblesParaReporte(fechaInicio, fechaFin, userIds);
   const whereForaneos = whereForaneosDisponiblesParaReporte(fechaInicio, fechaFin, userIds);
-  const whereMallaDisp = whereDisponibilidadesMallaParaReporte(fechaInicio, fechaFin, userIds);
+  const whereMallaDisp = whereDisponibilidadesMallaCombinadaParaReporte(
+    fechaInicio,
+    fechaFin,
+    userIds,
+    coordUserIds
+  );
   const whereTurnosCoord = whereTurnosCoordinadorDisponiblesParaReporte(
     fechaInicio,
     fechaFin,

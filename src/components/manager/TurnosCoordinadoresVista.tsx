@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { parseResponseJson } from "@/lib/parseFetchJson";
 import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
 import type { TurnoCoordinadorRow } from "@/components/coordinador/TurnoCoordinadorClient";
+import { HiPencil, HiTrash } from "react-icons/hi";
 
 function totalHE(t: TurnoCoordinadorRow): number {
   return (
@@ -26,7 +28,15 @@ function rolLabel(role: string | undefined): string {
   return role ?? "—";
 }
 
+function toDatetimeLocalValue(iso: string): string {
+  const d = parseISO(iso);
+  return format(d, "yyyy-MM-dd'T'HH:mm");
+}
+
 export default function TurnosCoordinadoresVista() {
+  const { data: session } = useSession();
+  const canEdit = session?.user?.role === "MANAGER" || session?.user?.role === "ADMIN";
+
   const [desde, setDesde] = useState(() =>
     format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), "yyyy-MM-dd")
   );
@@ -38,6 +48,16 @@ export default function TurnosCoordinadoresVista() {
   const [rows, setRows] = useState<TurnoCoordinadorRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [editRow, setEditRow] = useState<TurnoCoordinadorRow | null>(null);
+  const [formEntrada, setFormEntrada] = useState("");
+  const [formSalida, setFormSalida] = useState("");
+  const [formCodigo, setFormCodigo] = useState("");
+  const [formNota, setFormNota] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const [deleteRow, setDeleteRow] = useState<TurnoCoordinadorRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -91,6 +111,62 @@ export default function TurnosCoordinadoresVista() {
       cancelled = true;
     };
   }, [desde, hasta, zona]);
+
+  function abrirEditar(t: TurnoCoordinadorRow) {
+    setEditRow(t);
+    setFormEntrada(toDatetimeLocalValue(t.horaEntrada));
+    setFormSalida(t.horaSalida ? toDatetimeLocalValue(t.horaSalida) : "");
+    setFormCodigo(t.codigoOrden);
+    setFormNota((t as TurnoCoordinadorRow & { nota?: string | null }).nota ?? "");
+  }
+
+  async function guardarEdicion() {
+    if (!editRow) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const body: Record<string, unknown> = {
+        horaEntrada: new Date(formEntrada).toISOString(),
+        codigoOrden: formCodigo.trim(),
+        nota: formNota.trim() || null,
+      };
+      if (formSalida.trim()) {
+        body.horaSalida = new Date(formSalida).toISOString();
+      } else {
+        body.horaSalida = null;
+      }
+      const res = await fetch(`/api/turnos-coordinador/${editRow.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await parseResponseJson(res);
+      if (!res.ok) throw new Error((data as { error?: string })?.error ?? "No se pudo guardar");
+      setEditRow(null);
+      await cargar();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function confirmarEliminar() {
+    if (!deleteRow) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/turnos-coordinador/${deleteRow.id}`, { method: "DELETE" });
+      const data = await parseResponseJson(res);
+      if (!res.ok) throw new Error((data as { error?: string })?.error ?? "No se pudo eliminar");
+      setDeleteRow(null);
+      await cargar();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -169,6 +245,7 @@ export default function TurnosCoordinadoresVista() {
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
+                {canEdit && <th className="p-2 w-24 text-left">Acciones</th>}
                 <th className="p-2 text-left">Nombre</th>
                 <th className="p-2 text-left">Cédula</th>
                 <th className="p-2 text-left">Rol</th>
@@ -185,13 +262,35 @@ export default function TurnosCoordinadoresVista() {
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="p-8 text-center text-gray-500">
+                  <td colSpan={canEdit ? 12 : 11} className="p-8 text-center text-gray-500">
                     No hay turnos en el rango.
                   </td>
                 </tr>
               ) : (
                 rows.map((t) => (
                   <tr key={t.id} className="border-t border-gray-100">
+                    {canEdit && (
+                      <td className="p-2">
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            title="Editar"
+                            onClick={() => abrirEditar(t)}
+                            className="rounded-lg p-2 text-primary-600 hover:bg-primary-50"
+                          >
+                            <HiPencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            title="Eliminar"
+                            onClick={() => setDeleteRow(t)}
+                            className="rounded-lg p-2 text-red-600 hover:bg-red-50"
+                          >
+                            <HiTrash className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                     <td className="p-2">{t.user?.nombre ?? "—"}</td>
                     <td className="p-2 font-mono text-xs">{t.user?.cedula ?? "—"}</td>
                     <td className="p-2">{rolLabel(t.user?.role)}</td>
@@ -202,14 +301,14 @@ export default function TurnosCoordinadoresVista() {
                       {format(parseISO(t.horaEntrada), "dd/MM/yyyy HH:mm", { locale: es })}
                     </td>
                     <td className="p-2 whitespace-nowrap">
-                      {t.horaSalida
-                        ? format(parseISO(t.horaSalida), "dd/MM/yyyy HH:mm", { locale: es })
-                        : <span className="text-amber-700 font-medium">Abierto</span>}
+                      {t.horaSalida ? (
+                        format(parseISO(t.horaSalida), "dd/MM/yyyy HH:mm", { locale: es })
+                      ) : (
+                        <span className="font-medium text-amber-700">Abierto</span>
+                      )}
                     </td>
                     <td className="p-2 text-right font-mono">
-                      {t.horaSalida
-                        ? ((t.horasOrdinarias ?? 0) + totalHE(t)).toFixed(2)
-                        : "—"}
+                      {t.horaSalida ? ((t.horasOrdinarias ?? 0) + totalHE(t)).toFixed(2) : "—"}
                     </td>
                     <td className="p-2 text-right font-mono">{totalHE(t).toFixed(2)}</td>
                     <td className="p-2 text-right font-mono">{totalRec(t).toFixed(2)}</td>
@@ -218,6 +317,99 @@ export default function TurnosCoordinadoresVista() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {editRow && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900">Editar turno coordinador</h3>
+            <p className="mt-1 text-sm text-gray-600">{editRow.user?.nombre}</p>
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="text-xs font-medium text-gray-500">Hora entrada</label>
+                <input
+                  type="datetime-local"
+                  className="input-field mt-1 w-full"
+                  value={formEntrada}
+                  onChange={(e) => setFormEntrada(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500">Hora salida (vacío = abierto)</label>
+                <input
+                  type="datetime-local"
+                  className="input-field mt-1 w-full"
+                  value={formSalida}
+                  onChange={(e) => setFormSalida(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500">Código / orden</label>
+                <input
+                  className="input-field mt-1 w-full"
+                  value={formCodigo}
+                  onChange={(e) => setFormCodigo(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500">Nota (opcional)</label>
+                <textarea
+                  className="input-field mt-1 w-full min-h-[72px]"
+                  value={formNota}
+                  onChange={(e) => setFormNota(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={saving}
+                onClick={() => setEditRow(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={saving || !formEntrada}
+                onClick={() => void guardarEdicion()}
+              >
+                {saving ? "Guardando…" : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteRow && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="font-semibold text-gray-900">¿Eliminar turno?</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              ¿Eliminar este turno de <strong>{deleteRow.user?.nombre}</strong>? Esta acción no se puede
+              deshacer.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={deleting}
+                onClick={() => setDeleteRow(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                disabled={deleting}
+                onClick={() => void confirmarEliminar()}
+              >
+                {deleting ? "Eliminando…" : "Eliminar"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

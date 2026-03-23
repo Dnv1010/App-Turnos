@@ -25,17 +25,17 @@ export interface MallaDia {
 
 // ============ FUNCIONES DE TIMEZONE COLOMBIA ============
 
-function getMinutesOfDayColombia(d: Date): number {
+export function getMinutesOfDayColombia(d: Date): number {
   const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
   return colombia.getUTCHours() * 60 + colombia.getUTCMinutes();
 }
 
-function getDayOfWeekColombia(d: Date): number {
+export function getDayOfWeekColombia(d: Date): number {
   const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
   return colombia.getUTCDay();
 }
 
-function dateKeyColombia(d: Date): string {
+export function dateKeyColombia(d: Date): string {
   const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
   return colombia.toISOString().split("T")[0];
 }

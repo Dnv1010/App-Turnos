@@ -38,7 +38,7 @@ export async function GET(_req: NextRequest, context: Ctx) {
       disponibilidadesIncluidas: {
         include: {
           mallaTurno: {
-            include: { user: { select: { nombre: true, cedula: true } } },
+            include: { user: { select: { nombre: true, cedula: true, role: true } } },
           },
         },
       },
@@ -65,7 +65,11 @@ export async function GET(_req: NextRequest, context: Ctx) {
   const disponibilidades = reporte.disponibilidadesIncluidas.map((rd) => ({
     fecha: rd.mallaTurno.fecha,
     valor: rd.mallaTurno.valor,
-    user: rd.mallaTurno.user,
+    user: {
+      nombre: rd.mallaTurno.user.nombre,
+      cedula: rd.mallaTurno.user.cedula,
+      role: rd.mallaTurno.user.role,
+    },
   }));
   const turnosCoordinador = reporte.turnosCoordinadorIncluidos.map((r) => ({
     fecha: r.turnoCoordinador.fecha,

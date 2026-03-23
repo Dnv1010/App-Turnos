@@ -6,6 +6,7 @@ import { es } from "date-fns/locale";
 import { parseResponseJson } from "@/lib/parseFetchJson";
 import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
 import { HiClock, HiPlay, HiStop } from "react-icons/hi";
+import CoordinadorDisponibilidadTab from "@/components/coordinador/CoordinadorDisponibilidadTab";
 
 export type TurnoCoordinadorRow = {
   id: string;
@@ -22,6 +23,7 @@ export type TurnoCoordinadorRow = {
   recNocturno: number;
   recDominical: number;
   recNoctDominical: number;
+  nota?: string | null;
   user?: { nombre: string; cedula: string | null; zona: string; role: string };
 };
 
@@ -183,6 +185,8 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
     [turnosHist]
   );
 
+  const [tab, setTab] = useState<"fichaje" | "dispo">("fichaje");
+
   return (
     <div className="mx-auto max-w-6xl space-y-8">
       <div>
@@ -190,6 +194,31 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
         <p className="mt-1 text-sm text-gray-600">
           Registra inicio y fin de jornada con el código u orden de trabajo asignado.
         </p>
+      </div>
+
+      <div className="flex gap-2 border-b border-gray-200">
+        <button
+          type="button"
+          onClick={() => setTab("fichaje")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+            tab === "fichaje"
+              ? "border-primary-600 text-primary-700"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Fichaje e historial
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("dispo")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+            tab === "dispo"
+              ? "border-primary-600 text-primary-700"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Disponibilidad
+        </button>
       </div>
 
       {msg && (
@@ -202,6 +231,14 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
         </div>
       )}
 
+      {tab === "dispo" && (
+        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <CoordinadorDisponibilidadTab />
+        </section>
+      )}
+
+      {tab === "fichaje" && (
+        <>
       <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-2 text-primary-700">
           <HiClock className="h-6 w-6" />
@@ -344,6 +381,8 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
           </div>
         )}
       </section>
+        </>
+      )}
 
       {modalInicio && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">

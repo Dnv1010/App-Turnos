@@ -10,8 +10,9 @@ import {
   getUserIdsTecnicosParaReporte,
   parseRangoFechasUtc,
 } from "@/lib/reportes-guardados-api";
+import { valorDisponibilidadMallaPorRol } from "@/lib/reporteDisponibilidadValor";
 import {
-  whereDisponibilidadesMallaParaReporte,
+  whereDisponibilidadesMallaCombinadaParaReporte,
   whereForaneosDisponiblesParaReporte,
   whereTurnosCoordinadorDisponiblesParaReporte,
   whereTurnosDisponiblesParaReporte,
@@ -42,6 +43,13 @@ export async function GET(req: NextRequest) {
   const userIds = await getUserIdsTecnicosParaReporte(auth.session, zona);
   const coordUserIds = await getUserIdsCoordinadoresParaReporte(auth.session, zona);
 
+  const whereDisp = whereDisponibilidadesMallaCombinadaParaReporte(
+    fechaInicio,
+    fechaFin,
+    userIds,
+    coordUserIds
+  );
+
   const [turnos, foraneos, disponibilidades, turnosCoordinador] = await Promise.all([
     userIds.length
       ? prisma.turno.findMany({
@@ -57,10 +65,10 @@ export async function GET(req: NextRequest) {
           orderBy: { createdAt: "asc" },
         })
       : [],
-    userIds.length
+    userIds.length || coordUserIds.length
       ? prisma.mallaTurno.findMany({
-          where: whereDisponibilidadesMallaParaReporte(fechaInicio, fechaFin, userIds),
-          include: { user: { select: { nombre: true, cedula: true, zona: true } } },
+          where: whereDisp,
+          include: { user: { select: { nombre: true, cedula: true, zona: true, role: true } } },
           orderBy: [{ user: { nombre: "asc" } }, { fecha: "asc" }],
         })
       : [],
@@ -100,6 +108,7 @@ export async function GET(req: NextRequest) {
       id: m.id,
       fecha: m.fecha.toISOString(),
       valor: m.valor,
+      valorCop: valorDisponibilidadMallaPorRol(m.user.role),
       user: m.user,
     })),
     turnosCoordinador: turnosCoordinador.map((t) => ({

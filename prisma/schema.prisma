@@ -214,6 +214,7 @@ model TurnoCoordinador {
   horaEntrada    DateTime
   horaSalida     DateTime?
   codigoOrden    String
+  nota           String?
   horasOrdinarias Float   @default(0)
   heDiurna       Float    @default(0)
   heNocturna     Float    @default(0)
@@ -238,7 +239,7 @@ model ReporteTurnoCoordinador {
   reporteId          String
   reporte            Reporte          @relation(fields: [reporteId], references: [id], onDelete: Cascade)
   turnoCoordinadorId String
-  turnoCoordinador   TurnoCoordinador @relation(fields: [turnoCoordinadorId], references: [id], onDelete: Restrict)
+  turnoCoordinador   TurnoCoordinador @relation(fields: [turnoCoordinadorId], references: [id], onDelete: Cascade)
 
   @@unique([reporteId, turnoCoordinadorId])
 }

@@ -63,6 +63,64 @@ export function whereDisponibilidadesMallaParaReporte(
   };
 }
 
+/** Disponibilidades de coordinadores (misma malla, valor disponible). */
+export function whereDisponibilidadesCoordinadoresParaReporte(
+  fechaInicio: Date,
+  fechaFin: Date,
+  coordUserIds: string[]
+): Prisma.MallaTurnoWhereInput {
+  return {
+    userId: { in: coordUserIds },
+    fecha: { gte: fechaInicio, lte: fechaFin },
+    valor: { contains: "disponible", mode: "insensitive" },
+    reportes: { none: {} },
+    user: {
+      role: { in: ["COORDINADOR", "COORDINADOR_INTERIOR"] },
+      isActive: true,
+    },
+  };
+}
+
+/**
+ * Disponibilidades (malla) de técnicos y coordinadores para reportes / validación POST.
+ */
+export function whereDisponibilidadesMallaCombinadaParaReporte(
+  fechaInicio: Date,
+  fechaFin: Date,
+  userIdsTecnicos: string[],
+  coordUserIds: string[]
+): Prisma.MallaTurnoWhereInput {
+  const base = {
+    fecha: { gte: fechaInicio, lte: fechaFin },
+    valor: { contains: "disponible", mode: "insensitive" as const },
+    reportes: { none: {} },
+  };
+
+  const or: Prisma.MallaTurnoWhereInput[] = [];
+  if (userIdsTecnicos.length > 0) {
+    or.push({
+      ...base,
+      userId: { in: userIdsTecnicos },
+      user: { role: "TECNICO", isActive: true },
+    });
+  }
+  if (coordUserIds.length > 0) {
+    or.push({
+      ...base,
+      userId: { in: coordUserIds },
+      user: { role: { in: ["COORDINADOR", "COORDINADOR_INTERIOR"] }, isActive: true },
+    });
+  }
+
+  if (or.length === 0) {
+    return { userId: { in: [] }, ...base };
+  }
+  if (or.length === 1) {
+    return or[0]!;
+  }
+  return { OR: or };
+}
+
 const turnoCoordHeRecargoOr: Prisma.TurnoCoordinadorWhereInput = {
   OR: [
     { heDiurna: { gt: 0 } },

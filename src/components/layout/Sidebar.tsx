@@ -53,8 +53,20 @@ const navItems: NavItem[] = [
   { label: "Mi Turno", href: "/coordinador-interior", icon: HiClock, roles: ["COORDINADOR_INTERIOR"] },
   { label: "Reportes", href: "/manager/reportes/guardados", icon: HiDocumentReport, roles: ["MANAGER"] },
   { label: "Turnos coordinadores", href: "/manager/turnos-coordinadores", icon: HiClock, roles: ["MANAGER"] },
+  {
+    label: "Disp. coordinadores",
+    href: "/manager/disponibilidad-coordinadores",
+    icon: HiCalendar,
+    roles: ["MANAGER"],
+  },
   { label: "Reportes", href: "/admin/reportes", icon: HiDocumentReport, roles: ["ADMIN"] },
   { label: "Turnos coordinadores", href: "/admin/turnos-coordinadores", icon: HiClock, roles: ["ADMIN"] },
+  {
+    label: "Disp. coordinadores",
+    href: "/admin/disponibilidad-coordinadores",
+    icon: HiCalendar,
+    roles: ["ADMIN"],
+  },
   { label: "Dashboard Global", href: "/manager", icon: HiChartBar, roles: ["MANAGER", "ADMIN"] },
   { label: "Usuarios", href: "/admin/usuarios", icon: HiCog, roles: ["ADMIN"] },
 ];

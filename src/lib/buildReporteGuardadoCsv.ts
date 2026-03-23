@@ -5,9 +5,9 @@ import {
   getDiaEspanol,
   getMesEspanol,
 } from "@/lib/reporteExportColombia";
+import { valorDisponibilidadMallaPorRol } from "@/lib/reporteDisponibilidadValor";
 
 const TARIFA_KM_FORANEO = 1100;
-const VALOR_DISPONIBILIDAD = 80000;
 
 function escapeCsvCell(v: string | number | null | undefined): string {
   const s = v == null ? "" : String(v);
@@ -62,7 +62,7 @@ export type FotoForaneoCsvRow = {
 export type MallaDispCsvRow = {
   fecha: Date;
   valor: string;
-  user: { nombre: string; cedula: string | null };
+  user: { nombre: string; cedula: string | null; role: string };
 };
 
 export type TurnoCoordinadorCsvRow = TurnoCsvRow & {
@@ -192,22 +192,29 @@ export function buildReporteGuardadoCsvString(
 
   parts.push("");
   parts.push("DISPONIBILIDADES");
-  parts.push(["Cédula", "Nombre", "Fecha", "Disponibilidad", "Valor"].map(escapeCsvCell).join(","));
+  parts.push(
+    ["Cédula", "Nombre", "Rol", "Fecha", "Disponibilidad", "Valor"].map(escapeCsvCell).join(",")
+  );
+  let totalDisp = 0;
   for (const d of disponibilidades) {
+    const v = valorDisponibilidadMallaPorRol(d.user.role);
+    totalDisp += v;
     parts.push(
       [
         d.user.cedula ?? "",
         d.user.nombre ?? "",
+        d.user.role,
         formatFechaDDMMYYYY(d.fecha),
         d.valor || "Disponible",
-        VALOR_DISPONIBILIDAD,
+        v,
       ]
         .map(escapeCsvCell)
         .join(",")
     );
   }
-  const totalDisp = disponibilidades.length * VALOR_DISPONIBILIDAD;
-  parts.push(["", "", "", `TOTAL: ${disponibilidades.length} días`, totalDisp].map(escapeCsvCell).join(","));
+  parts.push(
+    ["", "", "", "", `TOTAL: ${disponibilidades.length} días`, totalDisp].map(escapeCsvCell).join(",")
+  );
 
   return parts.join("\r\n");
 }

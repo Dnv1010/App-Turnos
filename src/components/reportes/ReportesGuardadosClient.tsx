@@ -5,10 +5,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { parseResponseJson } from "@/lib/parseFetchJson";
+import { VALOR_DISPONIBILIDAD_TECNICO } from "@/lib/reporteDisponibilidadValor";
 import { HiDownload, HiTrash, HiRefresh, HiCheckCircle, HiDocumentText } from "react-icons/hi";
 
 const TARIFA_KM = 1100;
-const VALOR_DISP_DIA = 80000;
 
 type PreviewTurno = {
   id: string;
@@ -38,7 +38,8 @@ type PreviewDisponibilidad = {
   id: string;
   fecha: string;
   valor: string;
-  user: { nombre: string; cedula: string | null; zona: string };
+  valorCop?: number;
+  user: { nombre: string; cedula: string | null; zona: string; role: string };
 };
 
 type PreviewTurnoCoordinador = {
@@ -191,6 +192,7 @@ export default function ReportesGuardadosClient() {
     let recargos = 0;
     let km = 0;
     let diasDisp = 0;
+    let montoDisp = 0;
     preview.turnos.forEach((t) => {
       if (selTurnos.has(t.id)) {
         he += totalHE(t);
@@ -204,7 +206,10 @@ export default function ReportesGuardadosClient() {
       }
     });
     preview.disponibilidades.forEach((d) => {
-      if (selDisp.has(d.id)) diasDisp += 1;
+      if (selDisp.has(d.id)) {
+        diasDisp += 1;
+        montoDisp += d.valorCop ?? VALOR_DISPONIBILIDAD_TECNICO;
+      }
     });
     (preview.turnosCoordinador ?? []).forEach((t) => {
       if (selTurnosCoord.has(t.id)) {
@@ -218,7 +223,7 @@ export default function ReportesGuardadosClient() {
       km: Math.round(km * 100) / 100,
       monto: Math.round(km * TARIFA_KM),
       diasDisp,
-      montoDisp: diasDisp * VALOR_DISP_DIA,
+      montoDisp,
     };
   }, [preview, selTurnos, selTurnosCoord, selForaneos, selDisp]);
 
@@ -674,8 +679,9 @@ export default function ReportesGuardadosClient() {
                 </label>
               </div>
               <p className="text-sm text-gray-500 mb-2">
-                Días con &quot;disponible&quot; en la malla. Valor: {VALOR_DISP_DIA.toLocaleString("es-CO")} COP por
-                día.
+                Días con &quot;disponible&quot; en la malla. Técnico:{" "}
+                {VALOR_DISPONIBILIDAD_TECNICO.toLocaleString("es-CO")} COP/día · Coordinador / coord. interior:{" "}
+                110.000 COP/día.
               </p>
               <div className="overflow-x-auto border border-gray-200 rounded-lg">
                 <table className="min-w-full text-sm">
@@ -692,7 +698,7 @@ export default function ReportesGuardadosClient() {
                   <tbody>
                     {preview.disponibilidades.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="p-4 text-center text-gray-500">
+                        <td colSpan={7} className="p-4 text-center text-gray-500">
                           No hay disponibilidades disponibles en este rango
                         </td>
                       </tr>
@@ -713,11 +719,14 @@ export default function ReportesGuardadosClient() {
                           </td>
                           <td className="p-2 font-mono text-xs">{d.user.cedula ?? "—"}</td>
                           <td className="p-2">{d.user.nombre}</td>
+                          <td className="p-2 text-xs">{d.user.role}</td>
                           <td className="p-2">{format(parseISO(d.fecha), "dd/MM/yyyy")}</td>
                           <td className="p-2 max-w-[200px] truncate" title={d.valor}>
                             {d.valor}
                           </td>
-                          <td className="p-2 text-right">${VALOR_DISP_DIA.toLocaleString("es-CO")}</td>
+                          <td className="p-2 text-right">
+                            ${(d.valorCop ?? VALOR_DISPONIBILIDAD_TECNICO).toLocaleString("es-CO")}
+                          </td>
                         </tr>
                       ))
                     )}
@@ -742,8 +751,8 @@ export default function ReportesGuardadosClient() {
                   {totalesPreview.monto.toLocaleString("es-CO")}
                 </div>
                 <div>
-                  <span className="font-medium">Disponibilidades (selección):</span> {totalesPreview.diasDisp} días ×{" "}
-                  {VALOR_DISP_DIA.toLocaleString("es-CO")} = ${totalesPreview.montoDisp.toLocaleString("es-CO")}
+                  <span className="font-medium">Disponibilidades (selección):</span> {totalesPreview.diasDisp} días — total
+                  estimado ${totalesPreview.montoDisp.toLocaleString("es-CO")} (según rol por fila)
                 </div>
               </div>
               <button

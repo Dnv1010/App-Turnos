@@ -5,9 +5,9 @@ import {
   getDiaEspanol,
   getMesEspanol,
 } from "@/lib/reporteExportColombia";
+import { valorDisponibilidadMallaPorRol } from "@/lib/reporteDisponibilidadValor";
 
 const TARIFA_KM_FORANEO = 1100;
-const VALOR_DISPONIBILIDAD = 80000;
 
 type TurnoRow = {
   fecha: Date;
@@ -187,22 +187,31 @@ export function buildReporteGuardadoExcelBuffer(
     "Total Recargos": Math.round(r["Total Recargos"] * 100) / 100,
   }));
 
-  const dataDisponibilidades = disponibilidades.map((d) => ({
-    Cédula: d.user.cedula ?? "",
-    Nombre: d.user.nombre ?? "",
-    Fecha: formatFechaDDMMYYYY(d.fecha),
-    Disponibilidad: d.valor || "Disponible",
-    Valor: VALOR_DISPONIBILIDAD,
-  }));
+  const dataDisponibilidades = disponibilidades.map((d) => {
+    const valor = valorDisponibilidadMallaPorRol(d.user.role);
+    return {
+      Cédula: d.user.cedula ?? "",
+      Nombre: d.user.nombre ?? "",
+      Rol: d.user.role,
+      Fecha: formatFechaDDMMYYYY(d.fecha),
+      Disponibilidad: d.valor || "Disponible",
+      Valor: valor,
+    };
+  });
 
   const nDisp = dataDisponibilidades.length;
   if (nDisp > 0) {
+    const sumValor = disponibilidades.reduce(
+      (s, d) => s + valorDisponibilidadMallaPorRol(d.user.role),
+      0
+    );
     dataDisponibilidades.push({
       Cédula: "",
       Nombre: "TOTAL",
+      Rol: "",
       Fecha: "",
       Disponibilidad: `${nDisp} días`,
-      Valor: nDisp * VALOR_DISPONIBILIDAD,
+      Valor: sumValor,
     });
   }
 
