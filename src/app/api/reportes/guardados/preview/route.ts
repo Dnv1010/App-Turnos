@@ -10,6 +10,7 @@ import {
   parseRangoFechasUtc,
 } from "@/lib/reportes-guardados-api";
 import {
+  whereDisponibilidadesMallaParaReporte,
   whereForaneosDisponiblesParaReporte,
   whereTurnosDisponiblesParaReporte,
 } from "@/lib/reportes-guardados";
@@ -39,10 +40,10 @@ export async function GET(req: NextRequest) {
   const userIds = await getUserIdsTecnicosParaReporte(auth.session, zona);
 
   if (userIds.length === 0) {
-    return NextResponse.json({ turnos: [], foraneos: [] });
+    return NextResponse.json({ turnos: [], foraneos: [], disponibilidades: [] });
   }
 
-  const [turnos, foraneos] = await Promise.all([
+  const [turnos, foraneos, disponibilidades] = await Promise.all([
     prisma.turno.findMany({
       where: whereTurnosDisponiblesParaReporte(fechaInicio, fechaFin, userIds),
       include: { user: { select: { nombre: true, cedula: true, zona: true } } },
@@ -52,6 +53,11 @@ export async function GET(req: NextRequest) {
       where: whereForaneosDisponiblesParaReporte(fechaInicio, fechaFin, userIds),
       include: { user: { select: { nombre: true, cedula: true, zona: true } } },
       orderBy: { createdAt: "asc" },
+    }),
+    prisma.mallaTurno.findMany({
+      where: whereDisponibilidadesMallaParaReporte(fechaInicio, fechaFin, userIds),
+      include: { user: { select: { nombre: true, cedula: true, zona: true } } },
+      orderBy: [{ user: { nombre: "asc" } }, { fecha: "asc" }],
     }),
   ]);
 
@@ -77,6 +83,12 @@ export async function GET(req: NextRequest) {
       kmInicial: f.kmInicial,
       kmFinal: f.kmFinal,
       user: f.user,
+    })),
+    disponibilidades: disponibilidades.map((m) => ({
+      id: m.id,
+      fecha: m.fecha.toISOString(),
+      valor: m.valor,
+      user: m.user,
     })),
   });
 }

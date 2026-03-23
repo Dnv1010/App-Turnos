@@ -8,6 +8,7 @@ import { parseResponseJson } from "@/lib/parseFetchJson";
 import { HiDownload, HiTrash, HiRefresh, HiCheckCircle, HiDocumentText } from "react-icons/hi";
 
 const TARIFA_KM = 1100;
+const VALOR_DISP_DIA = 80000;
 
 type PreviewTurno = {
   id: string;
@@ -33,6 +34,19 @@ type PreviewForaneo = {
   user: { nombre: string; cedula: string | null; zona: string };
 };
 
+type PreviewDisponibilidad = {
+  id: string;
+  fecha: string;
+  valor: string;
+  user: { nombre: string; cedula: string | null; zona: string };
+};
+
+type PreviewData = {
+  turnos: PreviewTurno[];
+  foraneos: PreviewForaneo[];
+  disponibilidades: PreviewDisponibilidad[];
+};
+
 type ReporteListItem = {
   id: string;
   nombre: string;
@@ -41,7 +55,11 @@ type ReporteListItem = {
   zona: string | null;
   createdAt: string;
   creadoPorUser: { nombre: string };
-  _count: { turnosIncluidos: number; foraneosIncluidos: number };
+  _count: {
+    turnosIncluidos: number;
+    foraneosIncluidos: number;
+    disponibilidadesIncluidas: number;
+  };
 };
 
 function totalHE(t: PreviewTurno): number {
@@ -86,9 +104,10 @@ export default function ReportesGuardadosClient() {
   const [hasta, setHasta] = useState(() => format(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0), "yyyy-MM-dd"));
   const [zonaFiltro, setZonaFiltro] = useState<"ALL" | "BOGOTA" | "COSTA">("ALL");
   const [nombre, setNombre] = useState("");
-  const [preview, setPreview] = useState<{ turnos: PreviewTurno[]; foraneos: PreviewForaneo[] } | null>(null);
+  const [preview, setPreview] = useState<PreviewData | null>(null);
   const [selTurnos, setSelTurnos] = useState<Set<string>>(new Set());
   const [selForaneos, setSelForaneos] = useState<Set<string>>(new Set());
+  const [selDisp, setSelDisp] = useState<Set<string>>(new Set());
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
@@ -122,10 +141,13 @@ export default function ReportesGuardadosClient() {
   }, [status, loadReportes]);
 
   const totalesPreview = useMemo(() => {
-    if (!preview) return { he: 0, recargos: 0, km: 0, monto: 0 };
+    if (!preview) {
+      return { he: 0, recargos: 0, km: 0, monto: 0, diasDisp: 0, montoDisp: 0 };
+    }
     let he = 0;
     let recargos = 0;
     let km = 0;
+    let diasDisp = 0;
     preview.turnos.forEach((t) => {
       if (selTurnos.has(t.id)) {
         he += totalHE(t);
@@ -138,25 +160,36 @@ export default function ReportesGuardadosClient() {
         km += k;
       }
     });
+    preview.disponibilidades.forEach((d) => {
+      if (selDisp.has(d.id)) diasDisp += 1;
+    });
     return {
       he: Math.round(he * 100) / 100,
       recargos: Math.round(recargos * 100) / 100,
       km: Math.round(km * 100) / 100,
       monto: Math.round(km * TARIFA_KM),
+      diasDisp,
+      montoDisp: diasDisp * VALOR_DISP_DIA,
     };
-  }, [preview, selTurnos, selForaneos]);
+  }, [preview, selTurnos, selForaneos, selDisp]);
 
   async function onVistaPrevia() {
     setMsg(null);
     setLoadingPreview(true);
     try {
       const res = await fetch(`/api/reportes/guardados/preview?desde=${desde}&hasta=${hasta}${zonaQuery}`);
-      const data = await parseResponseJson<{ turnos: PreviewTurno[]; foraneos: PreviewForaneo[] }>(res);
+      const data = await parseResponseJson<
+        PreviewData & { disponibilidades?: PreviewDisponibilidad[] }
+      >(res);
       if (!res.ok) throw new Error((data as { error?: string } | null)?.error ?? "Error en vista previa");
       if (!data) throw new Error("Respuesta vacía");
-      setPreview(data);
-      setSelTurnos(new Set(data.turnos.map((t) => t.id)));
-      setSelForaneos(new Set(data.foraneos.map((f) => f.id)));
+      const disponibilidades = data.disponibilidades ?? [];
+      const turnosPv = data.turnos ?? [];
+      const foraneosPv = data.foraneos ?? [];
+      setPreview({ turnos: turnosPv, foraneos: foraneosPv, disponibilidades });
+      setSelTurnos(new Set(turnosPv.map((t) => t.id)));
+      setSelForaneos(new Set(foraneosPv.map((f) => f.id)));
+      setSelDisp(new Set(disponibilidades.map((d) => d.id)));
       if (!nombre.trim()) setNombre(nombreSugerido(desde, hasta));
     } catch (e) {
       setMsg({ type: "err", text: e instanceof Error ? e.message : "Error" });
@@ -178,6 +211,7 @@ export default function ReportesGuardadosClient() {
         zona: isCoord ? undefined : zonaFiltro,
         turnoIds: [...selTurnos],
         foraneoIds: [...selForaneos],
+        disponibilidadIds: [...selDisp],
       };
       const res = await fetch("/api/reportes/guardados", {
         method: "POST",
@@ -193,6 +227,7 @@ export default function ReportesGuardadosClient() {
       setPreview(null);
       setSelTurnos(new Set());
       setSelForaneos(new Set());
+      setSelDisp(new Set());
       await loadReportes();
     } catch (e) {
       setMsg({ type: "err", text: e instanceof Error ? e.message : "Error al guardar" });
@@ -254,6 +289,11 @@ export default function ReportesGuardadosClient() {
     setSelForaneos(checked ? new Set(preview.foraneos.map((f) => f.id)) : new Set());
   }
 
+  function toggleAllDisponibilidades(checked: boolean) {
+    if (!preview) return;
+    setSelDisp(checked ? new Set(preview.disponibilidades.map((d) => d.id)) : new Set());
+  }
+
   if (status === "loading") {
     return <div className="p-6 text-gray-600">Cargando…</div>;
   }
@@ -267,8 +307,9 @@ export default function ReportesGuardadosClient() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Reportes guardados</h1>
         <p className="text-sm text-gray-600 mt-1">
-          Genera reportes por rango, guarda los ítems seleccionados y descarga Excel. Los turnos con horas extras o
-          recargos y los foráneos aprobados guardados no vuelven a aparecer hasta que elimines el reporte.
+          Genera reportes por rango, guarda los ítems seleccionados y descarga Excel o CSV. Turnos con HE/recargos,
+          foráneos aprobados y días de disponibilidad en malla guardados no vuelven a aparecer hasta que elimines el
+          reporte.
         </p>
       </div>
 
@@ -461,6 +502,74 @@ export default function ReportesGuardadosClient() {
               </div>
             </div>
 
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-medium text-gray-900">Disponibilidades</h3>
+                <label className="text-sm text-gray-600 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={
+                      preview.disponibilidades.length > 0 &&
+                      selDisp.size === preview.disponibilidades.length
+                    }
+                    onChange={(e) => toggleAllDisponibilidades(e.target.checked)}
+                  />
+                  Seleccionar todos
+                </label>
+              </div>
+              <p className="text-sm text-gray-500 mb-2">
+                Días con &quot;disponible&quot; en la malla. Valor: {VALOR_DISP_DIA.toLocaleString("es-CO")} COP por
+                día.
+              </p>
+              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th className="p-2 w-10" />
+                      <th className="text-left p-2">Cédula</th>
+                      <th className="text-left p-2">Nombre</th>
+                      <th className="text-left p-2">Fecha</th>
+                      <th className="text-left p-2">Malla</th>
+                      <th className="text-right p-2">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.disponibilidades.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="p-4 text-center text-gray-500">
+                          No hay disponibilidades disponibles en este rango
+                        </td>
+                      </tr>
+                    ) : (
+                      preview.disponibilidades.map((d) => (
+                        <tr key={d.id} className="border-t border-gray-100">
+                          <td className="p-2">
+                            <input
+                              type="checkbox"
+                              checked={selDisp.has(d.id)}
+                              onChange={(e) => {
+                                const n = new Set(selDisp);
+                                if (e.target.checked) n.add(d.id);
+                                else n.delete(d.id);
+                                setSelDisp(n);
+                              }}
+                            />
+                          </td>
+                          <td className="p-2 font-mono text-xs">{d.user.cedula ?? "—"}</td>
+                          <td className="p-2">{d.user.nombre}</td>
+                          <td className="p-2">{format(parseISO(d.fecha), "dd/MM/yyyy")}</td>
+                          <td className="p-2 max-w-[200px] truncate" title={d.valor}>
+                            {d.valor}
+                          </td>
+                          <td className="p-2 text-right">${VALOR_DISP_DIA.toLocaleString("es-CO")}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             <div className="flex flex-wrap items-center justify-between gap-4 bg-gray-50 rounded-lg p-4">
               <div className="text-sm text-gray-700 space-y-1">
                 <div>
@@ -476,11 +585,18 @@ export default function ReportesGuardadosClient() {
                   <span className="font-medium">Total a pagar foráneos (× {TARIFA_KM}):</span> $
                   {totalesPreview.monto.toLocaleString("es-CO")}
                 </div>
+                <div>
+                  <span className="font-medium">Disponibilidades (selección):</span> {totalesPreview.diasDisp} días ×{" "}
+                  {VALOR_DISP_DIA.toLocaleString("es-CO")} = ${totalesPreview.montoDisp.toLocaleString("es-CO")}
+                </div>
               </div>
               <button
                 type="button"
                 onClick={onGuardar}
-                disabled={saving || (selTurnos.size === 0 && selForaneos.size === 0)}
+                disabled={
+                  saving ||
+                  (selTurnos.size === 0 && selForaneos.size === 0 && selDisp.size === 0)
+                }
                 className="px-5 py-2.5 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 disabled:opacity-50"
               >
                 {saving ? "Guardando…" : "Guardar reporte"}
@@ -523,6 +639,7 @@ export default function ReportesGuardadosClient() {
                   <th className="text-left p-2">Zona</th>
                   <th className="text-right p-2">Turnos</th>
                   <th className="text-right p-2">Foráneos</th>
+                  <th className="text-right p-2">Disp.</th>
                   <th className="text-left p-2">Creado</th>
                   <th className="text-left p-2">Por</th>
                   <th className="p-2 w-40">Acciones</th>
@@ -538,6 +655,7 @@ export default function ReportesGuardadosClient() {
                     <td className="p-2">{r.zona ?? "Todas"}</td>
                     <td className="p-2 text-right">{r._count.turnosIncluidos}</td>
                     <td className="p-2 text-right">{r._count.foraneosIncluidos}</td>
+                    <td className="p-2 text-right">{r._count.disponibilidadesIncluidas ?? 0}</td>
                     <td className="p-2 whitespace-nowrap">{format(parseISO(r.createdAt), "dd/MM/yyyy HH:mm")}</td>
                     <td className="p-2">{r.creadoPorUser.nombre}</td>
                     <td className="p-2">
@@ -582,7 +700,7 @@ export default function ReportesGuardadosClient() {
           <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 space-y-4">
             <h3 className="font-semibold text-gray-900">¿Eliminar reporte?</h3>
             <p className="text-sm text-gray-600">
-              Los turnos y foráneos incluidos volverán a estar disponibles para futuros reportes.
+              Los turnos, foráneos y disponibilidades incluidos volverán a estar disponibles para futuros reportes.
             </p>
             <div className="flex justify-end gap-2">
               <button

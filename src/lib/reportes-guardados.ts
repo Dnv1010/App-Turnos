@@ -44,3 +44,21 @@ export function whereForaneosDisponiblesParaReporte(
     reportes: { none: {} },
   };
 }
+
+/** Días de malla con "disponible" en el valor, técnico, no incluidos ya en un reporte guardado */
+export function whereDisponibilidadesMallaParaReporte(
+  fechaInicio: Date,
+  fechaFin: Date,
+  userIds: string[]
+): Prisma.MallaTurnoWhereInput {
+  return {
+    userId: { in: userIds },
+    fecha: { gte: fechaInicio, lte: fechaFin },
+    valor: { contains: "disponible", mode: "insensitive" },
+    reportes: { none: {} },
+    user: {
+      role: "TECNICO",
+      isActive: true,
+    },
+  };
+}

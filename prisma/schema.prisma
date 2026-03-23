@@ -109,6 +109,7 @@ model MallaTurno {
   horaInicio String?
   horaFin    String?
   createdAt  DateTime  @default(now())
+  reportes   ReporteDisponibilidad[]
 
   @@unique([userId, fecha])
 }
@@ -156,16 +157,17 @@ model FotoRegistro {
 }
 
 model Reporte {
-  id                String           @id @default(cuid())
-  nombre            String
-  fechaInicio       DateTime         @db.Date
-  fechaFin          DateTime         @db.Date
-  creadoPor         String
-  creadoPorUser     User             @relation("ReportesCreados", fields: [creadoPor], references: [id])
-  zona              String?
-  createdAt         DateTime         @default(now())
-  turnosIncluidos   ReporteTurno[]
-  foraneosIncluidos ReporteForaneo[]
+  id                        String                   @id @default(cuid())
+  nombre                    String
+  fechaInicio               DateTime                 @db.Date
+  fechaFin                  DateTime                 @db.Date
+  creadoPor                 String
+  creadoPorUser             User                     @relation("ReportesCreados", fields: [creadoPor], references: [id])
+  zona                      String?
+  createdAt                 DateTime                 @default(now())
+  turnosIncluidos           ReporteTurno[]
+  foraneosIncluidos         ReporteForaneo[]
+  disponibilidadesIncluidas ReporteDisponibilidad[]
 
   @@index([zona])
   @@index([createdAt])
@@ -189,6 +191,16 @@ model ReporteForaneo {
   fotoRegistro   FotoRegistro @relation(fields: [fotoRegistroId], references: [id], onDelete: Restrict)
 
   @@unique([reporteId, fotoRegistroId])
+}
+
+model ReporteDisponibilidad {
+  id           String     @id @default(cuid())
+  reporteId    String
+  reporte      Reporte    @relation(fields: [reporteId], references: [id], onDelete: Cascade)
+  mallaTurnoId String
+  mallaTurno   MallaTurno @relation(fields: [mallaTurnoId], references: [id], onDelete: Restrict)
+
+  @@unique([reporteId, mallaTurnoId])
 }
 
 model Account {

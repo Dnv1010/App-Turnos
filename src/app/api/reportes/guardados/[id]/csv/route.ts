@@ -35,6 +35,13 @@ export async function GET(_req: NextRequest, context: Ctx) {
           },
         },
       },
+      disponibilidadesIncluidas: {
+        include: {
+          mallaTurno: {
+            include: { user: { select: { nombre: true, cedula: true } } },
+          },
+        },
+      },
     },
   });
 
@@ -48,8 +55,13 @@ export async function GET(_req: NextRequest, context: Ctx) {
 
   const turnos = reporte.turnosIncluidos.map((rt) => rt.turno);
   const fotosForaneos = reporte.foraneosIncluidos.map((rf) => rf.fotoRegistro);
+  const disponibilidades = reporte.disponibilidadesIncluidas.map((rd) => ({
+    fecha: rd.mallaTurno.fecha,
+    valor: rd.mallaTurno.valor,
+    user: rd.mallaTurno.user,
+  }));
 
-  const csvBody = buildReporteGuardadoCsvString(turnos, fotosForaneos);
+  const csvBody = buildReporteGuardadoCsvString(turnos, fotosForaneos, disponibilidades);
   const bom = "\uFEFF";
   const filename = `Reporte-${slugNombreReporteArchivo(reporte.nombre, reporte.id)}.csv`;
 

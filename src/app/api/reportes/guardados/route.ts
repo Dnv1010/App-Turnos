@@ -12,6 +12,7 @@ import {
   zonaPersistidaParaCrear,
 } from "@/lib/reportes-guardados-api";
 import {
+  whereDisponibilidadesMallaParaReporte,
   whereForaneosDisponiblesParaReporte,
   whereTurnosDisponiblesParaReporte,
 } from "@/lib/reportes-guardados";
@@ -34,6 +35,7 @@ export async function GET(req: NextRequest) {
         select: {
           turnosIncluidos: true,
           foraneosIncluidos: true,
+          disponibilidadesIncluidas: true,
         },
       },
     },
@@ -82,18 +84,25 @@ export async function POST(req: NextRequest) {
 
   const turnoIds = Array.isArray(body.turnoIds) ? [...new Set(body.turnoIds.filter(Boolean))] : [];
   const foraneoIds = Array.isArray(body.foraneoIds) ? [...new Set(body.foraneoIds.filter(Boolean))] : [];
+  const disponibilidadIds = Array.isArray(body.disponibilidadIds)
+    ? [...new Set(body.disponibilidadIds.filter(Boolean))]
+    : [];
 
   const zonaParam =
     auth.session.user.role === "COORDINADOR" ? null : body.zona === "ALL" ? null : body.zona ?? null;
   const userIds = await getUserIdsTecnicosParaReporte(auth.session, zonaParam);
 
-  if (userIds.length === 0 && (turnoIds.length > 0 || foraneoIds.length > 0)) {
+  if (
+    userIds.length === 0 &&
+    (turnoIds.length > 0 || foraneoIds.length > 0 || disponibilidadIds.length > 0)
+  ) {
     return NextResponse.json({ error: "No hay técnicos en el alcance para esos ítems" }, { status: 400 });
   }
 
   const { fechaInicio, fechaFin } = rango;
   const whereTurnos = whereTurnosDisponiblesParaReporte(fechaInicio, fechaFin, userIds);
   const whereForaneos = whereForaneosDisponiblesParaReporte(fechaInicio, fechaFin, userIds);
+  const whereMallaDisp = whereDisponibilidadesMallaParaReporte(fechaInicio, fechaFin, userIds);
 
   if (turnoIds.length > 0) {
     const ok = await prisma.turno.count({
@@ -119,6 +128,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (disponibilidadIds.length > 0) {
+    const okM = await prisma.mallaTurno.count({
+      where: { id: { in: disponibilidadIds }, ...whereMallaDisp },
+    });
+    if (okM !== disponibilidadIds.length) {
+      return NextResponse.json(
+        {
+          error:
+            "Algunas disponibilidades no son válidas, ya fueron reportadas o están fuera del rango",
+        },
+        { status: 400 }
+      );
+    }
+  }
+
   const zonaGuardar = zonaPersistidaParaCrear(auth.session, body.zona ?? null);
 
   try {
@@ -135,10 +159,17 @@ export async function POST(req: NextRequest) {
         foraneosIncluidos: {
           create: foraneoIds.map((fotoRegistroId) => ({ fotoRegistroId })),
         },
+        disponibilidadesIncluidas: {
+          create: disponibilidadIds.map((mallaTurnoId) => ({ mallaTurnoId })),
+        },
       },
       include: {
         _count: {
-          select: { turnosIncluidos: true, foraneosIncluidos: true },
+          select: {
+            turnosIncluidos: true,
+            foraneosIncluidos: true,
+            disponibilidadesIncluidas: true,
+          },
         },
       },
     });

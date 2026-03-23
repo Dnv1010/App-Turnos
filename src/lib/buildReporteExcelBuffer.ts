@@ -1,18 +1,13 @@
 import * as XLSX from "xlsx";
+import {
+  formatFechaDDMMYYYY,
+  formatHoraColombia,
+  getDiaEspanol,
+  getMesEspanol,
+} from "@/lib/reporteExportColombia";
 
 const TARIFA_KM_FORANEO = 1100;
-
-function dateKey(d: Date): string {
-  return d.toISOString().split("T")[0];
-}
-
-function timeColombia(d: Date): string {
-  return new Date(d).toLocaleTimeString("es-CO", {
-    timeZone: "America/Bogota",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+const VALOR_DISPONIBILIDAD = 80000;
 
 type TurnoRow = {
   fecha: Date;
@@ -36,35 +31,51 @@ type FotoForaneoRow = {
   user: { nombre: string; cedula: string | null };
 };
 
+type MallaDispRow = {
+  fecha: Date;
+  valor: string;
+  user: { nombre: string; cedula: string | null };
+};
+
+function totalHorasTrabajadasTurno(t: TurnoRow): number {
+  const sum =
+    Math.max(0, t.horasOrdinarias ?? 0) +
+    (t.heDiurna ?? 0) +
+    (t.heNocturna ?? 0) +
+    (t.heDominical ?? 0) +
+    (t.heNoctDominical ?? 0) +
+    (t.recNocturno ?? 0) +
+    (t.recDominical ?? 0) +
+    (t.recNoctDominical ?? 0);
+  return Math.round(sum * 100) / 100;
+}
+
 /**
- * Excel con hojas Turnos y Foráneos (misma estructura que reportes/excel para esas hojas).
+ * Excel reporte guardado: Resumen, Turnos (columnas según spec), Foráneos, Disponibilidades.
  */
-export function buildReporteTurnosForaneosExcelBuffer(
+export function buildReporteGuardadoExcelBuffer(
   turnos: TurnoRow[],
   fotosForaneos: FotoForaneoRow[],
+  disponibilidades: MallaDispRow[],
   filenameBase: string
 ): { buffer: Buffer; filename: string } {
-  const dataTurnos = turnos.map((t) => {
-    const totalHoras = t.horaSalida
-      ? Math.round(((t.horaSalida.getTime() - t.horaEntrada.getTime()) / (1000 * 60 * 60)) * 100) / 100
-      : 0;
-    return {
-      Nombre: t.user.nombre,
-      Cedula: t.user.cedula,
-      Fecha: dateKey(t.fecha),
-      Entrada: timeColombia(t.horaEntrada),
-      Salida: t.horaSalida ? timeColombia(t.horaSalida) : "",
-      "Total Horas": totalHoras,
-      "Horas Ordinarias": Math.max(0, t.horasOrdinarias ?? 0),
-      "HE Diurna": t.heDiurna ?? 0,
-      "HE Nocturna": t.heNocturna ?? 0,
-      "HE Dom/Fest Diurna": t.heDominical ?? 0,
-      "HE Dom/Fest Nocturna": t.heNoctDominical ?? 0,
-      "Recargo Nocturno": t.recNocturno ?? 0,
-      "Recargo Dom/Fest Diurno": t.recDominical ?? 0,
-      "Recargo Dom/Fest Nocturno": t.recNoctDominical ?? 0,
-    };
-  });
+  const dataTurnos = turnos.map((t) => ({
+    Cédula: t.user.cedula ?? "",
+    Nombre: t.user.nombre ?? "",
+    Mes: getMesEspanol(t.fecha),
+    Día: getDiaEspanol(t.fecha),
+    Fecha: formatFechaDDMMYYYY(t.fecha),
+    "Hora inicio turno": formatHoraColombia(t.horaEntrada),
+    "Hora fin turno": t.horaSalida ? formatHoraColombia(t.horaSalida) : "",
+    "Total horas trabajadas": totalHorasTrabajadasTurno(t),
+    "Horas extras diurnas": t.heDiurna ?? 0,
+    "Horas extras nocturnas": t.heNocturna ?? 0,
+    "HE dominicales o festivas diurnas": t.heDominical ?? 0,
+    "HE dominicales o festivas nocturnas": t.heNoctDominical ?? 0,
+    "Recargo nocturno": t.recNocturno ?? 0,
+    "Recargo dominical o festivo diurno": t.recDominical ?? 0,
+    "Recargo dominical o festivo nocturno": t.recNoctDominical ?? 0,
+  }));
 
   const foraneosPorTecnico: Record<
     string,
@@ -135,13 +146,42 @@ export function buildReporteTurnosForaneosExcelBuffer(
     "Total Recargos": Math.round(r["Total Recargos"] * 100) / 100,
   }));
 
+  const dataDisponibilidades = disponibilidades.map((d) => ({
+    Cédula: d.user.cedula ?? "",
+    Nombre: d.user.nombre ?? "",
+    Fecha: formatFechaDDMMYYYY(d.fecha),
+    Disponibilidad: d.valor || "Disponible",
+    Valor: VALOR_DISPONIBILIDAD,
+  }));
+
+  const nDisp = dataDisponibilidades.length;
+  if (nDisp > 0) {
+    dataDisponibilidades.push({
+      Cédula: "",
+      Nombre: "TOTAL",
+      Fecha: "",
+      Disponibilidad: `${nDisp} días`,
+      Valor: nDisp * VALOR_DISPONIBILIDAD,
+    });
+  }
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataResumen), "Resumen");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataTurnos), "Turnos");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataForaneos), "Foraneos");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataDisponibilidades), "Disponibilidades");
   const buffer = Buffer.from(XLSX.write(wb, { type: "buffer", bookType: "xlsx" }));
   return {
     buffer,
     filename: `reporte_guardado_${filenameBase}.xlsx`,
   };
+}
+
+/** @deprecated Usar buildReporteGuardadoExcelBuffer con disponibilidades vacías si aplica */
+export function buildReporteTurnosForaneosExcelBuffer(
+  turnos: TurnoRow[],
+  fotosForaneos: FotoForaneoRow[],
+  filenameBase: string
+): { buffer: Buffer; filename: string } {
+  return buildReporteGuardadoExcelBuffer(turnos, fotosForaneos, [], filenameBase);
 }

@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { assertSesionReportesGuardados, puedeGestionarReporte } from "@/lib/reportes-guardados-api";
-import { buildReporteTurnosForaneosExcelBuffer } from "@/lib/buildReporteExcelBuffer";
+import { buildReporteGuardadoExcelBuffer } from "@/lib/buildReporteExcelBuffer";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -45,6 +45,13 @@ export async function GET(_req: NextRequest, context: Ctx) {
           },
         },
       },
+      disponibilidadesIncluidas: {
+        include: {
+          mallaTurno: {
+            include: { user: { select: { nombre: true, cedula: true } } },
+          },
+        },
+      },
     },
   });
 
@@ -63,8 +70,18 @@ export async function GET(_req: NextRequest, context: Ctx) {
     kmFinal: rf.fotoRegistro.kmFinal,
     user: rf.fotoRegistro.user,
   }));
+  const disponibilidades = reporte.disponibilidadesIncluidas.map((rd) => ({
+    fecha: rd.mallaTurno.fecha,
+    valor: rd.mallaTurno.valor,
+    user: rd.mallaTurno.user,
+  }));
 
-  const { buffer, filename } = buildReporteTurnosForaneosExcelBuffer(turnos, fotosForaneos, slugNombre(reporte.nombre, reporte.id));
+  const { buffer, filename } = buildReporteGuardadoExcelBuffer(
+    turnos,
+    fotosForaneos,
+    disponibilidades,
+    slugNombre(reporte.nombre, reporte.id)
+  );
 
   return new NextResponse(buffer, {
     headers: {
