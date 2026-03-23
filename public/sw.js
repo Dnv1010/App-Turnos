@@ -3,6 +3,15 @@
  * No usar event.data.json(): en Chromium equivale a Response.json() y un push vacío
  * lanza "Failed to execute 'json' on 'Response': Unexpected end of JSON input".
  */
+
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener("push", (event) => {
   const defaults = { title: "Turnos BIA", body: "", url: "/tecnico", tag: "turnos-bia" };
   event.waitUntil(

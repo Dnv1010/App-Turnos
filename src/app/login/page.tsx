@@ -34,8 +34,13 @@ export default function LoginPage() {
         return;
       }
       setError("Error al iniciar sesión. Intenta de nuevo.");
-    } catch {
-      setError("Error de conexión. Intenta de nuevo.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/json|JSON|Response/i.test(msg)) {
+        setError("El servidor devolvió una respuesta vacía o inválida. Revisa la URL (NEXTAUTH_URL), la red o vuelve a intentar.");
+      } else {
+        setError("Error de conexión. Intenta de nuevo.");
+      }
     } finally {
       setLoading(false);
     }

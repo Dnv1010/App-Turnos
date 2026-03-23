@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { HiBell, HiCheck } from "react-icons/hi";
 import { pushSupported, urlBase64ToUint8Array } from "@/lib/push-client";
 import { parseResponseJson } from "@/lib/parseFetchJson";
+import { SERVICE_WORKER_SCRIPT } from "@/lib/service-worker-url";
 
 export default function TecnicoPushSetup() {
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "err">("idle");
@@ -25,7 +26,11 @@ export default function TecnicoPushSetup() {
         setStatus("err");
         return;
       }
-      const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      const reg = await navigator.serviceWorker.register(SERVICE_WORKER_SCRIPT, {
+        scope: "/",
+        updateViaCache: "none",
+      });
+      await reg.update();
       await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
