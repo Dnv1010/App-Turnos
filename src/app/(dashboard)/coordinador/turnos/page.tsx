@@ -47,6 +47,28 @@ function calcPreviewHours(startDate: string, startTime: string, endDate: string,
   return diff.toFixed(2);
 }
 
+/** Fecha y hora locales Colombia para inputs type=date / type=time (misma lógica que la API +5h). */
+function formatForEditInputsColombia(d: Date): { date: string; time: string } {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bogota",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const g = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? "";
+  const y = g("year");
+  const m = g("month");
+  const day = g("day");
+  let hh = g("hour");
+  let mm = g("minute");
+  if (hh.length === 1) hh = `0${hh}`;
+  if (mm.length === 1) mm = `0${mm}`;
+  return { date: `${y}-${m}-${day}`, time: `${hh}:${mm}` };
+}
+
 export default function CoordinadorTurnosPage() {
   const { data: session } = useSession();
   const toast = useToast();
@@ -55,7 +77,7 @@ export default function CoordinadorTurnosPage() {
   const [inicio, setInicio] = useState(format(new Date(), "yyyy-MM-01"));
   const [fin, setFin] = useState(format(new Date(), "yyyy-MM-dd"));
   const [tecnicoFilter, setTecnicoFilter] = useState("ALL");
-  const [estadoFilter, setEstadoFilter] = useState<"ALL" | "ACTIVO" | "FINALIZADO">("FINALIZADO");
+  const [estadoFilter, setEstadoFilter] = useState<"ALL" | "ACTIVO" | "FINALIZADO">("ALL");
   const [loading, setLoading] = useState(true);
   const [editingTurno, setEditingTurno] = useState<TurnoRow | null>(null);
   const [saving, setSaving] = useState(false);
@@ -81,6 +103,12 @@ export default function CoordinadorTurnosPage() {
       if (estadoFilter === "ACTIVO") list = list.filter((t) => !t.horaSalida);
       if (estadoFilter === "FINALIZADO") list = list.filter((t) => t.horaSalida);
       list = list.filter((t) => !t.observaciones?.startsWith("Cancelado"));
+      list.sort((a, b) => {
+        const aAbierto = !a.horaSalida ? 0 : 1;
+        const bAbierto = !b.horaSalida ? 0 : 1;
+        if (aAbierto !== bAbierto) return aAbierto - bAbierto;
+        return new Date(b.horaEntrada).getTime() - new Date(a.horaEntrada).getTime();
+      });
       setTurnos(list);
     } catch { setTurnos([]); }
     finally { setLoading(false); }
@@ -104,11 +132,13 @@ export default function CoordinadorTurnosPage() {
     setEditingTurno(t);
     const start = new Date(t.horaEntrada);
     const end = t.horaSalida ? new Date(t.horaSalida) : null;
+    const startParts = formatForEditInputsColombia(start);
+    const endParts = end ? formatForEditInputsColombia(end) : null;
     setEditForm({
-      startDate: format(start, "yyyy-MM-dd"),
-      startTime: `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`,
-      endDate: end ? format(end, "yyyy-MM-dd") : format(start, "yyyy-MM-dd"),
-      endTime: end ? `${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}` : "",
+      startDate: startParts.date,
+      startTime: startParts.time,
+      endDate: endParts?.date ?? startParts.date,
+      endTime: endParts?.time ?? "",
       notes: t.observaciones?.replace(/\s*\[Editado.*\]$/, "") || "",
     });
   }
@@ -168,6 +198,16 @@ export default function CoordinadorTurnosPage() {
 
   const columns = [
     { key: "user", label: "Técnico", render: (t: TurnoRow) => t.user?.nombre ?? "—" },
+    {
+      key: "estadoTurno",
+      label: "Estado",
+      render: (t: TurnoRow) =>
+        t.horaSalida ? (
+          <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">Finalizado</span>
+        ) : (
+          <span className="text-xs font-semibold text-green-800 bg-green-100 px-2 py-0.5 rounded-full">En curso</span>
+        ),
+    },
     { key: "fecha", label: "Fecha", render: (t: TurnoRow) => formatFechaTurnoDdMmmYyyy(t.fecha) },
     { key: "horaEntrada", label: "Entrada", render: (t: TurnoRow) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
     { key: "horaSalida", label: "Salida", render: (t: TurnoRow) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
@@ -223,9 +263,9 @@ export default function CoordinadorTurnosPage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
             <select value={estadoFilter} onChange={(e) => setEstadoFilter(e.target.value as "ALL" | "ACTIVO" | "FINALIZADO")} className="input-field">
-              <option value="ALL">Todos</option>
-              <option value="ACTIVO">Activo</option>
-              <option value="FINALIZADO">Finalizado</option>
+              <option value="ALL">Todos (incluye en curso)</option>
+              <option value="ACTIVO">Solo en curso (sin salida)</option>
+              <option value="FINALIZADO">Solo finalizados</option>
             </select>
           </div>
           <div className="flex items-end">
@@ -271,6 +311,12 @@ export default function CoordinadorTurnosPage() {
                   <input type="time" step="60" value={editForm.startTime} onChange={(e) => setEditForm((f) => ({ ...f, startTime: e.target.value }))} className="input-field w-full" />
                 </div>
               </div>
+              {!editingTurno.horaSalida && (
+                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <strong>Turno en curso:</strong> puedes corregir la hora de entrada abajo. Deja <strong>hora de salida vacía</strong> hasta
+                  que el técnico cierre el turno; si rellenas salida, el turno quedará cerrado.
+                </p>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Fecha fin</label>
