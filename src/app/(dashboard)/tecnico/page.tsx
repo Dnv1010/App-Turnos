@@ -11,6 +11,8 @@ import KPICards from "@/components/dashboard/KPICards";
 import DataTable from "@/components/ui/DataTable";
 import BotonFichaje from "@/components/fichaje/BotonFichaje";
 import MapaUbicacion from "@/components/fichaje/MapaUbicacion";
+import TecnicoPushSetup from "@/components/tecnico/TecnicoPushSetup";
+import JornadaAlertaFlow from "@/components/tecnico/JornadaAlertaFlow";
 
 interface TurnoRecord {
   id: string;
@@ -188,6 +190,7 @@ export default function TecnicoDashboard() {
           </button>
         </div>
       </div>
+      <TecnicoPushSetup />
       {bloqueoMalla && (
         <div className="bg-amber-50 border-2 border-amber-400 rounded-xl p-4 flex items-start gap-3">
           <span className="text-2xl flex-shrink-0">⚠️</span>
@@ -200,6 +203,7 @@ export default function TecnicoDashboard() {
           </div>
         </div>
       )}
+      <JornadaAlertaFlow turnoActivo={turnoActivo} onAfterReport={cargarDatos} />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="lg:col-span-2 order-2 lg:order-1">
           <KPICards data={{
@@ -211,7 +215,7 @@ export default function TecnicoDashboard() {
             foraneos: foraneosResumen,
           }} />
         </div>
-        <div className="flex justify-center order-1 lg:order-2">
+        <div id="bloque-fichaje" className="flex justify-center order-1 lg:order-2 scroll-mt-24">
           <BotonFichaje
             userId={session?.user?.userId || ""}
             turnoActivo={turnoActivo}

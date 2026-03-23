@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/jornada-alerta",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

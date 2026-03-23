@@ -45,6 +45,7 @@ model User {
   mallaTurnos    MallaTurno[]
   disponibilidades Disponibilidad[]
   fotoRegistros  FotoRegistro[]
+  pushSubscriptions PushSubscription[]
   accounts       Account[]
   sessions       Session[]
 }
@@ -71,10 +72,23 @@ model Turno {
   recDominical   Float    @default(0)
   recNoctDominical Float  @default(0)
   observaciones  String?
+  jornadaAlertaPushSentAt DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   @@index([userId, fecha])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model MallaTurno {
