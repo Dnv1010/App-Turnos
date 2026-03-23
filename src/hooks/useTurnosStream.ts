@@ -18,10 +18,12 @@ export function useTurnosStream(
   useEffect(() => {
     let eventSource: EventSource | null = null;
     let reconnectAttempts = 0;
-    const maxReconnectAttempts = 5;
+    const maxReconnectAttempts = 80;
     const reconnectDelay = 3000;
+    let closed = false;
 
     const connect = () => {
+      if (closed) return;
       try {
         eventSource = new EventSource("/api/turnos/stream-sse");
 
@@ -63,17 +65,20 @@ export function useTurnosStream(
           reconnectAttempts = 0;
         });
 
+        eventSource.onopen = () => {
+          reconnectAttempts = 0;
+        };
+
         eventSource.onerror = () => {
           console.warn("Error en SSE, intentando reconectar...");
           eventSource?.close();
           eventSource = null;
 
-          if (reconnectAttempts < maxReconnectAttempts) {
-            reconnectAttempts++;
-            const delay = reconnectDelay * reconnectAttempts;
-            console.log(`Reconectando en ${delay}ms`);
-            setTimeout(connect, delay);
-          }
+          if (closed || reconnectAttempts >= maxReconnectAttempts) return;
+          reconnectAttempts++;
+          const delay = Math.min(reconnectDelay * Math.min(reconnectAttempts, 10), 30_000);
+          console.log(`Reconectando SSE en ${delay}ms (intento ${reconnectAttempts})`);
+          setTimeout(connect, delay);
         };
 
         console.log("Conectado a SSE de turnos");
@@ -85,6 +90,7 @@ export function useTurnosStream(
     connect();
 
     return () => {
+      closed = true;
       if (eventSource) {
         eventSource.close();
         console.log("SSE desconectado");

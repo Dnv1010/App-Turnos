@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { turnoEventEmitter } from "../stream-sse/route";
+import { turnoEventEmitter } from "@/lib/turno-event-emitter";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
 import { startOfWeek, endOfWeek } from "date-fns";
 import { dateKeyColombia } from "@/lib/bia/calc-engine";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 function getDayOfWeekColombia(d: Date): number {
   const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
@@ -178,6 +181,14 @@ export async function PATCH(
       { status: 500 }
     );
   }
+}
+
+/** Mismo cuerpo que PATCH (algunos despliegues/proxies devuelven 405 con PATCH en rutas dinámicas). */
+export async function PUT(
+  req: NextRequest,
+  context: { params: { id: string } }
+) {
+  return PATCH(req, context);
 }
 
 export async function DELETE(

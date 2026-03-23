@@ -150,7 +150,7 @@ export default function CoordinadorTurnosPage() {
       const startISO = `${editForm.startDate}T${editForm.startTime}:00`;
       const endISO = editForm.endTime ? `${editForm.endDate}T${editForm.endTime}:00` : null;
       const res = await fetch(`/api/turnos/${editingTurno.id}`, {
-        method: "PATCH",
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           horaEntrada: startISO,
