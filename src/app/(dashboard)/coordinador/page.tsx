@@ -9,6 +9,7 @@ import { useTurnosStream } from "@/hooks/useTurnosStream";
 import KPICards from "@/components/dashboard/KPICards";
 import GraficoHoras from "@/components/dashboard/GraficoHoras";
 import DataTable from "@/components/ui/DataTable";
+import CoordinadorForaneosPanel from "@/components/foraneos/CoordinadorForaneosPanel";
 import { HiDownload, HiSearch, HiTruck, HiPhotograph, HiExternalLink, HiLocationMarker, HiRefresh, HiTrash } from "react-icons/hi";
 
 interface TurnoRow {
@@ -102,9 +103,7 @@ export default function CoordinadorPage() {
   const [tabView, setTabView] = useState<TabView>("turnos");
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [disponibilidadesList, setDisponibilidadesList] = useState<Array<{ nombre: string; cedula: string; fecha: string; valor: number }>>([]);
-  const [foraneosList, setForaneosList] = useState<Array<{ nombre: string; cedula: string; cantidadForaneos: number; totalKm: number; totalPagar: number }>>([]);
   const [loadingDisp, setLoadingDisp] = useState(false);
-  const [loadingForaneos, setLoadingForaneos] = useState(false);
   const [reporteError, setReporteError] = useState<string | null>(null);
   const [syncingSheets, setSyncingSheets] = useState(false);
 
@@ -176,20 +175,6 @@ export default function CoordinadorPage() {
         .finally(() => setLoadingDisp(false));
     }
   }, [tabView, inicio, fin, tecnicoFilter, session?.user?.zona]);
-  useEffect(() => {
-    if (tabView === "foraneos" && session?.user?.zona) {
-      setLoadingForaneos(true);
-      fetch(`/api/reportes/foraneos?desde=${inicio}&hasta=${fin}${tecnicoFilter !== "ALL" ? `&userId=${tecnicoFilter}` : ""}`)
-        .then(async (r) => {
-          const j = await parseResponseJson<typeof foraneosList>(r);
-          return Array.isArray(j) ? j : [];
-        })
-        .then(setForaneosList)
-        .catch(() => setForaneosList([]))
-        .finally(() => setLoadingForaneos(false));
-    }
-  }, [tabView, inicio, fin, tecnicoFilter, session?.user?.zona]);
-
   useEffect(() => {
     if (!session?.user?.zona) return;
     fetch(`/api/usuarios?zona=${session.user.zona}&role=TECNICO`)
@@ -447,27 +432,14 @@ export default function CoordinadorPage() {
         </>
       )}
 
-      {tabView === "foraneos" && (
-        <>
-          {loadingForaneos ? (
-            <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
-          ) : foraneosList.length === 0 ? (
-            <div className="card text-center py-12"><HiTruck className="h-16 w-16 text-gray-300 mx-auto mb-4" /><p className="text-gray-500">No hay registros foráneos en este período</p></div>
-          ) : (
-            <DataTable
-              columns={[
-                { key: "nombre", label: "Nombre", sortable: true },
-                { key: "cedula", label: "Cédula" },
-                { key: "cantidadForaneos", label: "Cant. Foráneos" },
-                { key: "totalKm", label: "Total Km", render: (r: { totalKm: number }) => `${r.totalKm} km` },
-                { key: "totalPagar", label: "Total a Pagar", render: (r: { totalPagar: number }) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(r.totalPagar) },
-              ] as never}
-              data={foraneosList as never}
-              searchable
-              searchPlaceholder="Buscar nombre..."
-            />
-          )}
-        </>
+      {tabView === "foraneos" && session?.user?.zona && (
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold text-gray-900">Foráneos — aprobación y detalle</h3>
+          <p className="text-sm text-gray-500">
+            Usa las mismas fechas y filtro de técnico de arriba. Solo los registros <strong>aprobados</strong> cuentan en reportes y nómina.
+          </p>
+          <CoordinadorForaneosPanel desde={inicio} hasta={fin} tecnicoFilter={tecnicoFilter} />
+        </div>
       )}
 
       {tabView === "equipo" && loadingReportes && !data && (

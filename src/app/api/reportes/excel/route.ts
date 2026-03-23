@@ -95,6 +95,7 @@ export async function GET(req: NextRequest) {
       prisma.fotoRegistro.findMany({
         where: {
           tipo: "FORANEO",
+          estadoAprobacion: "APROBADA",
           userId: { in: userIds },
           createdAt: { gte: fechaInicio, lte: fechaFin },
         },

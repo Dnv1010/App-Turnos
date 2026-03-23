@@ -64,7 +64,10 @@ export async function GET(req: NextRequest) {
         where: { fecha: { gte: fechaInicio, lte: fechaFin } },
       },
       fotoRegistros: {
-        where: { createdAt: { gte: fechaInicio, lte: fechaFin } },
+        where: {
+          createdAt: { gte: fechaInicio, lte: fechaFin },
+          OR: [{ tipo: { not: "FORANEO" } }, { tipo: "FORANEO", estadoAprobacion: "APROBADA" }],
+        },
         orderBy: { createdAt: "desc" },
       },
     },
@@ -184,6 +187,8 @@ export async function GET(req: NextRequest) {
         kmRecorridos: f.kmInicial != null && f.kmFinal != null ? Math.max(0, f.kmFinal - f.kmInicial) : null,
         observaciones: f.observaciones,
         fecha: f.createdAt,
+        estadoAprobacion: f.tipo === "FORANEO" ? f.estadoAprobacion : undefined,
+        notaAprobacion: f.tipo === "FORANEO" ? f.notaAprobacion : undefined,
       })),
       turnos: turnosConMalla,
     };

@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import type { Zona } from "@prisma/client";
+import type { EstadoAprobacion, Zona } from "@prisma/client";
 
 function canEditForaneoRole(role: string) {
   return role === "COORDINADOR" || role === "ADMIN" || role === "MANAGER";
@@ -20,7 +20,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     const foraneoId = params.id;
     const body = await req.json();
-    const { kmInicial, kmFinal, observaciones } = body;
+    const { kmInicial, kmFinal, observaciones, estadoAprobacion, notaAprobacion } = body;
 
     const foto = await prisma.fotoRegistro.findUnique({
       where: { id: foraneoId },
@@ -28,11 +28,42 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     });
     if (!foto) return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
 
+    if (foto.tipo !== "FORANEO") {
+      return NextResponse.json({ error: "No es un registro foráneo" }, { status: 400 });
+    }
+
     if (
       session.user.role === "COORDINADOR" &&
       foto.user.zona !== (session.user.zona as Zona)
     ) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+      return NextResponse.json({ error: "No autorizado para esta zona" }, { status: 403 });
+    }
+
+    // Aprobación / rechazo
+    if (estadoAprobacion === "APROBADA" || estadoAprobacion === "NO_APROBADA") {
+      const updated = await prisma.fotoRegistro.update({
+        where: { id: foraneoId },
+        data: {
+          estadoAprobacion: estadoAprobacion as EstadoAprobacion,
+          aprobadoPor: session.user.userId,
+          fechaAprobacion: new Date(),
+          notaAprobacion: typeof notaAprobacion === "string" && notaAprobacion.trim() ? notaAprobacion.trim() : null,
+        },
+        include: { user: { select: { nombre: true, cedula: true } } },
+      });
+
+      try {
+        const origin = new URL(req.url).origin;
+        const cookie = req.headers.get("cookie") ?? "";
+        await fetch(`${origin}/api/sheets/sync`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(cookie ? { Cookie: cookie } : {}) },
+        });
+      } catch (err) {
+        console.error("Error sync Sheets tras aprobar foráneo:", err);
+      }
+
+      return NextResponse.json({ ok: true, foraneo: updated });
     }
 
     const updateData: Record<string, unknown> = {};

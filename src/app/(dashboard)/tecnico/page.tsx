@@ -13,6 +13,7 @@ import BotonFichaje from "@/components/fichaje/BotonFichaje";
 import MapaUbicacion from "@/components/fichaje/MapaUbicacion";
 import TecnicoPushSetup from "@/components/tecnico/TecnicoPushSetup";
 import JornadaAlertaFlow from "@/components/tecnico/JornadaAlertaFlow";
+import type { ForaneoRow } from "@/components/foraneos/CoordinadorForaneosPanel";
 
 interface TurnoRecord {
   id: string;
@@ -57,6 +58,22 @@ export default function TecnicoDashboard() {
     }
   );
 
+  const cargarForaneosLista = useCallback(async () => {
+    if (!session?.user?.userId) return;
+    setLoadingForaneosLista(true);
+    try {
+      const params = new URLSearchParams({ desde, hasta });
+      if (estadoFiltroForaneo !== "ALL") params.set("estado", estadoFiltroForaneo);
+      const res = await fetch(`/api/foraneos?${params}`);
+      const raw = await parseResponseJson<ForaneoRow[]>(res);
+      setForaneosRows(res.ok && Array.isArray(raw) ? raw : []);
+    } catch {
+      setForaneosRows([]);
+    } finally {
+      setLoadingForaneosLista(false);
+    }
+  }, [session?.user?.userId, desde, hasta, estadoFiltroForaneo]);
+
   const cargarDatos = useCallback(async () => {
     if (!session?.user?.userId) return;
     setLoading(true);
@@ -95,7 +112,13 @@ export default function TecnicoDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [session?.user?.userId, desde, hasta]);
+    void cargarForaneosLista();
+  }, [session?.user?.userId, desde, hasta, cargarForaneosLista]);
+
+  useEffect(() => {
+    if (session?.user?.role !== "TECNICO") return;
+    void cargarForaneosLista();
+  }, [session?.user?.role, cargarForaneosLista]);
 
   const filtrar = useCallback(async () => {
     if (!session?.user?.userId) return;
@@ -118,7 +141,8 @@ export default function TecnicoDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [session?.user?.userId, desde, hasta]);
+    void cargarForaneosLista();
+  }, [session?.user?.userId, desde, hasta, cargarForaneosLista]);
 
   useEffect(() => {
     if (!session) return;
@@ -234,6 +258,103 @@ export default function TecnicoDashboard() {
         <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Detalle de turnos</h3>
         <div className="overflow-x-auto w-full">
           <DataTable columns={columns as never} data={turnos as never} emptyMessage="No hay turnos registrados este mes" />
+        </div>
+      </div>
+
+      <div className="min-w-0 space-y-3">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900">Mis foráneos (km)</h3>
+        <p className="text-sm text-gray-500">
+          El coordinador debe aprobar cada registro. En nómina solo cuentan los <strong>aprobados</strong>.
+        </p>
+        <div className="flex flex-wrap gap-3 items-end">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+            <select
+              value={estadoFiltroForaneo}
+              onChange={(e) => setEstadoFiltroForaneo(e.target.value as typeof estadoFiltroForaneo)}
+              className="input-field"
+            >
+              <option value="PENDIENTE">Pendientes por autorizar</option>
+              <option value="APROBADA">Aprobados</option>
+              <option value="NO_APROBADA">No aprobados</option>
+              <option value="ALL">Todos</option>
+            </select>
+          </div>
+          <button
+            type="button"
+            onClick={() => void cargarForaneosLista()}
+            disabled={loadingForaneosLista}
+            className="btn-secondary text-sm"
+          >
+            {loadingForaneosLista ? "Cargando…" : "Actualizar lista"}
+          </button>
+        </div>
+        <div className="card p-0 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px]">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Fecha</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Estado</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Km rec.</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Nota coordinador</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {loadingForaneosLista && foraneosRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                      <div className="inline-block w-6 h-6 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+                    </td>
+                  </tr>
+                ) : foraneosRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                      No hay registros con este filtro
+                    </td>
+                  </tr>
+                ) : (
+                  foraneosRows.map((f) => (
+                    <tr key={f.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-800 whitespace-nowrap">
+                        {f.fecha.split("T")[0]}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        {f.estadoAprobacion === "APROBADA" && (
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Aprobada
+                          </span>
+                        )}
+                        {f.estadoAprobacion === "PENDIENTE" && (
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-900">
+                            Pendiente por autorizar
+                          </span>
+                        )}
+                        {f.estadoAprobacion === "NO_APROBADA" && (
+                          <span
+                            className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"
+                            title={f.notaAprobacion ?? undefined}
+                          >
+                            No aprobada
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                        {f.kmRecorridos != null ? `${Number(f.kmRecorridos).toFixed(1)} km` : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 max-w-xs">
+                        {f.notaAprobacion ? (
+                          <span title={f.notaAprobacion}>{f.notaAprobacion}</span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

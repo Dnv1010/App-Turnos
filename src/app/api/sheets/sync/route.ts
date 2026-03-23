@@ -60,6 +60,7 @@ export async function POST() {
       prisma.fotoRegistro.findMany({
         where: {
           tipo: "FORANEO",
+          estadoAprobacion: "APROBADA",
           userId: { in: userIds },
           kmFinal: { not: null },
         },

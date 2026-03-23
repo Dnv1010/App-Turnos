@@ -19,6 +19,12 @@ enum Zona {
   COSTA
 }
 
+enum EstadoAprobacion {
+  PENDIENTE
+  APROBADA
+  NO_APROBADA
+}
+
 enum TipoDia {
   TRABAJO
   DESCANSO
@@ -123,23 +129,27 @@ model Disponibilidad {
 }
 
 model FotoRegistro {
-  id              String   @id @default(cuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id])
-  tipo            String
-  driveFileId     String?
-  driveUrl        String?
-  driveFileIdFinal String?
-  driveUrlFinal   String?
-  base64Fallback  String?  @db.Text
-  kmInicial       Float?
-  kmFinal         Float?
-  latInicial      Float?
-  lngInicial      Float?
-  latFinal        Float?
-  lngFinal        Float?
-  observaciones   String?
-  createdAt       DateTime @default(now())
+  id                 String            @id @default(cuid())
+  userId             String
+  user               User              @relation(fields: [userId], references: [id])
+  tipo               String
+  driveFileId        String?
+  driveUrl           String?
+  driveFileIdFinal   String?
+  driveUrlFinal      String?
+  base64Fallback     String?           @db.Text
+  kmInicial          Float?
+  kmFinal            Float?
+  latInicial         Float?
+  lngInicial         Float?
+  latFinal           Float?
+  lngFinal           Float?
+  observaciones      String?
+  estadoAprobacion   EstadoAprobacion  @default(PENDIENTE)
+  aprobadoPor        String?
+  fechaAprobacion    DateTime?
+  notaAprobacion     String?
+  createdAt          DateTime          @default(now())
 }
 
 model Account {
