@@ -1,24 +1,42 @@
 /* eslint-disable no-restricted-globals */
+/**
+ * No usar event.data.json(): en Chromium equivale a Response.json() y un push vacío
+ * lanza "Failed to execute 'json' on 'Response': Unexpected end of JSON input".
+ */
 self.addEventListener("push", (event) => {
-  let payload = { title: "Turnos BIA", body: "", url: "/tecnico", tag: "turnos-bia" };
-  try {
-    if (event.data) {
-      const parsed = event.data.json();
-      payload = { ...payload, ...parsed };
-    }
-  } catch {
-    /* texto plano */
-    if (event.data) payload.body = event.data.text();
-  }
+  const defaults = { title: "Turnos BIA", body: "", url: "/tecnico", tag: "turnos-bia" };
   event.waitUntil(
-    self.registration.showNotification(payload.title, {
-      body: payload.body,
-      icon: "/icon-192.png",
-      badge: "/icon-192.png",
-      tag: payload.tag || "turnos-bia",
-      data: { url: payload.url || "/tecnico" },
-      requireInteraction: true,
-    })
+    (async () => {
+      let payload = { ...defaults };
+      try {
+        if (event.data) {
+          const text = await event.data.text();
+          const trimmed = text.trim();
+          if (trimmed) {
+            try {
+              const parsed = JSON.parse(trimmed);
+              if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                payload = { ...payload, ...parsed };
+              } else {
+                payload.body = String(parsed);
+              }
+            } catch {
+              payload.body = text;
+            }
+          }
+        }
+      } catch {
+        /* sin payload legible */
+      }
+      await self.registration.showNotification(payload.title, {
+        body: payload.body,
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
+        tag: payload.tag || "turnos-bia",
+        data: { url: payload.url || "/tecnico" },
+        requireInteraction: true,
+      });
+    })()
   );
 });
 

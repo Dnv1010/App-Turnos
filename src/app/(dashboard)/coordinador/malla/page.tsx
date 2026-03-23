@@ -91,7 +91,7 @@ export default function CoordinadorMallaPage() {
     const inicioStr = format(start, "yyyy-MM-dd");
     const finStr = format(end, "yyyy-MM-dd");
     fetch(`/api/festivos?inicio=${inicioStr}&fin=${finStr}`)
-      .then(async (r) => parseResponseJson<{ festivos?: string[] }>(r))
+      .then((r) => parseResponseJson<{ festivos?: string[] }>(r))
       .then((data) => setFestivosSet(new Set(data?.festivos ?? [])))
       .catch(() => setFestivosSet(new Set()));
   }, [mes]);

@@ -25,9 +25,21 @@ export function useTurnosStream(
       try {
         eventSource = new EventSource("/api/turnos/stream-sse");
 
+        function parseSseData(raw: unknown): unknown {
+          if (raw == null || raw === "") return null;
+          const s = String(raw).trim();
+          if (!s) return null;
+          try {
+            return JSON.parse(s);
+          } catch {
+            return null;
+          }
+        }
+
         eventSource.addEventListener("turno-eliminado", (event: Event) => {
           const customEvent = event as MessageEvent;
-          const data: TurnoEliminadoEvent = JSON.parse(customEvent.data);
+          const data = parseSseData(customEvent.data) as TurnoEliminadoEvent | null;
+          if (!data) return;
           console.log("Turno eliminado en tiempo real:", data);
           onTurnoEliminado?.(data);
           reconnectAttempts = 0;
@@ -35,7 +47,8 @@ export function useTurnosStream(
 
         eventSource.addEventListener("turno-editado", (event: Event) => {
           const customEvent = event as MessageEvent;
-          const data = JSON.parse(customEvent.data);
+          const data = parseSseData(customEvent.data);
+          if (!data) return;
           console.log("Turno editado en tiempo real:", data);
           onTurnoEditado?.(data);
           reconnectAttempts = 0;
@@ -43,7 +56,8 @@ export function useTurnosStream(
 
         eventSource.addEventListener("turno-creado", (event: Event) => {
           const customEvent = event as MessageEvent;
-          const data = JSON.parse(customEvent.data);
+          const data = parseSseData(customEvent.data);
+          if (!data) return;
           console.log("Turno creado en tiempo real:", data);
           onTurnoCreado?.(data);
           reconnectAttempts = 0;
