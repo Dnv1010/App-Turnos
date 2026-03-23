@@ -41,10 +41,28 @@ type PreviewDisponibilidad = {
   user: { nombre: string; cedula: string | null; zona: string };
 };
 
+type PreviewTurnoCoordinador = {
+  id: string;
+  fecha: string;
+  horaEntrada: string;
+  horaSalida: string | null;
+  codigoOrden: string;
+  heDiurna: number;
+  heNocturna: number;
+  heDominical: number;
+  heNoctDominical: number;
+  recNocturno: number;
+  recDominical: number;
+  recNoctDominical: number;
+  horasOrdinarias: number;
+  user: { nombre: string; cedula: string | null; zona: string; role: string };
+};
+
 type PreviewData = {
   turnos: PreviewTurno[];
   foraneos: PreviewForaneo[];
   disponibilidades: PreviewDisponibilidad[];
+  turnosCoordinador?: PreviewTurnoCoordinador[];
 };
 
 type ReporteListItem = {
@@ -59,6 +77,7 @@ type ReporteListItem = {
     turnosIncluidos: number;
     foraneosIncluidos: number;
     disponibilidadesIncluidas: number;
+    turnosCoordinadorIncluidos: number;
   };
 };
 
@@ -73,6 +92,29 @@ function totalHE(t: PreviewTurno): number {
 
 function totalRecargos(t: PreviewTurno): number {
   return (t.recNocturno ?? 0) + (t.recDominical ?? 0) + (t.recNoctDominical ?? 0);
+}
+
+function totalHECoord(t: PreviewTurnoCoordinador): number {
+  return (
+    (t.heDiurna ?? 0) +
+    (t.heNocturna ?? 0) +
+    (t.heDominical ?? 0) +
+    (t.heNoctDominical ?? 0)
+  );
+}
+
+function totalRecargosCoord(t: PreviewTurnoCoordinador): number {
+  return (t.recNocturno ?? 0) + (t.recDominical ?? 0) + (t.recNoctDominical ?? 0);
+}
+
+function totalHorasTrabajoCoord(t: PreviewTurnoCoordinador): number {
+  return (t.horasOrdinarias ?? 0) + totalHECoord(t);
+}
+
+function rolReporteCoord(role: string): string {
+  if (role === "COORDINADOR_INTERIOR") return "Coord. interior";
+  if (role === "COORDINADOR") return "Coordinador";
+  return role;
 }
 
 function kmForaneo(f: PreviewForaneo): number {
@@ -106,6 +148,7 @@ export default function ReportesGuardadosClient() {
   const [nombre, setNombre] = useState("");
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [selTurnos, setSelTurnos] = useState<Set<string>>(new Set());
+  const [selTurnosCoord, setSelTurnosCoord] = useState<Set<string>>(new Set());
   const [selForaneos, setSelForaneos] = useState<Set<string>>(new Set());
   const [selDisp, setSelDisp] = useState<Set<string>>(new Set());
   const [loadingPreview, setLoadingPreview] = useState(false);
@@ -163,6 +206,12 @@ export default function ReportesGuardadosClient() {
     preview.disponibilidades.forEach((d) => {
       if (selDisp.has(d.id)) diasDisp += 1;
     });
+    (preview.turnosCoordinador ?? []).forEach((t) => {
+      if (selTurnosCoord.has(t.id)) {
+        he += totalHECoord(t);
+        recargos += totalRecargosCoord(t);
+      }
+    });
     return {
       he: Math.round(he * 100) / 100,
       recargos: Math.round(recargos * 100) / 100,
@@ -171,7 +220,7 @@ export default function ReportesGuardadosClient() {
       diasDisp,
       montoDisp: diasDisp * VALOR_DISP_DIA,
     };
-  }, [preview, selTurnos, selForaneos, selDisp]);
+  }, [preview, selTurnos, selTurnosCoord, selForaneos, selDisp]);
 
   async function onVistaPrevia() {
     setMsg(null);
@@ -179,15 +228,17 @@ export default function ReportesGuardadosClient() {
     try {
       const res = await fetch(`/api/reportes/guardados/preview?desde=${desde}&hasta=${hasta}${zonaQuery}`);
       const data = await parseResponseJson<
-        PreviewData & { disponibilidades?: PreviewDisponibilidad[] }
+        PreviewData & { disponibilidades?: PreviewDisponibilidad[]; turnosCoordinador?: PreviewTurnoCoordinador[] }
       >(res);
       if (!res.ok) throw new Error((data as { error?: string } | null)?.error ?? "Error en vista previa");
       if (!data) throw new Error("Respuesta vacía");
       const disponibilidades = data.disponibilidades ?? [];
       const turnosPv = data.turnos ?? [];
       const foraneosPv = data.foraneos ?? [];
-      setPreview({ turnos: turnosPv, foraneos: foraneosPv, disponibilidades });
+      const turnosCoordPv = data.turnosCoordinador ?? [];
+      setPreview({ turnos: turnosPv, foraneos: foraneosPv, disponibilidades, turnosCoordinador: turnosCoordPv });
       setSelTurnos(new Set(turnosPv.map((t) => t.id)));
+      setSelTurnosCoord(new Set(turnosCoordPv.map((t) => t.id)));
       setSelForaneos(new Set(foraneosPv.map((f) => f.id)));
       setSelDisp(new Set(disponibilidades.map((d) => d.id)));
       if (!nombre.trim()) setNombre(nombreSugerido(desde, hasta));
@@ -212,6 +263,7 @@ export default function ReportesGuardadosClient() {
         turnoIds: [...selTurnos],
         foraneoIds: [...selForaneos],
         disponibilidadIds: [...selDisp],
+        turnoCoordinadorIds: [...selTurnosCoord],
       };
       const res = await fetch("/api/reportes/guardados", {
         method: "POST",
@@ -226,6 +278,7 @@ export default function ReportesGuardadosClient() {
       });
       setPreview(null);
       setSelTurnos(new Set());
+      setSelTurnosCoord(new Set());
       setSelForaneos(new Set());
       setSelDisp(new Set());
       await loadReportes();
@@ -292,6 +345,12 @@ export default function ReportesGuardadosClient() {
   function toggleAllDisponibilidades(checked: boolean) {
     if (!preview) return;
     setSelDisp(checked ? new Set(preview.disponibilidades.map((d) => d.id)) : new Set());
+  }
+
+  function toggleAllTurnosCoordinador(checked: boolean) {
+    if (!preview) return;
+    const list = preview.turnosCoordinador ?? [];
+    setSelTurnosCoord(checked ? new Set(list.map((t) => t.id)) : new Set());
   }
 
   if (status === "loading") {
@@ -449,6 +508,103 @@ export default function ReportesGuardadosClient() {
 
             <div>
               <div className="flex items-center justify-between mb-2">
+                <h3 className="font-medium text-gray-900">Turnos coordinadores</h3>
+                <label className="text-sm text-gray-600 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={(() => {
+                      const list = preview.turnosCoordinador ?? [];
+                      return list.length > 0 && selTurnosCoord.size === list.length;
+                    })()}
+                    onChange={(e) => toggleAllTurnosCoordinador(e.target.checked)}
+                  />
+                  Seleccionar todos
+                </label>
+              </div>
+              <p className="text-sm text-gray-500 mb-2">
+                Coordinadores y coordinador interior con HE o recargos, no incluidos en reportes anteriores.
+              </p>
+              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th className="p-2 w-10" />
+                      <th className="text-left p-2">Cédula</th>
+                      <th className="text-left p-2">Nombre</th>
+                      <th className="text-left p-2">Rol</th>
+                      <th className="text-left p-2">Mes</th>
+                      <th className="text-left p-2">Día</th>
+                      <th className="text-left p-2">Fecha</th>
+                      <th className="text-left p-2">Código / orden</th>
+                      <th className="text-left p-2">Inicio</th>
+                      <th className="text-left p-2">Fin</th>
+                      <th className="text-right p-2">Total h.</th>
+                      <th className="text-right p-2">HE Diur.</th>
+                      <th className="text-right p-2">HE Noct.</th>
+                      <th className="text-right p-2">HE Dom/F diur.</th>
+                      <th className="text-right p-2">HE Dom/F noct.</th>
+                      <th className="text-right p-2">Rec. noct.</th>
+                      <th className="text-right p-2">Rec. Dom/F diur.</th>
+                      <th className="text-right p-2">Rec. Dom/F noct.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(preview.turnosCoordinador ?? []).length === 0 ? (
+                      <tr>
+                        <td colSpan={17} className="p-4 text-center text-gray-500">
+                          No hay turnos de coordinador disponibles en este rango
+                        </td>
+                      </tr>
+                    ) : (
+                      (preview.turnosCoordinador ?? []).map((t) => (
+                        <tr key={t.id} className="border-t border-gray-100">
+                          <td className="p-2">
+                            <input
+                              type="checkbox"
+                              checked={selTurnosCoord.has(t.id)}
+                              onChange={(e) => {
+                                const n = new Set(selTurnosCoord);
+                                if (e.target.checked) n.add(t.id);
+                                else n.delete(t.id);
+                                setSelTurnosCoord(n);
+                              }}
+                            />
+                          </td>
+                          <td className="p-2 font-mono text-xs">{t.user.cedula ?? "—"}</td>
+                          <td className="p-2">{t.user.nombre}</td>
+                          <td className="p-2">{rolReporteCoord(t.user.role)}</td>
+                          <td className="p-2 capitalize">
+                            {format(parseISO(t.fecha.split("T")[0]), "LLLL", { locale: es })}
+                          </td>
+                          <td className="p-2">{format(parseISO(t.fecha.split("T")[0]), "d", { locale: es })}</td>
+                          <td className="p-2">{format(parseISO(t.fecha.split("T")[0]), "dd/MM/yyyy", { locale: es })}</td>
+                          <td className="p-2 font-mono">{t.codigoOrden}</td>
+                          <td className="p-2 whitespace-nowrap">
+                            {format(parseISO(t.horaEntrada), "dd/MM/yyyy HH:mm", { locale: es })}
+                          </td>
+                          <td className="p-2 whitespace-nowrap">
+                            {t.horaSalida
+                              ? format(parseISO(t.horaSalida), "dd/MM/yyyy HH:mm", { locale: es })
+                              : "—"}
+                          </td>
+                          <td className="p-2 text-right font-mono">{totalHorasTrabajoCoord(t).toFixed(2)}</td>
+                          <td className="p-2 text-right font-mono">{(t.heDiurna ?? 0).toFixed(2)}</td>
+                          <td className="p-2 text-right font-mono">{(t.heNocturna ?? 0).toFixed(2)}</td>
+                          <td className="p-2 text-right font-mono">{(t.heDominical ?? 0).toFixed(2)}</td>
+                          <td className="p-2 text-right font-mono">{(t.heNoctDominical ?? 0).toFixed(2)}</td>
+                          <td className="p-2 text-right font-mono">{(t.recNocturno ?? 0).toFixed(2)}</td>
+                          <td className="p-2 text-right font-mono">{(t.recDominical ?? 0).toFixed(2)}</td>
+                          <td className="p-2 text-right font-mono">{(t.recNoctDominical ?? 0).toFixed(2)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
                 <h3 className="font-medium text-gray-900">Foráneos aprobados</h3>
                 <label className="text-sm text-gray-600 flex items-center gap-2">
                   <input
@@ -595,7 +751,10 @@ export default function ReportesGuardadosClient() {
                 onClick={onGuardar}
                 disabled={
                   saving ||
-                  (selTurnos.size === 0 && selForaneos.size === 0 && selDisp.size === 0)
+                  (selTurnos.size === 0 &&
+                    selTurnosCoord.size === 0 &&
+                    selForaneos.size === 0 &&
+                    selDisp.size === 0)
                 }
                 className="px-5 py-2.5 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 disabled:opacity-50"
               >
@@ -638,6 +797,7 @@ export default function ReportesGuardadosClient() {
                   <th className="text-left p-2">Rango</th>
                   <th className="text-left p-2">Zona</th>
                   <th className="text-right p-2">Turnos</th>
+                  <th className="text-right p-2">Coord.</th>
                   <th className="text-right p-2">Foráneos</th>
                   <th className="text-right p-2">Disp.</th>
                   <th className="text-left p-2">Creado</th>
@@ -654,6 +814,7 @@ export default function ReportesGuardadosClient() {
                     </td>
                     <td className="p-2">{r.zona ?? "Todas"}</td>
                     <td className="p-2 text-right">{r._count.turnosIncluidos}</td>
+                    <td className="p-2 text-right">{r._count.turnosCoordinadorIncluidos ?? 0}</td>
                     <td className="p-2 text-right">{r._count.foraneosIncluidos}</td>
                     <td className="p-2 text-right">{r._count.disponibilidadesIncluidas ?? 0}</td>
                     <td className="p-2 whitespace-nowrap">{format(parseISO(r.createdAt), "dd/MM/yyyy HH:mm")}</td>
@@ -700,7 +861,8 @@ export default function ReportesGuardadosClient() {
           <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 space-y-4">
             <h3 className="font-semibold text-gray-900">¿Eliminar reporte?</h3>
             <p className="text-sm text-gray-600">
-              Los turnos, foráneos y disponibilidades incluidos volverán a estar disponibles para futuros reportes.
+              Los turnos (técnicos y coordinadores), foráneos y disponibilidades incluidos volverán a estar disponibles
+              para futuros reportes.
             </p>
             <div className="flex justify-end gap-2">
               <button

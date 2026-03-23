@@ -6,12 +6,14 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   assertSesionReportesGuardados,
+  getUserIdsCoordinadoresParaReporte,
   getUserIdsTecnicosParaReporte,
   parseRangoFechasUtc,
 } from "@/lib/reportes-guardados-api";
 import {
   whereDisponibilidadesMallaParaReporte,
   whereForaneosDisponiblesParaReporte,
+  whereTurnosCoordinadorDisponiblesParaReporte,
   whereTurnosDisponiblesParaReporte,
 } from "@/lib/reportes-guardados";
 
@@ -38,27 +40,37 @@ export async function GET(req: NextRequest) {
 
   const { fechaInicio, fechaFin } = rango;
   const userIds = await getUserIdsTecnicosParaReporte(auth.session, zona);
+  const coordUserIds = await getUserIdsCoordinadoresParaReporte(auth.session, zona);
 
-  if (userIds.length === 0) {
-    return NextResponse.json({ turnos: [], foraneos: [], disponibilidades: [] });
-  }
-
-  const [turnos, foraneos, disponibilidades] = await Promise.all([
-    prisma.turno.findMany({
-      where: whereTurnosDisponiblesParaReporte(fechaInicio, fechaFin, userIds),
-      include: { user: { select: { nombre: true, cedula: true, zona: true } } },
-      orderBy: [{ fecha: "asc" }, { horaEntrada: "asc" }],
-    }),
-    prisma.fotoRegistro.findMany({
-      where: whereForaneosDisponiblesParaReporte(fechaInicio, fechaFin, userIds),
-      include: { user: { select: { nombre: true, cedula: true, zona: true } } },
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.mallaTurno.findMany({
-      where: whereDisponibilidadesMallaParaReporte(fechaInicio, fechaFin, userIds),
-      include: { user: { select: { nombre: true, cedula: true, zona: true } } },
-      orderBy: [{ user: { nombre: "asc" } }, { fecha: "asc" }],
-    }),
+  const [turnos, foraneos, disponibilidades, turnosCoordinador] = await Promise.all([
+    userIds.length
+      ? prisma.turno.findMany({
+          where: whereTurnosDisponiblesParaReporte(fechaInicio, fechaFin, userIds),
+          include: { user: { select: { nombre: true, cedula: true, zona: true } } },
+          orderBy: [{ fecha: "asc" }, { horaEntrada: "asc" }],
+        })
+      : [],
+    userIds.length
+      ? prisma.fotoRegistro.findMany({
+          where: whereForaneosDisponiblesParaReporte(fechaInicio, fechaFin, userIds),
+          include: { user: { select: { nombre: true, cedula: true, zona: true } } },
+          orderBy: { createdAt: "asc" },
+        })
+      : [],
+    userIds.length
+      ? prisma.mallaTurno.findMany({
+          where: whereDisponibilidadesMallaParaReporte(fechaInicio, fechaFin, userIds),
+          include: { user: { select: { nombre: true, cedula: true, zona: true } } },
+          orderBy: [{ user: { nombre: "asc" } }, { fecha: "asc" }],
+        })
+      : [],
+    coordUserIds.length
+      ? prisma.turnoCoordinador.findMany({
+          where: whereTurnosCoordinadorDisponiblesParaReporte(fechaInicio, fechaFin, coordUserIds),
+          include: { user: { select: { nombre: true, cedula: true, zona: true, role: true } } },
+          orderBy: [{ fecha: "asc" }, { horaEntrada: "asc" }],
+        })
+      : [],
   ]);
 
   return NextResponse.json({
@@ -89,6 +101,22 @@ export async function GET(req: NextRequest) {
       fecha: m.fecha.toISOString(),
       valor: m.valor,
       user: m.user,
+    })),
+    turnosCoordinador: turnosCoordinador.map((t) => ({
+      id: t.id,
+      fecha: t.fecha.toISOString(),
+      horaEntrada: t.horaEntrada.toISOString(),
+      horaSalida: t.horaSalida?.toISOString() ?? null,
+      codigoOrden: t.codigoOrden,
+      heDiurna: t.heDiurna,
+      heNocturna: t.heNocturna,
+      heDominical: t.heDominical,
+      heNoctDominical: t.heNoctDominical,
+      recNocturno: t.recNocturno,
+      recDominical: t.recDominical,
+      recNoctDominical: t.recNoctDominical,
+      horasOrdinarias: t.horasOrdinarias,
+      user: t.user,
     })),
   });
 }

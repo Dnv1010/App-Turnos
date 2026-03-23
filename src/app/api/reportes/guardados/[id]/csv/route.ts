@@ -42,6 +42,13 @@ export async function GET(_req: NextRequest, context: Ctx) {
           },
         },
       },
+      turnosCoordinadorIncluidos: {
+        include: {
+          turnoCoordinador: {
+            include: { user: { select: { nombre: true, cedula: true, role: true } } },
+          },
+        },
+      },
     },
   });
 
@@ -60,8 +67,27 @@ export async function GET(_req: NextRequest, context: Ctx) {
     valor: rd.mallaTurno.valor,
     user: rd.mallaTurno.user,
   }));
+  const turnosCoordinador = reporte.turnosCoordinadorIncluidos.map((r) => ({
+    fecha: r.turnoCoordinador.fecha,
+    horaEntrada: r.turnoCoordinador.horaEntrada,
+    horaSalida: r.turnoCoordinador.horaSalida,
+    codigoOrden: r.turnoCoordinador.codigoOrden,
+    horasOrdinarias: r.turnoCoordinador.horasOrdinarias,
+    heDiurna: r.turnoCoordinador.heDiurna,
+    heNocturna: r.turnoCoordinador.heNocturna,
+    heDominical: r.turnoCoordinador.heDominical,
+    heNoctDominical: r.turnoCoordinador.heNoctDominical,
+    recNocturno: r.turnoCoordinador.recNocturno,
+    recDominical: r.turnoCoordinador.recDominical,
+    recNoctDominical: r.turnoCoordinador.recNoctDominical,
+    user: {
+      nombre: r.turnoCoordinador.user.nombre,
+      cedula: r.turnoCoordinador.user.cedula,
+      role: r.turnoCoordinador.user.role,
+    },
+  }));
 
-  const csvBody = buildReporteGuardadoCsvString(turnos, fotosForaneos, disponibilidades);
+  const csvBody = buildReporteGuardadoCsvString(turnos, turnosCoordinador, fotosForaneos, disponibilidades);
   const bom = "\uFEFF";
   const filename = `Reporte-${slugNombreReporteArchivo(reporte.nombre, reporte.id)}.csv`;
 

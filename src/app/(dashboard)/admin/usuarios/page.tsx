@@ -172,6 +172,7 @@ export default function UsuariosPage() {
           ADMIN: "badge-red",
           MANAGER: "badge-purple",
           COORDINADOR: "badge-yellow",
+          COORDINADOR_INTERIOR: "badge-yellow",
           TECNICO: "badge-blue",
         };
         return <span className={cls[u.role] || "badge-blue"}>{u.role}</span>;
@@ -378,6 +379,7 @@ export default function UsuariosPage() {
                   >
                     <option value="TECNICO">Técnico</option>
                     <option value="COORDINADOR">Coordinador</option>
+                    <option value="COORDINADOR_INTERIOR">Coordinador interior</option>
                     <option value="MANAGER">Manager</option>
                     <option value="ADMIN">Admin</option>
                   </select>

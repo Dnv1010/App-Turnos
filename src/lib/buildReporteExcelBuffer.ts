@@ -37,6 +37,22 @@ type MallaDispRow = {
   user: { nombre: string; cedula: string | null };
 };
 
+export type TurnoCoordinadorExportRow = {
+  fecha: Date;
+  horaEntrada: Date;
+  horaSalida: Date | null;
+  codigoOrden: string;
+  horasOrdinarias: number;
+  heDiurna: number;
+  heNocturna: number;
+  heDominical: number;
+  heNoctDominical: number;
+  recNocturno: number;
+  recDominical: number;
+  recNoctDominical: number;
+  user: { nombre: string; cedula: string | null; role: string };
+};
+
 function totalHorasTrabajadasTurno(t: TurnoRow): number {
   const sum =
     Math.max(0, t.horasOrdinarias ?? 0) +
@@ -50,11 +66,34 @@ function totalHorasTrabajadasTurno(t: TurnoRow): number {
   return Math.round(sum * 100) / 100;
 }
 
+function rowTurnoCoordExcel(t: TurnoCoordinadorExportRow) {
+  return {
+    Cédula: t.user.cedula ?? "",
+    Nombre: t.user.nombre ?? "",
+    Rol: t.user.role,
+    "Código/Orden": t.codigoOrden,
+    Mes: getMesEspanol(t.fecha),
+    Día: getDiaEspanol(t.fecha),
+    Fecha: formatFechaDDMMYYYY(t.fecha),
+    "Hora inicio turno": formatHoraColombia(t.horaEntrada),
+    "Hora fin turno": t.horaSalida ? formatHoraColombia(t.horaSalida) : "",
+    "Total horas trabajadas": totalHorasTrabajadasTurno(t),
+    "Horas extras diurnas": t.heDiurna ?? 0,
+    "Horas extras nocturnas": t.heNocturna ?? 0,
+    "HE dominicales o festivas diurnas": t.heDominical ?? 0,
+    "HE dominicales o festivas nocturnas": t.heNoctDominical ?? 0,
+    "Recargo nocturno": t.recNocturno ?? 0,
+    "Recargo dominical o festivo diurno": t.recDominical ?? 0,
+    "Recargo dominical o festivo nocturno": t.recNoctDominical ?? 0,
+  };
+}
+
 /**
- * Excel reporte guardado: Resumen, Turnos (columnas según spec), Foráneos, Disponibilidades.
+ * Excel reporte guardado: Resumen, Turnos, Turnos Coordinadores, Foráneos, Disponibilidades.
  */
 export function buildReporteGuardadoExcelBuffer(
   turnos: TurnoRow[],
+  turnosCoordinador: TurnoCoordinadorExportRow[],
   fotosForaneos: FotoForaneoRow[],
   disponibilidades: MallaDispRow[],
   filenameBase: string
@@ -76,6 +115,8 @@ export function buildReporteGuardadoExcelBuffer(
     "Recargo dominical o festivo diurno": t.recDominical ?? 0,
     "Recargo dominical o festivo nocturno": t.recNoctDominical ?? 0,
   }));
+
+  const dataTurnosCoord = turnosCoordinador.map((t) => rowTurnoCoordExcel(t));
 
   const foraneosPorTecnico: Record<
     string,
@@ -168,6 +209,7 @@ export function buildReporteGuardadoExcelBuffer(
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataResumen), "Resumen");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataTurnos), "Turnos");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataTurnosCoord), "Turnos Coordinadores");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataForaneos), "Foraneos");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataDisponibilidades), "Disponibilidades");
   const buffer = Buffer.from(XLSX.write(wb, { type: "buffer", bookType: "xlsx" }));
@@ -183,5 +225,5 @@ export function buildReporteTurnosForaneosExcelBuffer(
   fotosForaneos: FotoForaneoRow[],
   filenameBase: string
 ): { buffer: Buffer; filename: string } {
-  return buildReporteGuardadoExcelBuffer(turnos, fotosForaneos, [], filenameBase);
+  return buildReporteGuardadoExcelBuffer(turnos, [], fotosForaneos, [], filenameBase);
 }

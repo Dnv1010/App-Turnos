@@ -33,7 +33,11 @@ interface NavbarProps {
 }
 
 const rolLabels: Record<string, string> = {
-  TECNICO: "Técnico", COORDINADOR: "Coordinador", MANAGER: "Manager", ADMIN: "Administrador",
+  TECNICO: "Técnico",
+  COORDINADOR: "Coordinador",
+  COORDINADOR_INTERIOR: "Coord. interior",
+  MANAGER: "Manager",
+  ADMIN: "Administrador",
 };
 
 const zonaBadgeClasses: Record<string, string> = {

@@ -65,6 +65,11 @@ export type MallaDispCsvRow = {
   user: { nombre: string; cedula: string | null };
 };
 
+export type TurnoCoordinadorCsvRow = TurnoCsvRow & {
+  codigoOrden: string;
+  user: TurnoCsvRow["user"] & { role: string };
+};
+
 const TURNOS_HEADERS = [
   "Cédula",
   "Nombre",
@@ -83,11 +88,32 @@ const TURNOS_HEADERS = [
   "Recargo dominical o festivo nocturno",
 ];
 
+const TURNOS_COORD_HEADERS = [
+  "Cédula",
+  "Nombre",
+  "Rol",
+  "Código/Orden",
+  "Mes",
+  "Día",
+  "Fecha",
+  "Hora inicio turno",
+  "Hora fin turno",
+  "Total horas trabajadas",
+  "Horas extras diurnas",
+  "Horas extras nocturnas",
+  "Horas extra dominicales o festivas diurnas",
+  "Horas extra dominicales o festivas nocturnas",
+  "Recargo nocturno",
+  "Recargo dominical o festivo diurno",
+  "Recargo dominical o festivo nocturno",
+];
+
 /**
- * CSV por secciones: TURNOS (15 columnas), FORÁNEOS, DISPONIBILIDADES.
+ * CSV por secciones: TURNOS, TURNOS COORDINADORES, FORÁNEOS, DISPONIBILIDADES.
  */
 export function buildReporteGuardadoCsvString(
   turnos: TurnoCsvRow[],
+  turnosCoordinador: TurnoCoordinadorCsvRow[],
   fotosForaneos: FotoForaneoCsvRow[],
   disponibilidades: MallaDispCsvRow[]
 ): string {
@@ -100,6 +126,35 @@ export function buildReporteGuardadoCsvString(
       [
         t.user.cedula ?? "",
         t.user.nombre ?? "",
+        getMesEspanol(t.fecha),
+        getDiaEspanol(t.fecha),
+        formatFechaDDMMYYYY(t.fecha),
+        formatHoraColombia(t.horaEntrada),
+        t.horaSalida ? formatHoraColombia(t.horaSalida) : "",
+        totalHorasTrabajadasTurno(t),
+        t.heDiurna ?? 0,
+        t.heNocturna ?? 0,
+        t.heDominical ?? 0,
+        t.heNoctDominical ?? 0,
+        t.recNocturno ?? 0,
+        t.recDominical ?? 0,
+        t.recNoctDominical ?? 0,
+      ]
+        .map(escapeCsvCell)
+        .join(",")
+    );
+  }
+
+  parts.push("");
+  parts.push("TURNOS COORDINADORES");
+  parts.push(TURNOS_COORD_HEADERS.map(escapeCsvCell).join(","));
+  for (const t of turnosCoordinador) {
+    parts.push(
+      [
+        t.user.cedula ?? "",
+        t.user.nombre ?? "",
+        t.user.role,
+        t.codigoOrden,
         getMesEspanol(t.fecha),
         getDiaEspanol(t.fecha),
         formatFechaDDMMYYYY(t.fecha),

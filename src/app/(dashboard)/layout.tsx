@@ -1,15 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Navbar from "@/components/layout/Navbar";
+import { getPostLoginPath } from "@/lib/postLoginPath";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    if (status !== "authenticated" || !session?.user) return;
+    const role = session.user.role;
+    if (role === "COORDINADOR_INTERIOR" && !pathname.startsWith("/coordinador-interior")) {
+      router.replace("/coordinador-interior");
+      return;
+    }
+    if (role !== "COORDINADOR_INTERIOR" && pathname.startsWith("/coordinador-interior")) {
+      router.replace(getPostLoginPath(role));
+    }
+  }, [status, session, pathname, router]);
 
   if (status === "loading") {
     return (
@@ -19,7 +33,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  if (!session) { router.push("/login"); return null; }
+  if (!session) {
+    router.push("/login");
+    return null;
+  }
+
+  const role = session.user.role;
+  if (role === "COORDINADOR_INTERIOR" && !pathname.startsWith("/coordinador-interior")) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
+      </div>
+    );
+  }
+
+  if (role !== "COORDINADOR_INTERIOR" && pathname.startsWith("/coordinador-interior")) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">

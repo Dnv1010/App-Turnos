@@ -62,3 +62,29 @@ export function whereDisponibilidadesMallaParaReporte(
     },
   };
 }
+
+const turnoCoordHeRecargoOr: Prisma.TurnoCoordinadorWhereInput = {
+  OR: [
+    { heDiurna: { gt: 0 } },
+    { heNocturna: { gt: 0 } },
+    { heDominical: { gt: 0 } },
+    { heNoctDominical: { gt: 0 } },
+    { recNocturno: { gt: 0 } },
+    { recDominical: { gt: 0 } },
+    { recNoctDominical: { gt: 0 } },
+  ],
+};
+
+export function whereTurnosCoordinadorDisponiblesParaReporte(
+  fechaInicio: Date,
+  fechaFin: Date,
+  userIds: string[]
+): Prisma.TurnoCoordinadorWhereInput {
+  return {
+    userId: { in: userIds },
+    fecha: { gte: fechaInicio, lte: fechaFin },
+    horaSalida: { not: null },
+    reportes: { none: {} },
+    AND: [turnoCoordHeRecargoOr],
+  };
+}

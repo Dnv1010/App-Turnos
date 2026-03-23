@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { HiMail, HiKey, HiLogin } from "react-icons/hi";
 import { FcGoogle } from "react-icons/fc";
+import { getPostLoginPath } from "@/lib/postLoginPath";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,7 +31,9 @@ export default function LoginPage() {
       }
       if (result?.ok) {
         router.refresh();
-        router.push("/tecnico");
+        const s = await getSession();
+        const dest = getPostLoginPath(s?.user?.role ?? "");
+        router.push(dest);
         return;
       }
       setError("Error al iniciar sesión. Intenta de nuevo.");
@@ -46,7 +49,9 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogle = () => { signIn("google", { callbackUrl: "/tecnico" }); };
+  const handleGoogle = () => {
+    signIn("google", { callbackUrl: "/auth/redirect" });
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900 px-4">

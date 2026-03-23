@@ -1,4 +1,5 @@
 import type { Session } from "next-auth";
+import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 const ROLES_PERMITIDOS = new Set(["COORDINADOR", "MANAGER", "ADMIN"]);
@@ -30,6 +31,31 @@ export async function getUserIdsTecnicosParaReporte(
   const whereUser: { isActive: boolean; role: "TECNICO"; zona?: "BOGOTA" | "COSTA" } = {
     isActive: true,
     role: "TECNICO",
+  };
+  if (session.user.role === "COORDINADOR") {
+    whereUser.zona = session.user.zona as "BOGOTA" | "COSTA";
+  } else if (zonaQuery && zonaQuery !== "ALL") {
+    whereUser.zona = zonaQuery as "BOGOTA" | "COSTA";
+  }
+  const usuarios = await prisma.user.findMany({
+    where: whereUser,
+    select: { id: true },
+  });
+  return usuarios.map((u) => u.id);
+}
+
+/** Coordinadores y coordinador interior en el alcance del reporte (por zona). */
+export async function getUserIdsCoordinadoresParaReporte(
+  session: Session,
+  zonaQuery: string | null
+): Promise<string[]> {
+  const whereUser: {
+    isActive: boolean;
+    role: { in: Role[] };
+    zona?: "BOGOTA" | "COSTA";
+  } = {
+    isActive: true,
+    role: { in: [Role.COORDINADOR, Role.COORDINADOR_INTERIOR] },
   };
   if (session.user.role === "COORDINADOR") {
     whereUser.zona = session.user.zona as "BOGOTA" | "COSTA";

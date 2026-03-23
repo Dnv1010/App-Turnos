@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HiHome, HiCalendar, HiCamera, HiUserGroup, HiChartBar, HiDocumentReport, HiCog, HiX, HiClock, HiTruck } from "react-icons/hi";
+import { HiHome, HiCalendar, HiCamera, HiUserGroup, HiChartBar, HiDocumentReport, HiCog, HiX, HiClock, HiTruck, HiCollection } from "react-icons/hi";
 
 // Componente del logo Bia con rayo
 function BiaLogo({ size = "sm" }: { size?: "sm" | "md" }) {
@@ -44,13 +44,17 @@ const navItems: NavItem[] = [
   { label: "Mi Calendario", href: "/tecnico/calendario", icon: HiCalendar, roles: ["TECNICO"] },
   { label: "Fotos / Foráneos", href: "/tecnico/fotos", icon: HiCamera, roles: ["TECNICO"] },
   { label: "Dashboard Equipo", href: "/coordinador", icon: HiUserGroup, roles: ["COORDINADOR"] },
-  { label: "Turnos Equipo", href: "/coordinador/turnos", icon: HiClock, roles: ["COORDINADOR"] },
+  { label: "Turnos Equipo", href: "/coordinador/turnos", icon: HiCollection, roles: ["COORDINADOR"] },
+  { label: "Turno Coordinador", href: "/coordinador/turno-coordinador", icon: HiClock, roles: ["COORDINADOR"] },
   { label: "Mi Equipo", href: "/coordinador/equipo", icon: HiUserGroup, roles: ["COORDINADOR"] },
   { label: "Malla de Turnos", href: "/coordinador/malla", icon: HiCalendar, roles: ["COORDINADOR"] },
   { label: "Foráneos", href: "/coordinador/foraneos", icon: HiTruck, roles: ["COORDINADOR"] },
   { label: "Reportes", href: "/coordinador/reportes", icon: HiDocumentReport, roles: ["COORDINADOR"] },
+  { label: "Mi Turno", href: "/coordinador-interior", icon: HiClock, roles: ["COORDINADOR_INTERIOR"] },
   { label: "Reportes", href: "/manager/reportes/guardados", icon: HiDocumentReport, roles: ["MANAGER"] },
+  { label: "Turnos coordinadores", href: "/manager/turnos-coordinadores", icon: HiClock, roles: ["MANAGER"] },
   { label: "Reportes", href: "/admin/reportes", icon: HiDocumentReport, roles: ["ADMIN"] },
+  { label: "Turnos coordinadores", href: "/admin/turnos-coordinadores", icon: HiClock, roles: ["ADMIN"] },
   { label: "Dashboard Global", href: "/manager", icon: HiChartBar, roles: ["MANAGER", "ADMIN"] },
   { label: "Usuarios", href: "/admin/usuarios", icon: HiCog, roles: ["ADMIN"] },
 ];

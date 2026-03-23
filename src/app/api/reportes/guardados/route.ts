@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   assertSesionReportesGuardados,
+  getUserIdsCoordinadoresParaReporte,
   getUserIdsTecnicosParaReporte,
   parseRangoFechasUtc,
   whereListarReportes,
@@ -14,6 +15,7 @@ import {
 import {
   whereDisponibilidadesMallaParaReporte,
   whereForaneosDisponiblesParaReporte,
+  whereTurnosCoordinadorDisponiblesParaReporte,
   whereTurnosDisponiblesParaReporte,
 } from "@/lib/reportes-guardados";
 
@@ -36,6 +38,7 @@ export async function GET(req: NextRequest) {
           turnosIncluidos: true,
           foraneosIncluidos: true,
           disponibilidadesIncluidas: true,
+          turnosCoordinadorIncluidos: true,
         },
       },
     },
@@ -59,6 +62,8 @@ export async function POST(req: NextRequest) {
     zona?: string | null;
     turnoIds?: string[];
     foraneoIds?: string[];
+    disponibilidadIds?: string[];
+    turnoCoordinadorIds?: string[];
   };
   try {
     body = await req.json();
@@ -87,10 +92,23 @@ export async function POST(req: NextRequest) {
   const disponibilidadIds = Array.isArray(body.disponibilidadIds)
     ? [...new Set(body.disponibilidadIds.filter(Boolean))]
     : [];
+  const turnoCoordinadorIds = Array.isArray(body.turnoCoordinadorIds)
+    ? [...new Set(body.turnoCoordinadorIds.filter(Boolean))]
+    : [];
+
+  if (
+    turnoIds.length === 0 &&
+    foraneoIds.length === 0 &&
+    disponibilidadIds.length === 0 &&
+    turnoCoordinadorIds.length === 0
+  ) {
+    return NextResponse.json({ error: "Debes incluir al menos un ítem en el reporte" }, { status: 400 });
+  }
 
   const zonaParam =
     auth.session.user.role === "COORDINADOR" ? null : body.zona === "ALL" ? null : body.zona ?? null;
   const userIds = await getUserIdsTecnicosParaReporte(auth.session, zonaParam);
+  const coordUserIds = await getUserIdsCoordinadoresParaReporte(auth.session, zonaParam);
 
   if (
     userIds.length === 0 &&
@@ -99,10 +117,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No hay técnicos en el alcance para esos ítems" }, { status: 400 });
   }
 
+  if (coordUserIds.length === 0 && turnoCoordinadorIds.length > 0) {
+    return NextResponse.json(
+      { error: "No hay coordinadores en el alcance para esos turnos" },
+      { status: 400 }
+    );
+  }
+
   const { fechaInicio, fechaFin } = rango;
   const whereTurnos = whereTurnosDisponiblesParaReporte(fechaInicio, fechaFin, userIds);
   const whereForaneos = whereForaneosDisponiblesParaReporte(fechaInicio, fechaFin, userIds);
   const whereMallaDisp = whereDisponibilidadesMallaParaReporte(fechaInicio, fechaFin, userIds);
+  const whereTurnosCoord = whereTurnosCoordinadorDisponiblesParaReporte(
+    fechaInicio,
+    fechaFin,
+    coordUserIds
+  );
 
   if (turnoIds.length > 0) {
     const ok = await prisma.turno.count({
@@ -143,6 +173,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (turnoCoordinadorIds.length > 0) {
+    const okC = await prisma.turnoCoordinador.count({
+      where: { id: { in: turnoCoordinadorIds }, ...whereTurnosCoord },
+    });
+    if (okC !== turnoCoordinadorIds.length) {
+      return NextResponse.json(
+        {
+          error:
+            "Algunos turnos de coordinador no son válidos, ya fueron reportados o están fuera del rango",
+        },
+        { status: 400 }
+      );
+    }
+  }
+
   const zonaGuardar = zonaPersistidaParaCrear(auth.session, body.zona ?? null);
 
   try {
@@ -162,6 +207,9 @@ export async function POST(req: NextRequest) {
         disponibilidadesIncluidas: {
           create: disponibilidadIds.map((mallaTurnoId) => ({ mallaTurnoId })),
         },
+        turnosCoordinadorIncluidos: {
+          create: turnoCoordinadorIds.map((turnoCoordinadorId) => ({ turnoCoordinadorId })),
+        },
       },
       include: {
         _count: {
@@ -169,6 +217,7 @@ export async function POST(req: NextRequest) {
             turnosIncluidos: true,
             foraneosIncluidos: true,
             disponibilidadesIncluidas: true,
+            turnosCoordinadorIncluidos: true,
           },
         },
       },

@@ -10,6 +10,7 @@ datasource db {
 enum Role {
   TECNICO
   COORDINADOR
+  COORDINADOR_INTERIOR
   MANAGER
   ADMIN
 }
@@ -53,6 +54,7 @@ model User {
   fotoRegistros  FotoRegistro[]
   pushSubscriptions PushSubscription[]
   reportesCreados Reporte[] @relation("ReportesCreados")
+  turnosCoordinador TurnoCoordinador[]
   accounts       Account[]
   sessions       Session[]
 }
@@ -168,6 +170,7 @@ model Reporte {
   turnosIncluidos           ReporteTurno[]
   foraneosIncluidos         ReporteForaneo[]
   disponibilidadesIncluidas ReporteDisponibilidad[]
+  turnosCoordinadorIncluidos ReporteTurnoCoordinador[]
 
   @@index([zona])
   @@index([createdAt])
@@ -201,6 +204,43 @@ model ReporteDisponibilidad {
   mallaTurno   MallaTurno @relation(fields: [mallaTurnoId], references: [id], onDelete: Restrict)
 
   @@unique([reporteId, mallaTurnoId])
+}
+
+model TurnoCoordinador {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  fecha          DateTime @db.Date
+  horaEntrada    DateTime
+  horaSalida     DateTime?
+  codigoOrden    String
+  horasOrdinarias Float   @default(0)
+  heDiurna       Float    @default(0)
+  heNocturna     Float    @default(0)
+  heDominical    Float    @default(0)
+  heNoctDominical Float   @default(0)
+  recNocturno    Float    @default(0)
+  recDominical   Float    @default(0)
+  recNoctDominical Float  @default(0)
+  latEntrada     Float?
+  lngEntrada     Float?
+  latSalida      Float?
+  lngSalida      Float?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  reportes       ReporteTurnoCoordinador[]
+
+  @@index([userId, fecha])
+}
+
+model ReporteTurnoCoordinador {
+  id                 String           @id @default(cuid())
+  reporteId          String
+  reporte            Reporte          @relation(fields: [reporteId], references: [id], onDelete: Cascade)
+  turnoCoordinadorId String
+  turnoCoordinador   TurnoCoordinador @relation(fields: [turnoCoordinadorId], references: [id], onDelete: Restrict)
+
+  @@unique([reporteId, turnoCoordinadorId])
 }
 
 model Account {
