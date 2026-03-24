@@ -237,7 +237,7 @@ export default function UsuariosPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
           Gestión de Usuarios
         </h2>
         <div className="flex items-center gap-2 flex-wrap">
@@ -278,7 +278,7 @@ export default function UsuariosPage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 {editando ? "Editar Usuario" : "Nuevo Usuario"}
               </h3>
               <button

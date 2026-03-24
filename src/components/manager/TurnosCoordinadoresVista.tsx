@@ -171,7 +171,7 @@ export default function TurnosCoordinadoresVista() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Turnos coordinadores</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Turnos coordinadores</h2>
         <p className="mt-1 text-sm text-gray-600">
           Turnos de coordinadores y coordinador interior (cerrados y abiertos) según filtros.
         </p>
@@ -323,7 +323,7 @@ export default function TurnosCoordinadoresVista() {
       {editRow && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Editar turno coordinador</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Editar turno coordinador</h3>
             <p className="mt-1 text-sm text-gray-600">{editRow.user?.nombre}</p>
             <div className="mt-4 space-y-3">
               <div>
@@ -386,7 +386,7 @@ export default function TurnosCoordinadoresVista() {
       {deleteRow && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100">¿Eliminar turno?</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-white">¿Eliminar turno?</h3>
             <p className="mt-2 text-sm text-gray-600">
               ¿Eliminar este turno de <strong>{deleteRow.user?.nombre}</strong>? Esta acción no se puede
               deshacer.

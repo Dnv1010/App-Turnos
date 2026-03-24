@@ -199,17 +199,17 @@ export default function TecnicoDashboard() {
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Mi Dashboard</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Turnos y horas extras</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Mi Dashboard</h2>
+          <p className="text-sm text-gray-500 dark:text-bia-muted">Turnos y horas extras</p>
         </div>
       </div>
       <div className="card p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-4 gap-3 sm:gap-4 items-end">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Desde</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Desde</label>
           <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="input-field" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Hasta</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Hasta</label>
           <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="input-field" />
         </div>
         <div className="sm:col-span-2 flex items-end">
@@ -260,20 +260,20 @@ export default function TecnicoDashboard() {
         </div>
       )}
       <div className="min-w-0">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 sm:mb-4">Detalle de turnos</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Detalle de turnos</h3>
         <div className="overflow-x-auto w-full">
           <DataTable columns={columns as never} data={turnos as never} emptyMessage="No hay turnos registrados este mes" />
         </div>
       </div>
 
       <div className="min-w-0 space-y-3">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">Mis foráneos (km)</h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Mis foráneos (km)</h3>
+        <p className="text-sm text-gray-500 dark:text-bia-muted">
           El coordinador debe aprobar cada registro. En nómina solo cuentan los <strong>aprobados</strong>.
         </p>
         <div className="flex flex-wrap gap-3 items-end">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estado</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Estado</label>
             <select
               value={estadoFiltroForaneo}
               onChange={(e) => setEstadoFiltroForaneo(e.target.value)}
@@ -298,30 +298,30 @@ export default function TecnicoDashboard() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px]">
               <thead>
-                <tr className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Fecha</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Estado</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Km rec.</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Nota coordinador</th>
+                <tr className="bg-gray-50 dark:bg-bia-navy-750 border-b border-gray-200 dark:border-bia-navy-400">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-bia-muted uppercase">Fecha</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-bia-muted uppercase">Estado</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-bia-muted uppercase">Km rec.</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-bia-muted uppercase">Nota coordinador</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+              <tbody className="divide-y divide-gray-200 dark:divide-bia-navy-600 bg-white dark:bg-bia-navy-700">
                 {loadingForaneosLista && foraneosRows.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-bia-muted">
                       <div className="inline-block w-6 h-6 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
                     </td>
                   </tr>
                 ) : foraneosRows.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-bia-muted">
                       No hay registros con este filtro
                     </td>
                   </tr>
                 ) : (
                   foraneosRows.map((f) => (
-                    <tr key={f.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                    <tr key={f.id} className="hover:bg-gray-50 dark:hover:bg-bia-navy-500">
+                      <td className="px-4 py-3 text-sm text-gray-800 dark:text-white whitespace-nowrap">
                         {f.fecha.split("T")[0]}
                       </td>
                       <td className="px-4 py-3 text-sm">
@@ -344,10 +344,10 @@ export default function TecnicoDashboard() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-200 whitespace-nowrap">
+                      <td className="px-4 py-3 text-sm text-gray-700 dark:text-white whitespace-nowrap">
                         {f.kmRecorridos != null ? `${Number(f.kmRecorridos).toFixed(1)} km` : "—"}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 max-w-xs">
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-bia-label max-w-xs">
                         {f.notaAprobacion ? (
                           <span title={f.notaAprobacion}>{f.notaAprobacion}</span>
                         ) : (

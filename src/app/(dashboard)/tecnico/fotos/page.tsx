@@ -303,7 +303,7 @@ export default function FotosPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Fotos y Kilometraje</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Fotos y Kilometraje</h2>
       </div>
 
       <div className="flex gap-2 border-b border-gray-200">
@@ -344,7 +344,7 @@ export default function FotosPage() {
                 )}
               </div>
 
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Paso 2 — Finalizar foráneo</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Paso 2 — Finalizar foráneo</h3>
               {!pasoFinalFotoBase64 && !showCameraFinal && (
                 <div className="card">
                   <p className="text-sm text-gray-600 mb-4">Captura la foto final y ingresa el km final (debe ser mayor que el km inicial).</p>
@@ -416,7 +416,7 @@ export default function FotosPage() {
                 <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center">
                   <HiTruck className="h-8 w-8 text-orange-600" />
                 </div>
-                <span className="font-semibold text-gray-900 dark:text-gray-100">Iniciar Foráneo</span>
+                <span className="font-semibold text-gray-900 dark:text-white">Iniciar Foráneo</span>
                 <span className="text-xs text-gray-500 text-center">Foto inicial + km inicial del vehículo</span>
               </button>
               <button
@@ -426,7 +426,7 @@ export default function FotosPage() {
                 <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center">
                   <HiPhotograph className="h-8 w-8 text-blue-600" />
                 </div>
-                <span className="font-semibold text-gray-900 dark:text-gray-100">Foto General</span>
+                <span className="font-semibold text-gray-900 dark:text-white">Foto General</span>
                 <span className="text-xs text-gray-500 text-center">Foto de trabajo en campo</span>
               </button>
             </div>
@@ -446,7 +446,7 @@ export default function FotosPage() {
                 </button>
               </div>
               <div className="card space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   {tipo === "FORANEO" ? "Paso 1 — Iniciar Foráneo" : "Foto General"}
                 </h3>
                 {tipo === "FORANEO" && (

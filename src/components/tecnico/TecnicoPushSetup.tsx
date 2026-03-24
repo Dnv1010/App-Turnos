@@ -116,7 +116,7 @@ export default function TecnicoPushSetup() {
         <div className="flex items-start gap-3 flex-1">
           <HiBell className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium text-gray-900 dark:text-gray-100">No se pudieron activar los avisos</p>
+            <p className="font-medium text-gray-900 dark:text-white">No se pudieron activar los avisos</p>
             <p className="text-sm text-gray-600 mt-1">
               Reintenta o comprueba la conexión. En <strong>iOS</strong> añade la app a la pantalla de inicio (PWA).
             </p>

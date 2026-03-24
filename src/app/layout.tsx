@@ -10,7 +10,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+    { media: "(prefers-color-scheme: dark)", color: "#0F1629" },
   ],
 };
 
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <body className={`${inter.className} bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100`}>
+      <body className={`${inter.className} bg-gray-50 text-gray-900 dark:bg-bia-navy-800 dark:text-white`}>
         <AuthProvider>
           <ThemeProvider>
             <ToastProvider>{children}</ToastProvider>

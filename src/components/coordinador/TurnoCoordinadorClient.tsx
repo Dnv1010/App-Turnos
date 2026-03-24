@@ -190,7 +190,7 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
   return (
     <div className="mx-auto max-w-6xl space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{titulo}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{titulo}</h1>
         <p className="mt-1 text-sm text-gray-600">
           Registra inicio y fin de jornada con el código u orden de trabajo asignado.
         </p>
@@ -242,7 +242,7 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
       <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-2 text-primary-700">
           <HiClock className="h-6 w-6" />
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Fichaje</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Fichaje</h2>
         </div>
 
         {!turnoAbierto ? (
@@ -268,7 +268,7 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
             <div className="grid gap-2 text-sm sm:grid-cols-2">
               <div>
                 <span className="font-medium text-gray-700">Código / orden:</span>{" "}
-                <span className="font-mono text-gray-900 dark:text-gray-100">{turnoAbierto.codigoOrden}</span>
+                <span className="font-mono text-gray-900 dark:text-white">{turnoAbierto.codigoOrden}</span>
               </div>
               <div>
                 <span className="font-medium text-gray-700">Inicio:</span>{" "}
@@ -293,7 +293,7 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
       </section>
 
       <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Historial</h2>
+        <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Historial</h2>
         <div className="mb-4 flex flex-wrap gap-4">
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-500">Desde</label>
@@ -387,7 +387,7 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
       {modalInicio && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Código u orden de trabajo</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Código u orden de trabajo</h3>
             <p className="mt-1 text-sm text-gray-600">Obligatorio para iniciar el turno.</p>
             <input
               className="input-field mt-4 w-full"

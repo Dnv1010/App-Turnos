@@ -10,28 +10,57 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2.5 px-5 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2.5 px-5 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed
+           dark:bg-bia-teal dark:hover:bg-bia-teal-light dark:text-bia-ink dark:focus:ring-bia-teal dark:focus:ring-offset-bia-navy-800;
   }
   .btn-secondary {
-    @apply bg-white hover:bg-gray-50 text-gray-700 font-medium py-2.5 px-5 rounded-lg border border-gray-300 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+    @apply bg-white hover:bg-gray-50 text-gray-700 font-medium py-2.5 px-5 rounded-lg border border-gray-300 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
+           dark:bg-bia-navy-600 dark:hover:bg-bia-navy-500 dark:text-white dark:border-bia-navy-400 dark:focus:ring-bia-teal dark:focus:ring-offset-bia-navy-800;
   }
   .btn-danger {
-    @apply bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 px-5 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2;
+    @apply bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 px-5 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2
+           dark:focus:ring-offset-bia-navy-800;
   }
   .card {
-    @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700 p-6;
+    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6
+           dark:bg-bia-navy-700 dark:border-bia-navy-400 dark:shadow-black/40;
   }
   .input-field {
-    @apply w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400;
+    @apply w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 bg-white
+           dark:bg-bia-navy-600 dark:border-bia-navy-400 dark:text-white dark:placeholder-bia-placeholder
+           dark:focus:ring-bia-teal/30 dark:focus:border-bia-teal dark:focus:ring-offset-0;
   }
   .badge {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
-  .badge-blue { @apply badge bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200; }
-  .badge-green { @apply badge bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200; }
-  .badge-yellow { @apply badge bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200; }
-  .badge-red { @apply badge bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200; }
-  .badge-purple { @apply badge bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200; }
+  .badge-blue {
+    @apply badge bg-blue-100 text-blue-800 dark:bg-[rgba(96,165,250,0.15)] dark:text-[#60A5FA];
+  }
+  .badge-green {
+    /* Zona COSTA (light verde histórico); en dark = ámbar marca */
+    @apply badge bg-green-100 text-green-800 dark:bg-[rgba(245,158,11,0.15)] dark:text-[#F59E0B];
+  }
+  .badge-yellow {
+    @apply badge bg-yellow-100 text-yellow-800 dark:bg-[rgba(251,191,36,0.15)] dark:text-[#FBBF24];
+  }
+  .badge-red {
+    @apply badge bg-red-100 text-red-800 dark:bg-[rgba(248,113,113,0.15)] dark:text-[#F87171];
+  }
+  .badge-purple {
+    @apply badge bg-purple-100 text-purple-800 dark:bg-[rgba(129,140,248,0.15)] dark:text-[#818CF8];
+  }
+  /* Roles en navbar — dark marca Bia */
+  .bia-badge-tecnico {
+    @apply badge bg-green-100 text-green-800 dark:bg-bia-teal/[0.2] dark:text-bia-teal;
+  }
+  .bia-badge-coordinador {
+    @apply badge bg-purple-100 text-purple-800 dark:bg-[rgba(129,140,248,0.15)] dark:text-[#818CF8];
+  }
+  .bia-badge-manager,
+  .bia-badge-admin,
+  .bia-badge-coord-interior {
+    @apply badge bg-indigo-100 text-indigo-800 dark:bg-[rgba(129,140,248,0.15)] dark:text-[#818CF8];
+  }
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -39,4 +68,95 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* ============ Modo oscuro — paleta marca Bia Energy ============ */
+html.dark body,
+html.dark .bg-gray-50 {
+  background-color: #0f1629 !important;
+  color: #ffffff;
+}
+
+html.dark table thead {
+  background-color: #162035 !important;
+}
+
+html.dark table thead th {
+  color: #a0aec0 !important;
+  border-color: #2a3555 !important;
+}
+
+html.dark table tbody tr {
+  border-color: #1e2a45 !important;
+}
+
+html.dark table tbody tr:hover {
+  background-color: #243052 !important;
+}
+
+html.dark table tbody td {
+  color: #ffffff !important;
+  border-color: #1e2a45 !important;
+}
+
+html.dark .text-gray-900,
+html.dark .text-gray-800 {
+  color: #ffffff !important;
+}
+
+html.dark .text-gray-700 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .text-gray-600,
+html.dark .text-gray-500 {
+  color: #a0aec0 !important;
+}
+
+html.dark .text-gray-400,
+html.dark .text-gray-300 {
+  color: #cbd5e1 !important;
+}
+
+html.dark a:not(.btn-primary):not(.btn-secondary):not([class*="text-red"]):not([class*="text-amber"]):not([class*="text-green"]):not([class*="text-orange"]) {
+  color: #00d4aa;
+}
+
+html.dark a:not(.btn-primary):not(.btn-secondary):hover {
+  color: #00f0c0;
+}
+
+html.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html.dark ::-webkit-scrollbar-track {
+  background: #0f1629;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #2a3555;
+  border-radius: 4px;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #3a4565;
+}
+
+html.dark .shadow,
+html.dark .shadow-sm,
+html.dark .shadow-md,
+html.dark .shadow-lg {
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.4),
+    0 2px 4px -1px rgba(0, 0, 0, 0.3) !important;
+}
+
+html.dark fieldset {
+  border-color: #2a3555 !important;
+}
+
+html.dark legend {
+  color: #ffffff !important;
 }

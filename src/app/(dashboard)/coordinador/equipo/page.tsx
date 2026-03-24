@@ -108,7 +108,7 @@ export default function CoordinadorEquipoPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mi Equipo</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Mi Equipo</h2>
         <p className="text-gray-500">Zona {session?.user?.zona}</p>
         <button onClick={openAdd} className="btn-primary flex items-center gap-2">
           <HiUserAdd className="h-5 w-5" />Agregar técnico
@@ -133,8 +133,8 @@ export default function CoordinadorEquipoPage() {
               <tbody>
                 {list.map((t) => (
                   <tr key={t.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 text-sm text-gray-900 dark:text-gray-100">{t.cedula}</td>
-                    <td className="py-3 px-4 text-sm text-gray-900 dark:text-gray-100">{t.nombre}</td>
+                    <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">{t.cedula}</td>
+                    <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">{t.nombre}</td>
                     <td className="py-3 px-4 text-sm text-gray-600">{t.email}</td>
                     <td className="py-3 px-4">
                       <span className={t.isActive ? "badge-green" : "badge-blue"}>{t.isActive ? "Activo" : "Inactivo"}</span>
@@ -158,7 +158,7 @@ export default function CoordinadorEquipoPage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{modal === "add" ? "Agregar técnico" : "Editar técnico"}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{modal === "add" ? "Agregar técnico" : "Editar técnico"}</h3>
               <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><HiX className="h-5 w-5" /></button>
             </div>
             {error && <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg">{error}</div>}

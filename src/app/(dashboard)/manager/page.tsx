@@ -97,12 +97,12 @@ export default function ManagerPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div><h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Dashboard Global</h2>
-          <p className="text-gray-500 dark:text-gray-400">{format(ahora, "MMMM yyyy", { locale: es })}</p></div>
+        <div><h2 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard Global</h2>
+          <p className="text-gray-500 dark:text-bia-muted">{format(ahora, "MMMM yyyy", { locale: es })}</p></div>
         <div className="flex gap-2">
           {["ALL", "BOGOTA", "COSTA"].map((z) => (
             <button key={z} onClick={() => { setZonaFilter(z); setLoading(true); }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${zonaFilter === z ? "bg-primary-600 text-white" : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"}`}>
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${zonaFilter === z ? "bg-primary-600 text-white" : "bg-white dark:bg-bia-navy-600 text-gray-600 dark:text-white border border-gray-300 dark:border-bia-navy-400 hover:bg-gray-50 dark:hover:bg-bia-navy-500"}`}>
               {z === "ALL" ? "Todas" : z}
             </button>
           ))}
@@ -124,7 +124,7 @@ export default function ManagerPage() {
         </div>
       )}
       <GraficoHoras datos={datosGrafico} titulo="Consolidado de Horas" />
-      <div><h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Detalle por Técnico</h3>
+      <div><h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Detalle por Técnico</h3>
         <DataTable columns={columns as never} data={data.detalle as never} searchable searchPlaceholder="Buscar técnico..." /></div>
     </div>
   );

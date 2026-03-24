@@ -278,8 +278,8 @@ export default function CoordinadorPage() {
     { key: "recNoctDominical", label: "Rec Dom/Fest Noc", render: (t: TurnoRow) => (t.recNoctDominical ?? 0) > 0 ? (t.recNoctDominical ?? 0) : "—" },
     { key: "latEntrada", label: "Ubicación inicio", render: (t: TurnoRow) => t.latEntrada != null && t.lngEntrada != null ? <a href={`https://www.google.com/maps?q=${t.latEntrada},${t.lngEntrada}`} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline flex items-center gap-1"><HiLocationMarker className="h-3.5 w-3.5" />Mapa</a> : "—" },
     { key: "latSalida", label: "Ubicación fin", render: (t: TurnoRow) => t.latSalida != null && t.lngSalida != null ? <a href={`https://www.google.com/maps?q=${t.latSalida},${t.lngSalida}`} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline flex items-center gap-1"><HiLocationMarker className="h-3.5 w-3.5" />Mapa</a> : "—" },
-    { key: "startPhotoUrl", label: "Foto inicio", render: (t: TurnoRow) => t.startPhotoUrl ? <a href={t.startPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline text-xs">Ver</a> : "—" },
-    { key: "endPhotoUrl", label: "Foto fin", render: (t: TurnoRow) => t.endPhotoUrl ? <a href={t.endPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline text-xs">Ver</a> : "—" },
+    { key: "startPhotoUrl", label: "Foto inicio", render: (t: TurnoRow) => t.startPhotoUrl ? <a href={t.startPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-bia-teal-light hover:underline text-xs">Ver</a> : "—" },
+    { key: "endPhotoUrl", label: "Foto fin", render: (t: TurnoRow) => t.endPhotoUrl ? <a href={t.endPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-bia-teal-light hover:underline text-xs">Ver</a> : "—" },
     { key: "estado", label: "Estado", render: (t: TurnoRow) => t.horaSalida ? <span className="badge-blue">FINALIZADO</span> : <span className="badge-green">ACTIVO</span> },
     { key: "acciones", label: "Acciones", render: (t: TurnoRow) => <button onClick={() => handleEliminarTurno(t.id)} className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs flex items-center gap-1"><HiTrash className="h-3 w-3" />Eliminar</button> },
   ];
@@ -296,8 +296,8 @@ export default function CoordinadorPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Dashboard Equipo</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Zona {session?.user?.zona} — {session?.user?.nombre}</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Dashboard Equipo</h2>
+          <p className="text-sm text-gray-500 dark:text-bia-muted">Zona {session?.user?.zona} — {session?.user?.nombre}</p>
         </div>
         {data && (
           <div className="flex flex-wrap gap-2">
@@ -311,22 +311,22 @@ export default function CoordinadorPage() {
       <div className="card p-4 sm:p-6">
         <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 sm:gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Desde</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Desde</label>
             <input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} className="input-field" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Hasta</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Hasta</label>
             <input type="date" value={fin} onChange={(e) => setFin(e.target.value)} className="input-field" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Técnico</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Técnico</label>
             <select value={tecnicoFilter} onChange={(e) => setTecnicoFilter(e.target.value)} className="input-field">
               <option value="ALL">Todos</option>
               {tecnicosList.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estado</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Estado</label>
             <select value={estadoFilter} onChange={(e) => setEstadoFilter(e.target.value as "ALL" | "ACTIVO" | "FINALIZADO")} className="input-field">
               <option value="ALL">Todos</option>
               <option value="ACTIVO">Activo</option>
@@ -341,23 +341,23 @@ export default function CoordinadorPage() {
         </div>
       </div>
 
-      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto pb-0 scrollbar-hide min-w-0">
-        <button onClick={() => setTabView("turnos")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${tabView === "turnos" ? "border-primary-600 text-primary-700 dark:text-primary-300" : "border-transparent text-gray-500 dark:text-gray-400"}`}>
+      <div className="flex gap-2 border-b border-gray-200 dark:border-bia-navy-400 overflow-x-auto pb-0 scrollbar-hide min-w-0">
+        <button onClick={() => setTabView("turnos")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${tabView === "turnos" ? "border-primary-600 text-primary-700 dark:text-bia-teal" : "border-transparent text-gray-500 dark:text-bia-muted"}`}>
           Turnos
         </button>
-        <button onClick={() => setTabView("equipo")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 flex items-center gap-1.5 whitespace-nowrap ${tabView === "equipo" ? "border-primary-600 text-primary-700 dark:text-primary-300" : "border-transparent text-gray-500 dark:text-gray-400"}`}>
+        <button onClick={() => setTabView("equipo")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 flex items-center gap-1.5 whitespace-nowrap ${tabView === "equipo" ? "border-primary-600 text-primary-700 dark:text-bia-teal" : "border-transparent text-gray-500 dark:text-bia-muted"}`}>
           <HiPhotograph className="h-3.5 w-3.5 sm:h-4 sm:w-4" />Reporte Equipo
         </button>
-        <button onClick={() => setTabView("disponibilidades")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${tabView === "disponibilidades" ? "border-primary-600 text-primary-700 dark:text-primary-300" : "border-transparent text-gray-500 dark:text-gray-400"}`}>
+        <button onClick={() => setTabView("disponibilidades")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${tabView === "disponibilidades" ? "border-primary-600 text-primary-700 dark:text-bia-teal" : "border-transparent text-gray-500 dark:text-bia-muted"}`}>
           Disponibilidades
         </button>
       </div>
 
       {tabView === "turnos" && (
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Turnos del equipo</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Turnos del equipo</h3>
           {turnos.length === 0 ? (
-            <div className="card text-center py-12 text-gray-500 dark:text-gray-400">No hay turnos en el período seleccionado</div>
+            <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay turnos en el período seleccionado</div>
           ) : (
             <DataTable columns={columnsTurnos as never} data={turnos as never} searchable searchPlaceholder="Buscar técnico..." />
           )}
@@ -371,7 +371,7 @@ export default function CoordinadorPage() {
           ) : reporteError && !data ? (
             <div className="card text-center py-12 text-amber-700 dark:text-amber-300">{reporteError}</div>
           ) : !data?.detalle?.length ? (
-            <div className="card text-center py-12 text-gray-500 dark:text-gray-400">No hay registros para este período</div>
+            <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay registros para este período</div>
           ) : data ? (
         <>
           {data.alertas?.length > 0 && (
@@ -409,7 +409,7 @@ export default function CoordinadorPage() {
           {loadingDisp ? (
             <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
           ) : disponibilidadesList.length === 0 ? (
-            <div className="card text-center py-12 text-gray-500 dark:text-gray-400">No hay disponibilidades en este período (días con tipo DISPONIBLE en la malla)</div>
+            <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay disponibilidades en este período (días con tipo DISPONIBLE en la malla)</div>
           ) : (
             <DataTable
               columns={[

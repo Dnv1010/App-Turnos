@@ -27,7 +27,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (status === "loading") {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-bia-navy-800">
         <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
       </div>
     );
@@ -41,7 +41,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const role = session.user.role;
   if (role === "COORDINADOR_INTERIOR" && !pathname.startsWith("/coordinador-interior")) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-bia-navy-800">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
       </div>
     );
@@ -49,14 +49,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (role !== "COORDINADOR_INTERIOR" && pathname.startsWith("/coordinador-interior")) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-bia-navy-800">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-screen bg-gray-50 dark:bg-bia-navy-800">
       <Sidebar role={session.user.role} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar nombre={session.user.nombre || session.user.email || ""} role={session.user.role} zona={session.user.zona}
