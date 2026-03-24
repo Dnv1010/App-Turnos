@@ -155,6 +155,11 @@ export default function JornadaAlertaFlow({ turnoActivo, operadorNombre = "" }: 
             className="btn-primary w-full"
             onClick={() => {
               sessionStorage.setItem(storageKeyHandled(turnoActivo.id), "1");
+              fetch("/api/turnos/alerta-handled", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ turnoId: turnoActivo.id }),
+              }).catch(() => {});
               setStep("closed");
             }}
           >
