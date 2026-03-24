@@ -9,8 +9,9 @@ import KPICards from "@/components/dashboard/KPICards";
 import GraficoHoras from "@/components/dashboard/GraficoHoras";
 import DataTable from "@/components/ui/DataTable";
 import StatCard from "@/components/ui/StatCard";
-import { HiUserGroup, HiOfficeBuilding, HiGlobeAlt } from "react-icons/hi";
+import { HiUserGroup, HiOfficeBuilding, HiGlobeAlt, HiKey } from "react-icons/hi";
 import { getZonaLabel } from "@/lib/roleLabels";
+import CambiarPinModal from "@/components/shared/CambiarPinModal";
 
 interface DetalleUsuario {
   userId: string; nombre: string; zona: string; role: string; totalTurnos: number;
@@ -30,6 +31,7 @@ export default function ManagerPage() {
   const [loading, setLoading] = useState(true);
   /** Invalida datos cuando SSE notifica cambios (antes se re-disparaba el effect vía `loading` en deps). */
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showCambiarPin, setShowCambiarPin] = useState(false);
 
   const ahora = new Date();
   const inicio = format(startOfMonth(ahora), "yyyy-MM-dd");
@@ -117,7 +119,15 @@ export default function ManagerPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div><h2 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard Global</h2>
           <p className="text-gray-500 dark:text-[#A0AEC0]">{format(ahora, "MMMM yyyy", { locale: es })}</p></div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap items-center">
+          <button
+            type="button"
+            onClick={() => setShowCambiarPin(true)}
+            className="btn-secondary flex items-center gap-2 py-2 px-3 text-sm"
+          >
+            <HiKey className="h-4 w-4" />
+            Cambiar PIN
+          </button>
           {(["ALL", "BOGOTA", "COSTA", "INTERIOR"] as const).map((z) => (
             <button key={z} onClick={() => { setZonaFilter(z); setLoading(true); }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm dark:shadow-black/30 ${zonaFilter === z ? "bg-primary-600 text-white" : "bg-white dark:bg-[#1A2340] text-gray-600 dark:text-[#A0AEC0] border border-gray-300 dark:border-[#3A4565] hover:bg-gray-50 dark:hover:bg-[#243052]"}`}>
@@ -126,6 +136,7 @@ export default function ManagerPage() {
           ))}
         </div>
       </div>
+      <CambiarPinModal open={showCambiarPin} onClose={() => setShowCambiarPin(false)} />
       {data.alertas.length > 0 && (
         <div className="bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
           <h4 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Alertas ({data.alertas.length})</h4>

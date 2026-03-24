@@ -2,14 +2,17 @@
 
 import { useState } from "react";
 import { HiKey } from "react-icons/hi";
-import TurnoCoordinadorClient from "@/components/coordinador/TurnoCoordinadorClient";
 import CambiarPinModal from "@/components/shared/CambiarPinModal";
 
-export default function CoordinadorInteriorPage() {
+export default function AdminPage() {
   const [showCambiarPin, setShowCambiarPin] = useState(false);
   return (
-    <>
-      <div className="mb-4 flex justify-end">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Administración</h2>
+          <p className="text-sm text-gray-500 dark:text-bia-muted">Usa el menú lateral para acceder a cada sección.</p>
+        </div>
         <button
           type="button"
           onClick={() => setShowCambiarPin(true)}
@@ -20,7 +23,6 @@ export default function CoordinadorInteriorPage() {
         </button>
       </div>
       <CambiarPinModal open={showCambiarPin} onClose={() => setShowCambiarPin(false)} />
-      <TurnoCoordinadorClient titulo="Mi turno" />
-    </>
+    </div>
   );
 }

@@ -13,6 +13,8 @@ import BotonFichaje from "@/components/fichaje/BotonFichaje";
 import MapaUbicacion from "@/components/fichaje/MapaUbicacion";
 import TecnicoPushSetup from "@/components/tecnico/TecnicoPushSetup";
 import JornadaAlertaFlow from "@/components/tecnico/JornadaAlertaFlow";
+import CambiarPinModal from "@/components/shared/CambiarPinModal";
+import { HiKey } from "react-icons/hi";
 import type { ForaneoRow } from "@/components/foraneos/CoordinadorForaneosPanel";
 
 interface TurnoRecord {
@@ -52,6 +54,7 @@ export default function TecnicoDashboard() {
   const [foraneosRows, setForaneosRows] = useState<ForaneoRow[]>([]);
   const [estadoFiltroForaneo, setEstadoFiltroForaneo] = useState<string>("TODOS");
   const [loadingForaneosLista, setLoadingForaneosLista] = useState(false);
+  const [showCambiarPin, setShowCambiarPin] = useState(false);
 
   useTurnosStream(
     (data) => {
@@ -214,7 +217,16 @@ export default function TecnicoDashboard() {
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Mi Dashboard</h2>
           <p className="text-sm text-gray-500 dark:text-[#A0AEC0]">Turnos y horas extras</p>
         </div>
+        <button
+          type="button"
+          onClick={() => setShowCambiarPin(true)}
+          className="btn-secondary flex items-center gap-2 py-2 px-3 text-sm"
+        >
+          <HiKey className="h-4 w-4" />
+          Cambiar PIN
+        </button>
       </div>
+      <CambiarPinModal open={showCambiarPin} onClose={() => setShowCambiarPin(false)} />
       <div className="card p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-4 gap-3 sm:gap-4 items-end">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">Desde</label>

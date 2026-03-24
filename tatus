@@ -1,3 +1,0 @@
-[33m1b80b71[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m fix: cron jornada-alerta cada minuto en lugar de una vez al dia
-[33m1a6276d[m feat: alerta in-app coordinador via BroadcastChannel + modal lider
-[33ma66486a[m fix: modal jornada simplificado, texto visible, fix mobile render

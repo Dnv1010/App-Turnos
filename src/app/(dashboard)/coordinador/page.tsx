@@ -9,10 +9,11 @@ import { useTurnosStream } from "@/hooks/useTurnosStream";
 import KPICards from "@/components/dashboard/KPICards";
 import GraficoHoras from "@/components/dashboard/GraficoHoras";
 import DataTable from "@/components/ui/DataTable";
-import { HiDownload, HiSearch, HiPhotograph, HiLocationMarker, HiRefresh, HiTrash } from "react-icons/hi";
+import { HiDownload, HiSearch, HiPhotograph, HiLocationMarker, HiRefresh, HiTrash, HiKey } from "react-icons/hi";
 import { getZonaLabel } from "@/lib/roleLabels";
 import CoordinadorPushSetup from "@/components/coordinador/CoordinadorPushSetup";
 import JornadaAlertaLider from "@/components/coordinador/JornadaAlertaLider";
+import CambiarPinModal from "@/components/shared/CambiarPinModal";
 
 interface TurnoRow {
   id: string;
@@ -107,6 +108,7 @@ export default function CoordinadorPage() {
   const [loadingDisp, setLoadingDisp] = useState(false);
   const [reporteError, setReporteError] = useState<string | null>(null);
   const [syncingSheets, setSyncingSheets] = useState(false);
+  const [showCambiarPin, setShowCambiarPin] = useState(false);
 
   useTurnosStream(
     (data) => {
@@ -298,6 +300,7 @@ export default function CoordinadorPage() {
   return (
     <>
       <CoordinadorPushSetup />
+      <CambiarPinModal open={showCambiarPin} onClose={() => setShowCambiarPin(false)} />
       <JornadaAlertaLider />
       <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
@@ -307,13 +310,23 @@ export default function CoordinadorPage() {
             Zona {session?.user?.zona ? getZonaLabel(session.user.zona) : ""} — {session?.user?.nombre}
           </p>
         </div>
-        {data && (
-          <div className="flex flex-wrap gap-2">
-            <button onClick={exportarCSV} className="btn-secondary flex items-center gap-2 py-2 px-3 sm:py-2.5 sm:px-5 text-sm"><HiDownload className="h-4 w-4 sm:h-5 sm:w-5" />Exportar CSV</button>
-            <button onClick={() => void exportarExcel()} className="btn-secondary flex items-center gap-2 py-2 px-3 sm:py-2.5 sm:px-5 text-sm"><HiDownload className="h-4 w-4 sm:h-5 sm:w-5" />Exportar Excel</button>
-            <button onClick={() => void sincronizarSheets()} disabled={syncingSheets} className="btn-secondary flex items-center gap-2 py-2 px-3 sm:py-2.5 sm:px-5 text-sm"><HiRefresh className="h-4 w-4 sm:h-5 sm:w-5" />{syncingSheets ? "Sincronizando…" : "Sincronizar Sheets"}</button>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setShowCambiarPin(true)}
+            className="btn-secondary flex items-center gap-2 py-2 px-3 text-sm"
+          >
+            <HiKey className="h-4 w-4" />
+            Cambiar PIN
+          </button>
+          {data && (
+            <>
+              <button onClick={exportarCSV} className="btn-secondary flex items-center gap-2 py-2 px-3 sm:py-2.5 sm:px-5 text-sm"><HiDownload className="h-4 w-4 sm:h-5 sm:w-5" />Exportar CSV</button>
+              <button onClick={() => void exportarExcel()} className="btn-secondary flex items-center gap-2 py-2 px-3 sm:py-2.5 sm:px-5 text-sm"><HiDownload className="h-4 w-4 sm:h-5 sm:w-5" />Exportar Excel</button>
+              <button onClick={() => void sincronizarSheets()} disabled={syncingSheets} className="btn-secondary flex items-center gap-2 py-2 px-3 sm:py-2.5 sm:px-5 text-sm"><HiRefresh className="h-4 w-4 sm:h-5 sm:w-5" />{syncingSheets ? "Sincronizando…" : "Sincronizar Sheets"}</button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="card p-4 sm:p-6">
