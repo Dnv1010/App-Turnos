@@ -90,6 +90,14 @@ export async function PATCH(
 
         const latFinal = body.latFinal;
         const lngFinal = body.lngFinal;
+        const latN = latFinal != null ? parseFloat(String(latFinal)) : NaN;
+        const lngN = lngFinal != null ? parseFloat(String(lngFinal)) : NaN;
+        if (Number.isNaN(latN) || Number.isNaN(lngN)) {
+          return NextResponse.json(
+            { error: "Ubicación GPS requerida para finalizar el foráneo (latitud y longitud válidas)." },
+            { status: 400 }
+          );
+        }
 
         let driveFileIdFinal: string | null = null;
         let driveUrlFinal: string | null = null;
@@ -110,8 +118,8 @@ export async function PATCH(
             kmFinal: kmFinalNum,
             driveFileIdFinal,
             driveUrlFinal,
-            latFinal: latFinal != null ? parseFloat(String(latFinal)) : null,
-            lngFinal: lngFinal != null ? parseFloat(String(lngFinal)) : null,
+            latFinal: latN,
+            lngFinal: lngN,
           },
         });
         return NextResponse.json({ ok: true, registro: actualizado });

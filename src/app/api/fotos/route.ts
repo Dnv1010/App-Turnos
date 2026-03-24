@@ -38,6 +38,14 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+      const latI = latInicial != null ? parseFloat(String(latInicial)) : NaN;
+      const lngI = lngInicial != null ? parseFloat(String(lngInicial)) : NaN;
+      if (Number.isNaN(latI) || Number.isNaN(lngI)) {
+        return NextResponse.json(
+          { error: "Ubicación GPS requerida para iniciar un foráneo (latitud y longitud válidas)." },
+          { status: 400 }
+        );
+      }
     }
 
     let driveFileId: string | null = null;

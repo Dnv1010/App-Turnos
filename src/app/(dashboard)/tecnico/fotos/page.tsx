@@ -22,23 +22,22 @@ type TipoFoto = "FORANEO" | "GENERAL" | "ENTRADA" | "SALIDA";
 type Tab = "registrar" | "historial";
 
 async function getLocationOptional(): Promise<{ lat: number; lng: number } | null> {
+  if (typeof navigator === "undefined" || !navigator.geolocation) {
+    console.warn("[GPS] Geolocation no disponible");
+    return null;
+  }
   try {
-    if (typeof navigator === "undefined" || !navigator.geolocation) return null;
-    return await new Promise((resolve) => {
-      const timeout = setTimeout(() => resolve(null), 5000);
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          clearTimeout(timeout);
-          resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        },
-        () => {
-          clearTimeout(timeout);
-          resolve(null);
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
-      );
+    const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 60000,
+      });
     });
-  } catch {
+    console.log("[GPS] Ubicación obtenida:", pos.coords.latitude, pos.coords.longitude);
+    return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  } catch (err) {
+    console.warn("[GPS] Error obteniendo ubicación:", err);
     return null;
   }
 }
@@ -52,6 +51,10 @@ interface FotoRecord {
   kmFinal: number | null;
   observaciones: string | null;
   createdAt: string;
+  latInicial?: number | null;
+  lngInicial?: number | null;
+  latFinal?: number | null;
+  lngFinal?: number | null;
 }
 
 export default function FotosPage() {
@@ -138,6 +141,12 @@ export default function FotosPage() {
     setLoading(true);
     try {
       const location = await getLocationOptional();
+      if (!location) {
+        alert(
+          "No se pudo obtener la ubicación GPS. Activa el GPS y los permisos de ubicación en tu navegador, luego intenta de nuevo."
+        );
+        return;
+      }
       const res = await fetch("/api/fotos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -147,8 +156,8 @@ export default function FotosPage() {
           tipo: "FORANEO",
           kmInicial: parseFloat(kmInicial),
           observaciones: observaciones || undefined,
-          latInicial: location?.lat,
-          lngInicial: location?.lng,
+          latInicial: location.lat,
+          lngInicial: location.lng,
         }),
       });
       if (res.ok) {
@@ -184,14 +193,18 @@ export default function FotosPage() {
     setLoadingFinalizar(true);
     try {
       const location = await getLocationOptional();
+      if (!location) {
+        alert("No se pudo obtener la ubicación GPS para finalizar. Activa el GPS e intenta de nuevo.");
+        return;
+      }
       const res = await fetch(`/api/fotos/${foraneoActivo.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           kmFinal: kmF,
           base64Data: pasoFinalFotoBase64,
-          latFinal: location?.lat,
-          lngFinal: location?.lng,
+          latFinal: location.lat,
+          lngFinal: location.lng,
         }),
       });
       if (res.ok) {
@@ -548,7 +561,7 @@ export default function FotosPage() {
                   ) : (
                     <>
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                             foto.tipo === "FORANEO" ? "bg-orange-100 text-orange-700" :
                             foto.tipo === "ENTRADA" ? "bg-green-100 text-green-700" :
@@ -557,6 +570,22 @@ export default function FotosPage() {
                           }`}>
                             {foto.tipo === "FORANEO" ? "Foráneo" : foto.tipo === "ENTRADA" ? "Entrada" : foto.tipo === "SALIDA" ? "Salida" : "General"}
                           </span>
+                          {foto.tipo === "FORANEO" && (
+                            <span
+                              className="text-xs"
+                              title={
+                                (foto.latInicial != null && foto.lngInicial != null) || (foto.latFinal != null && foto.lngFinal != null)
+                                  ? "Registro con coordenadas GPS"
+                                  : "Sin coordenadas GPS guardadas"
+                              }
+                            >
+                              {(foto.latInicial != null && foto.lngInicial != null) || (foto.latFinal != null && foto.lngFinal != null) ? (
+                                <span className="text-green-700 dark:text-green-400">📍</span>
+                              ) : (
+                                <span className="text-amber-700 dark:text-amber-400">⚠️ Sin GPS</span>
+                              )}
+                            </span>
+                          )}
                           <span className="text-xs text-gray-400">
                             {new Date(foto.createdAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                           </span>

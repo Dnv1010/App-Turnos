@@ -9,7 +9,6 @@ import {
   HiSearch,
   HiPencil,
   HiTrash,
-  HiLocationMarker,
   HiX,
   HiSave,
   HiCheck,
@@ -310,10 +309,9 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
         href={`https://www.google.com/maps?q=${lat},${lng}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-primary-600 dark:text-primary-400 hover:underline text-xs flex items-center gap-1"
+        className="text-blue-600 dark:text-blue-400 underline text-xs"
       >
-        <HiLocationMarker className="h-3.5 w-3.5" />
-        Mapa
+        📍 Mapa
       </a>
     ) : (
       "—"
