@@ -33,6 +33,17 @@ self.addEventListener("push", (event) => {
         requireInteraction: false,
       };
       await self.registration.showNotification(title, options);
+
+      // Notifica a la app abierta si el push es para el líder
+      if (data.tag === "jornada-alerta-lider") {
+        const channel = new BroadcastChannel("jornada-lider-alert");
+        channel.postMessage({
+          title: data.title,
+          body: data.body,
+          url: data.url,
+        });
+        channel.close();
+      }
     })()
   );
 });

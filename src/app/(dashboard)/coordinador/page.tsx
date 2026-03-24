@@ -12,6 +12,7 @@ import DataTable from "@/components/ui/DataTable";
 import { HiDownload, HiSearch, HiPhotograph, HiLocationMarker, HiRefresh, HiTrash } from "react-icons/hi";
 import { getZonaLabel } from "@/lib/roleLabels";
 import CoordinadorPushSetup from "@/components/coordinador/CoordinadorPushSetup";
+import JornadaAlertaLider from "@/components/coordinador/JornadaAlertaLider";
 
 interface TurnoRow {
   id: string;
@@ -297,6 +298,7 @@ export default function CoordinadorPage() {
   return (
     <>
       <CoordinadorPushSetup />
+      <JornadaAlertaLider />
       <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
