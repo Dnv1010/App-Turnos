@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { parseResponseJson } from "@/lib/parseFetchJson";
 import { useState, useEffect, useCallback } from "react";
-import { HiUserAdd, HiPencil, HiTrash, HiX } from "react-icons/hi";
+import { HiUserAdd, HiPencil, HiTrash, HiX, HiEye, HiEyeOff } from "react-icons/hi";
 import { getZonaLabel } from "@/lib/roleLabels";
 
 interface Tecnico {
@@ -26,6 +26,7 @@ export default function CoordinadorEquipoPage() {
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [pin, setPin] = useState("1234");
+  const [showPin, setShowPin] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,11 +45,13 @@ export default function CoordinadorEquipoPage() {
 
   const openAdd = () => {
     setCedula(""); setNombre(""); setEmail(""); setPin("1234");
+    setShowPin(false);
     setEditingId(null); setError(null); setModal("add");
   };
 
   const openEdit = (t: Tecnico) => {
     setEditingId(t.id); setCedula(t.cedula); setNombre(t.nombre); setEmail(t.email); setPin("");
+    setShowPin(false);
     setError(null); setModal("edit");
   };
 
@@ -180,7 +183,23 @@ export default function CoordinadorEquipoPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">PIN {modal === "edit" && "(dejar vacío para no cambiar)"}</label>
-                <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} className="input-field" placeholder="1234" maxLength={6} />
+                <div className="relative">
+                  <input
+                    type={showPin ? "text" : "password"}
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    className="input-field w-full pr-10"
+                    placeholder="1234"
+                    maxLength={6}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPin((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPin ? <HiEyeOff className="h-4 w-4" /> : <HiEye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
             </div>
             <div className="flex gap-3 mt-6">

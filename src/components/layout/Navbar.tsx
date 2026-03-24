@@ -1,6 +1,8 @@
 "use client";
+import { useState } from "react";
 import { signOut } from "next-auth/react";
-import { HiMenu, HiLogout, HiUser, HiSun, HiMoon } from "react-icons/hi";
+import { HiMenu, HiLogout, HiUser, HiSun, HiMoon, HiKey } from "react-icons/hi";
+import CambiarPinModal from "@/components/shared/CambiarPinModal";
 import { useTheme } from "@/hooks/useTheme";
 import { getRoleLabel, getZonaLabel } from "@/lib/roleLabels";
 
@@ -50,6 +52,7 @@ const rolBadgeClasses: Record<string, string> = {
 
 export default function Navbar({ nombre, role, zona, onMenuClick }: NavbarProps) {
   const { theme, toggleTheme } = useTheme();
+  const [showCambiarPin, setShowCambiarPin] = useState(false);
 
   return (
     <header className="sticky top-0 z-30 bg-white dark:bg-[#1A2340] border-b border-gray-200 dark:border-[#3A4565] dark:shadow-black/40 shadow-sm">
@@ -70,6 +73,15 @@ export default function Navbar({ nombre, role, zona, onMenuClick }: NavbarProps)
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
+          <button
+            type="button"
+            onClick={() => setShowCambiarPin(true)}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#243052] transition-colors"
+            title="Cambiar PIN"
+            aria-label="Cambiar PIN"
+          >
+            <HiKey className="h-5 w-5 text-gray-500 dark:text-[#A0AEC0]" />
+          </button>
           <button
             type="button"
             onClick={toggleTheme}
@@ -101,6 +113,7 @@ export default function Navbar({ nombre, role, zona, onMenuClick }: NavbarProps)
           </button>
         </div>
       </div>
+      <CambiarPinModal open={showCambiarPin} onClose={() => setShowCambiarPin(false)} />
     </header>
   );
 }
