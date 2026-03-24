@@ -122,7 +122,7 @@ export default function DisponibilidadCoordinadoresClient() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Disponibilidad coordinadores</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Disponibilidad coordinadores</h1>
         <p className="mt-1 text-sm text-gray-600">
           Marca días disponibles por coordinador. Valor diario ${VALOR_DISPONIBILIDAD_COORDINADOR.toLocaleString("es-CO")} COP.
         </p>
@@ -244,7 +244,7 @@ export default function DisponibilidadCoordinadoresClient() {
 
       {userId && disponibilidades.filter((d) => d.userId === userId).length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">Registro del mes</h3>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Registro del mes</h3>
           <ul className="text-sm text-gray-600 space-y-1">
             {disponibilidades
               .filter((d) => d.userId === userId)

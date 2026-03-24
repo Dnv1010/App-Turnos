@@ -73,10 +73,10 @@ export default function LoginPage() {
         </div>
 
         {/* Formulario */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl dark:shadow-gray-900/50 p-8 border border-transparent dark:border-gray-700">
           <form onSubmit={handleCredentials} className="space-y-5">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 Correo electrónico
               </label>
               <div className="relative">
@@ -93,7 +93,7 @@ export default function LoginPage() {
               </div>
             </div>
             <div>
-              <label htmlFor="pin" className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label htmlFor="pin" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 PIN de acceso
               </label>
               <div className="relative">
@@ -134,10 +134,10 @@ export default function LoginPage() {
           {/* Separador */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200" />
+              <div className="w-full border-t border-gray-200 dark:border-gray-600" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-3 bg-white text-gray-500">o continúa con</span>
+              <span className="px-3 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">o continúa con</span>
             </div>
           </div>
 

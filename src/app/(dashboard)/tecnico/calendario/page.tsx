@@ -85,12 +85,12 @@ export default function CalendarioPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">Calendario</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Calendario</h2>
         <div className="flex items-center gap-2">
           <button onClick={() => setMesActual(subMonths(mesActual, 1))} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600">
             <HiChevronLeft className="h-5 w-5" />
           </button>
-          <span className="text-lg font-semibold text-gray-900 min-w-[180px] text-center capitalize">
+          <span className="text-lg font-semibold text-gray-900 dark:text-gray-100 min-w-[180px] text-center capitalize">
             {format(mesActual, "MMMM yyyy", { locale: es })}
           </span>
           <button onClick={() => setMesActual(addMonths(mesActual, 1))} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600">

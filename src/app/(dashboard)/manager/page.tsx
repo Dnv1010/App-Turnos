@@ -97,21 +97,21 @@ export default function ManagerPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div><h2 className="text-2xl font-bold text-gray-900">Dashboard Global</h2>
-          <p className="text-gray-500">{format(ahora, "MMMM yyyy", { locale: es })}</p></div>
+        <div><h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Dashboard Global</h2>
+          <p className="text-gray-500 dark:text-gray-400">{format(ahora, "MMMM yyyy", { locale: es })}</p></div>
         <div className="flex gap-2">
           {["ALL", "BOGOTA", "COSTA"].map((z) => (
             <button key={z} onClick={() => { setZonaFilter(z); setLoading(true); }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${zonaFilter === z ? "bg-primary-600 text-white" : "bg-white text-gray-600 border border-gray-300 hover:bg-gray-50"}`}>
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${zonaFilter === z ? "bg-primary-600 text-white" : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"}`}>
               {z === "ALL" ? "Todas" : z}
             </button>
           ))}
         </div>
       </div>
       {data.alertas.length > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h4 className="text-sm font-semibold text-yellow-800 mb-2">Alertas ({data.alertas.length})</h4>
-          <ul className="space-y-1">{data.alertas.map((a, i) => <li key={i} className="text-sm text-yellow-700">⚠ {a.mensaje}</li>)}</ul>
+        <div className="bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+          <h4 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Alertas ({data.alertas.length})</h4>
+          <ul className="space-y-1">{data.alertas.map((a, i) => <li key={i} className="text-sm text-yellow-700 dark:text-yellow-300">⚠ {a.mensaje}</li>)}</ul>
         </div>
       )}
       <KPICards data={{ totalTecnicos: data.resumen.totalTecnicos, horasOrdinarias: data.resumen.totalHorasOrdinarias, totalHorasExtra: data.resumen.totalHorasExtra, totalRecargos: data.resumen.totalRecargos, totalDisponibilidades: data.resumen.totalDisponibilidades }} showTeamMetrics />
@@ -124,7 +124,7 @@ export default function ManagerPage() {
         </div>
       )}
       <GraficoHoras datos={datosGrafico} titulo="Consolidado de Horas" />
-      <div><h3 className="text-lg font-semibold text-gray-900 mb-4">Detalle por Técnico</h3>
+      <div><h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Detalle por Técnico</h3>
         <DataTable columns={columns as never} data={data.detalle as never} searchable searchPlaceholder="Buscar técnico..." /></div>
     </div>
   );

@@ -56,7 +56,7 @@ export default function DataTable<T extends Record<string, unknown>>({
   return (
     <div className="card p-0 overflow-hidden">
       {searchable && (
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="relative">
             <HiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
@@ -80,15 +80,15 @@ export default function DataTable<T extends Record<string, unknown>>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
             {filteredData.length === 0 ? (
-              <tr><td colSpan={columns.length} className="px-6 py-12 text-center text-gray-500">{emptyMessage}</td></tr>
+              <tr><td colSpan={columns.length} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">{emptyMessage}</td></tr>
             ) : (
               filteredData.map((item, idx) => (
-                <tr key={idx} className={`hover:bg-gray-50 transition-colors ${onRowClick ? "cursor-pointer" : ""}`}
+                <tr key={idx} className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${onRowClick ? "cursor-pointer" : ""}`}
                   onClick={() => onRowClick?.(item)}>
                   {columns.map((col) => (
-                    <td key={col.key} className={`px-6 py-4 text-sm text-gray-700 whitespace-nowrap ${col.className || ""}`}>
+                    <td key={col.key} className={`px-6 py-4 text-sm text-gray-700 dark:text-gray-200 whitespace-nowrap ${col.className || ""}`}>
                       {col.render ? col.render(item) : String(item[col.key] ?? "")}
                     </td>
                   ))}

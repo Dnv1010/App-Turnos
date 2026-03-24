@@ -1,6 +1,7 @@
 "use client";
 import { signOut } from "next-auth/react";
-import { HiMenu, HiLogout, HiUser } from "react-icons/hi";
+import { HiMenu, HiLogout, HiUser, HiSun, HiMoon } from "react-icons/hi";
+import { useTheme } from "@/hooks/useTheme";
 
 // Componente del logo Bia con rayo
 function BiaLogo({ size = "sm" }: { size?: "sm" | "md" }) {
@@ -18,7 +19,7 @@ function BiaLogo({ size = "sm" }: { size?: "sm" | "md" }) {
       >
         <path d="M24 0L0 28H16L12 48L40 18H22L24 0Z" fill="#00D4AA"/>
       </svg>
-      <span className={`font-black ${textSize} text-gray-900`} style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      <span className={`font-black ${textSize} text-gray-900 dark:text-gray-100`} style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
         Bia
       </span>
     </div>
@@ -45,39 +46,54 @@ const zonaBadgeClasses: Record<string, string> = {
 };
 
 export default function Navbar({ nombre, role, zona, onMenuClick }: NavbarProps) {
+  const { theme, toggleTheme } = useTheme();
+
   return (
-    <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
+    <header className="sticky top-0 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 dark:shadow-gray-900/50 shadow-sm">
       <div className="flex items-center justify-between h-14 sm:h-16 px-2 sm:px-6">
         <div className="flex items-center gap-2 sm:gap-3">
-          <button onClick={onMenuClick} className="lg:hidden p-3 sm:p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 touch-manipulation" aria-label="Abrir menú">
+          <button onClick={onMenuClick} className="lg:hidden p-3 sm:p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 touch-manipulation" aria-label="Abrir menú">
             <HiMenu className="h-6 w-6 sm:h-5 sm:w-5" />
           </button>
           {/* Logo + App Turnos en desktop */}
           <div className="hidden sm:flex items-center gap-2">
             <BiaLogo size="sm" />
-            <span className="text-gray-400 font-light">|</span>
-            <span className="text-sm font-medium text-gray-600">App Turnos</span>
+            <span className="text-gray-400 dark:text-gray-500 font-light">|</span>
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">App Turnos</span>
           </div>
           {/* Logo compacto en mobile */}
           <div className="sm:hidden">
             <BiaLogo size="sm" />
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            title={theme === "dark" ? "Modo claro" : "Modo oscuro"}
+            aria-label={theme === "dark" ? "Activar modo claro" : "Activar modo oscuro"}
+          >
+            {theme === "dark" ? (
+              <HiSun className="h-5 w-5 text-yellow-400" />
+            ) : (
+              <HiMoon className="h-5 w-5 text-gray-500" />
+            )}
+          </button>
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium text-gray-900">{nombre}</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{nombre}</p>
               <div className="flex items-center gap-2 justify-end">
                 <span className="badge-purple">{rolLabels[role] || role}</span>
                 <span className={zonaBadgeClasses[zona] || "badge-blue"}>{zona}</span>
               </div>
             </div>
-            <div className="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center">
-              <HiUser className="h-5 w-5 text-primary-600" />
+            <div className="w-9 h-9 bg-primary-100 dark:bg-primary-900/40 rounded-full flex items-center justify-center">
+              <HiUser className="h-5 w-5 text-primary-600 dark:text-primary-400" />
             </div>
           </div>
           <button onClick={() => signOut({ callbackUrl: "/login" })}
-            className="p-2 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors" title="Cerrar sesión">
+            className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:hover:text-red-400 transition-colors" title="Cerrar sesión">
             <HiLogout className="h-5 w-5" />
           </button>
         </div>

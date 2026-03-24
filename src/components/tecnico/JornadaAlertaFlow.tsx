@@ -141,14 +141,14 @@ export default function JornadaAlertaFlow({ turnoActivo, onAfterReport }: Props)
               </strong>{" "}
               (Colombia).
             </p>
-            <p className="text-sm font-medium text-gray-900">¿Sigues laborando?</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">¿Sigues laborando?</p>
             <div className="flex flex-col gap-2">
               <button type="button" className="btn-primary w-full" onClick={() => setStep("orden")}>
                 Sí, sigo laborando
               </button>
               <button
                 type="button"
-                className="w-full py-2.5 px-4 rounded-lg border border-gray-300 text-gray-800 font-medium hover:bg-gray-50"
+                className="w-full py-2.5 px-4 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
                 onClick={irCerrarTurno}
               >
                 No, ya terminé
@@ -159,7 +159,7 @@ export default function JornadaAlertaFlow({ turnoActivo, onAfterReport }: Props)
 
         {step === "orden" && (
           <div className="p-5 space-y-4">
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-gray-700 dark:text-gray-300">
               Indica en qué <strong>orden de trabajo</strong> sigues laborando. Tu coordinador verá esta información en las
               observaciones del turno.
             </p>
@@ -169,7 +169,7 @@ export default function JornadaAlertaFlow({ turnoActivo, onAfterReport }: Props)
               value={orden}
               onChange={(e) => setOrden(e.target.value)}
             />
-            {err && <p className="text-sm text-red-600">{err}</p>}
+            {err && <p className="text-sm text-red-600 dark:text-red-400">{err}</p>}
             <div className="flex gap-2">
               <button
                 type="button"
@@ -187,7 +187,7 @@ export default function JornadaAlertaFlow({ turnoActivo, onAfterReport }: Props)
 
         {step === "cerrar" && (
           <div className="p-5 space-y-4">
-            <p className="text-sm text-gray-800">
+            <p className="text-sm text-gray-800 dark:text-gray-200">
               Por favor <strong>cierra tu turno</strong> con el botón rojo <strong>Cerrar turno</strong> (foto de salida +
               ubicación). Así queda registrada tu salida para el coordinador.
             </p>

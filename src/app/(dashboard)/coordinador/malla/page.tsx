@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef, type CSSProperties } from "re
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay } from "date-fns";
 import { HiChevronDown } from "react-icons/hi";
 import { parseResponseJson } from "@/lib/parseFetchJson";
+import { useTheme } from "@/hooks/useTheme";
 
 const OPCIONES_TURNO = ["8-17", "6-14", "14-22", "22-6", "8-14"];
 const OPCIONES_NOVEDAD = ["Disponible", "Descanso", "Vacaciones", "Día de la familia", "Semana Santa", "Medio día cumpleaños", "Keynote"];
@@ -28,6 +29,8 @@ interface Tecnico {
 
 export default function CoordinadorMallaPage() {
   const { data: session } = useSession();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   const [mes, setMes] = useState(format(new Date(), "yyyy-MM"));
   const [malla, setMalla] = useState<MallaItem[]>([]);
@@ -133,16 +136,17 @@ export default function CoordinadorMallaPage() {
   const getMallaStyle = (valor: string, item?: MallaItem | null): CSSProperties => {
     const tipo = item?.tipo;
     const v = (valor || "").toLowerCase();
-    if (!valor) return { backgroundColor: "#f9fafb", color: "#6b7280" };
-    if (tipo === "DESCANSO" || v.includes("descanso")) return { backgroundColor: "#f3f4f6", color: "#6b7280" };
-    if (tipo === "DISPONIBLE" || v === "disponible") return { backgroundColor: "#dcfce7", color: "#15803d" };
-    if (tipo === "DIA_FAMILIA" || v.includes("familia") || v.includes("día de la familia")) return { backgroundColor: "#f3e8ff", color: "#7e22ce" };
-    if (tipo === "INCAPACITADO" || v.includes("incapacitado")) return { backgroundColor: "#ffedd5", color: "#c2410c" };
-    if (tipo === "VACACIONES" || v.includes("vacacion")) return { backgroundColor: "#e0f2fe", color: "#0369a1" };
-    if (tipo === "MEDIO_CUMPLE" || (v.includes("medio") && v.includes("cumple"))) return { backgroundColor: "#fce7f3", color: "#be185d" };
-    if (v.includes("festivo") || v.includes("semana santa")) return { backgroundColor: "#fef9c3", color: "#854d0e" };
-    if (tipo === "TRABAJO" || OPCIONES_TURNO.some((o) => valor.includes(o) || /^\d+-\d+$/.test(valor))) return { backgroundColor: "#dbeafe", color: "#1d4ed8" };
-    return { backgroundColor: "#f3f4f6", color: "#6b7280" };
+    const d = isDark;
+    if (!valor) return d ? { backgroundColor: "#374151", color: "#9ca3af" } : { backgroundColor: "#f9fafb", color: "#6b7280" };
+    if (tipo === "DESCANSO" || v.includes("descanso")) return d ? { backgroundColor: "#4b5563", color: "#d1d5db" } : { backgroundColor: "#f3f4f6", color: "#6b7280" };
+    if (tipo === "DISPONIBLE" || v === "disponible") return d ? { backgroundColor: "#14532d", color: "#86efac" } : { backgroundColor: "#dcfce7", color: "#15803d" };
+    if (tipo === "DIA_FAMILIA" || v.includes("familia") || v.includes("día de la familia")) return d ? { backgroundColor: "#581c87", color: "#e9d5ff" } : { backgroundColor: "#f3e8ff", color: "#7e22ce" };
+    if (tipo === "INCAPACITADO" || v.includes("incapacitado")) return d ? { backgroundColor: "#7c2d12", color: "#fdba74" } : { backgroundColor: "#ffedd5", color: "#c2410c" };
+    if (tipo === "VACACIONES" || v.includes("vacacion")) return d ? { backgroundColor: "#0c4a6e", color: "#7dd3fc" } : { backgroundColor: "#e0f2fe", color: "#0369a1" };
+    if (tipo === "MEDIO_CUMPLE" || (v.includes("medio") && v.includes("cumple"))) return d ? { backgroundColor: "#831843", color: "#fbcfe8" } : { backgroundColor: "#fce7f3", color: "#be185d" };
+    if (v.includes("festivo") || v.includes("semana santa")) return d ? { backgroundColor: "#713f12", color: "#fde047" } : { backgroundColor: "#fef9c3", color: "#854d0e" };
+    if (tipo === "TRABAJO" || OPCIONES_TURNO.some((o) => valor.includes(o) || /^\d+-\d+$/.test(valor))) return d ? { backgroundColor: "#1e3a8a", color: "#93c5fd" } : { backgroundColor: "#dbeafe", color: "#1d4ed8" };
+    return d ? { backgroundColor: "#4b5563", color: "#d1d5db" } : { backgroundColor: "#f3f4f6", color: "#6b7280" };
   };
 
   const fechaStrFromDay = (d: Date) => dateKey(d);
@@ -275,16 +279,16 @@ export default function CoordinadorMallaPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Malla de Turnos</h2>
-      <p className="text-gray-500">Zona {session?.user?.zona}</p>
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Malla de Turnos</h2>
+      <p className="text-gray-500 dark:text-gray-400">Zona {session?.user?.zona}</p>
 
       <div className="card flex flex-wrap gap-4 items-end">
         <div className="relative min-w-[220px]" ref={dropdownRef}>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Técnicos</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Técnicos</label>
           <button
             type="button"
             onClick={() => setShowTecnicoDropdown(!showTecnicoDropdown)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-left bg-white hover:border-gray-400 flex items-center justify-between"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-left bg-white dark:bg-gray-700 dark:text-gray-100 hover:border-gray-400 dark:hover:border-gray-500 flex items-center justify-between"
           >
             <span>
               {selectedTecnicos.size === 0
@@ -297,18 +301,18 @@ export default function CoordinadorMallaPage() {
             <HiChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0 ml-2" />
           </button>
           {showTecnicoDropdown && (
-            <div className="absolute z-20 mt-1 w-full max-w-sm bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-              <div className="sticky top-0 bg-gray-50 px-3 py-2 border-b border-gray-200 flex gap-2">
-                <button type="button" onClick={selectAllTecnicos} className="text-xs text-blue-600 font-medium hover:underline">Seleccionar todos</button>
-                <span className="text-gray-300">|</span>
-                <button type="button" onClick={deselectAllTecnicos} className="text-xs text-gray-500 font-medium hover:underline">Ninguno</button>
+            <div className="absolute z-20 mt-1 w-full max-w-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg dark:shadow-gray-900/50 max-h-64 overflow-y-auto">
+              <div className="sticky top-0 bg-gray-50 dark:bg-gray-800 px-3 py-2 border-b border-gray-200 dark:border-gray-600 flex gap-2">
+                <button type="button" onClick={selectAllTecnicos} className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline">Seleccionar todos</button>
+                <span className="text-gray-300 dark:text-gray-600">|</span>
+                <button type="button" onClick={deselectAllTecnicos} className="text-xs text-gray-500 dark:text-gray-400 font-medium hover:underline">Ninguno</button>
               </div>
               {tecnicos.map((t) => (
-                <label key={t.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                  <input type="checkbox" checked={selectedTecnicos.has(t.id)} onChange={() => toggleTecnico(t.id)} className="w-4 h-4 text-blue-600 rounded border-gray-300" />
+                <label key={t.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer">
+                  <input type="checkbox" checked={selectedTecnicos.has(t.id)} onChange={() => toggleTecnico(t.id)} className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-500 dark:bg-gray-700" />
                   <div className="min-w-0">
-                    <span className="text-sm font-medium text-gray-900">{t.nombre}</span>
-                    {t.email && <span className="text-xs text-gray-400 ml-2">{t.email}</span>}
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{t.nombre}</span>
+                    {t.email && <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">{t.email}</span>}
                   </div>
                 </label>
               ))}
@@ -317,16 +321,16 @@ export default function CoordinadorMallaPage() {
           {selectedTecnicos.size > 0 && selectedTecnicos.size <= 5 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {tecnicos.filter((t) => selectedTecnicos.has(t.id)).map((t) => (
-                <span key={t.id} className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                <span key={t.id} className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 px-2 py-1 rounded-full">
                   {t.nombre}
-                  <button type="button" onClick={() => toggleTecnico(t.id)} className="hover:text-blue-900">×</button>
+                  <button type="button" onClick={() => toggleTecnico(t.id)} className="hover:text-blue-900 dark:hover:text-blue-100">×</button>
                 </span>
               ))}
             </div>
           )}
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Mes</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mes</label>
           <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="input-field" />
         </div>
         {primaryTecnico && (
@@ -348,14 +352,14 @@ export default function CoordinadorMallaPage() {
       </div>
 
       {selectedTecnicos.size === 0 ? (
-        <div className="card text-center py-12 text-gray-500">Selecciona uno o más técnicos para ver o asignar la malla</div>
+        <div className="card text-center py-12 text-gray-500 dark:text-gray-400">Selecciona uno o más técnicos para ver o asignar la malla</div>
       ) : loading ? (
         <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
       ) : (
         <div className="card overflow-x-auto">
           <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
             {weekDays.map((d) => (
-              <div key={d} className="text-center text-xs font-semibold text-gray-600 py-2">{d}</div>
+              <div key={d} className="text-center text-xs font-semibold text-gray-600 dark:text-gray-300 py-2">{d}</div>
             ))}
             {Array.from({ length: firstWeekday }, (_, i) => <div key={`empty-${i}`} />)}
             {days.map((day) => {
@@ -367,9 +371,9 @@ export default function CoordinadorMallaPage() {
               const esFestivo = festivosSet.has(keyStr);
               const esRojo = esDomingo || esFestivo;
               return (
-                <div key={day.toISOString()} className="min-h-[80px] border border-gray-200 rounded-lg p-2 relative">
+                <div key={day.toISOString()} className="min-h-[80px] border border-gray-200 dark:border-gray-600 rounded-lg p-2 relative bg-white dark:bg-gray-800">
                   <div className="text-xs mb-1">
-                    <span style={{ color: esRojo ? "#ef4444" : "inherit", fontWeight: esRojo ? "bold" : "normal" }}>
+                    <span className={esRojo ? "text-red-500 font-bold" : "text-gray-900 dark:text-gray-100"}>
                       {format(day, "d")}
                     </span>
                   </div>
@@ -395,14 +399,14 @@ export default function CoordinadorMallaPage() {
                         setEditHoraFin(item?.horaFin || "17:00");
                       }
                     }}
-                    className={`w-full text-left text-xs rounded px-2 py-1 break-words border-2 transition-colors ${isSelected ? "border-blue-600 ring-2 ring-blue-400" : "border-transparent"}`}
+                    className={`w-full text-left text-xs rounded px-2 py-1 break-words border-2 transition-colors ${isSelected ? "border-blue-600 dark:border-blue-400 ring-2 ring-blue-400 dark:ring-blue-500" : "border-transparent"}`}
                     style={getMallaStyle(valor, getItem(day))}
                   >
                     {valor || "—"}
                   </button>
                   {isEdit && (
-                    <div className="absolute top-full left-0 mt-1 z-10 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-72">
-                      <p className="text-xs font-medium text-gray-700 mb-2">Tipo:</p>
+                    <div className="absolute top-full left-0 mt-1 z-10 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg dark:shadow-gray-900/50 p-3 w-72">
+                      <p className="text-xs font-medium text-gray-700 dark:text-gray-200 mb-2">Tipo:</p>
                       <select value={editTipo} onChange={(e) => setEditTipo(e.target.value as TipoDia)} className="input-field w-full text-xs py-1.5 mb-2">
                         <option value="TRABAJO">Trabajo</option>
                         <option value="DESCANSO">Descanso</option>
@@ -415,31 +419,31 @@ export default function CoordinadorMallaPage() {
                       {editTipo === "TRABAJO" && (
                         <div className="flex gap-2 mb-2">
                           <div>
-                            <label className="text-xs text-gray-500">Inicio</label>
+                            <label className="text-xs text-gray-500 dark:text-gray-400">Inicio</label>
                             <input type="time" value={editHoraInicio} onChange={(e) => setEditHoraInicio(e.target.value)} className="input-field w-full text-xs py-1" />
                           </div>
                           <div>
-                            <label className="text-xs text-gray-500">Fin</label>
+                            <label className="text-xs text-gray-500 dark:text-gray-400">Fin</label>
                             <input type="time" value={editHoraFin} onChange={(e) => setEditHoraFin(e.target.value)} className="input-field w-full text-xs py-1" />
                           </div>
                         </div>
                       )}
                       <div className="flex gap-2 flex-wrap">
                         <button type="button" onClick={() => guardar(day, editTipo === "DESCANSO" ? "descanso" : editTipo === "DISPONIBLE" ? "disponible" : editTipo === "DIA_FAMILIA" ? "Día de la familia" : editTipo === "INCAPACITADO" ? "Incapacitado" : editTipo === "VACACIONES" ? "Vacaciones" : editTipo === "MEDIO_CUMPLE" ? "Medio día cumpleaños" : `${editHoraInicio}-${editHoraFin}`, editTipo, editTipo === "TRABAJO" ? editHoraInicio : undefined, editTipo === "TRABAJO" ? editHoraFin : undefined)} disabled={saving} className="btn-primary text-xs py-1">Guardar</button>
-                        <button type="button" onClick={() => setEditDay(null)} className="text-gray-500 text-xs py-1">Cerrar</button>
+                        <button type="button" onClick={() => setEditDay(null)} className="text-gray-500 dark:text-gray-400 text-xs py-1">Cerrar</button>
                       </div>
-                      <p className="text-xs text-gray-500 mt-2">Rápido:</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Rápido:</p>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {OPCIONES_TURNO.map((o) => {
                           const [h1, h2] = o.split("-").map((x) => x.length <= 2 ? `${x.padStart(2, "0")}:00` : `${x.slice(0, 2).padStart(2, "0")}:${x.slice(2)}`);
-                          return <button key={o} type="button" onClick={() => guardar(day, o, "TRABAJO", h1, h2)} className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded hover:bg-blue-200">{o}</button>;
+                          return <button key={o} type="button" onClick={() => guardar(day, o, "TRABAJO", h1, h2)} className="px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 text-xs rounded hover:bg-blue-200 dark:hover:bg-blue-900/60">{o}</button>;
                         })}
-                        <button type="button" onClick={() => guardar(day, "descanso", "DESCANSO")} className="px-2 py-0.5 bg-gray-200 text-gray-800 text-xs rounded hover:bg-gray-300">Descanso</button>
-                        <button type="button" onClick={() => guardar(day, "disponible", "DISPONIBLE")} className="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded hover:bg-green-200">Disponible</button>
-                        <button type="button" onClick={() => guardar(day, "Día de la familia", "DIA_FAMILIA")} className="px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded hover:bg-purple-200">Día Familia</button>
-                        <button type="button" onClick={() => guardar(day, "Incapacitado", "INCAPACITADO")} className="px-2 py-0.5 bg-orange-100 text-orange-800 text-xs rounded hover:bg-orange-200">Incapacitado</button>
-                        <button type="button" onClick={() => guardar(day, "Vacaciones", "VACACIONES")} className="px-2 py-0.5 bg-sky-100 text-sky-800 text-xs rounded hover:bg-sky-200">Vacaciones</button>
-                        <button type="button" onClick={() => guardar(day, "Medio día cumpleaños", "MEDIO_CUMPLE")} className="px-2 py-0.5 bg-pink-100 text-pink-800 text-xs rounded hover:bg-pink-200">Medio Cumple</button>
+                        <button type="button" onClick={() => guardar(day, "descanso", "DESCANSO")} className="px-2 py-0.5 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-100 text-xs rounded hover:bg-gray-300 dark:hover:bg-gray-500">Descanso</button>
+                        <button type="button" onClick={() => guardar(day, "disponible", "DISPONIBLE")} className="px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200 text-xs rounded hover:bg-green-200 dark:hover:bg-green-900/60">Disponible</button>
+                        <button type="button" onClick={() => guardar(day, "Día de la familia", "DIA_FAMILIA")} className="px-2 py-0.5 bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200 text-xs rounded hover:bg-purple-200 dark:hover:bg-purple-900/60">Día Familia</button>
+                        <button type="button" onClick={() => guardar(day, "Incapacitado", "INCAPACITADO")} className="px-2 py-0.5 bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200 text-xs rounded hover:bg-orange-200 dark:hover:bg-orange-900/60">Incapacitado</button>
+                        <button type="button" onClick={() => guardar(day, "Vacaciones", "VACACIONES")} className="px-2 py-0.5 bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200 text-xs rounded hover:bg-sky-200 dark:hover:bg-sky-900/60">Vacaciones</button>
+                        <button type="button" onClick={() => guardar(day, "Medio día cumpleaños", "MEDIO_CUMPLE")} className="px-2 py-0.5 bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-200 text-xs rounded hover:bg-pink-200 dark:hover:bg-pink-900/60">Medio Cumple</button>
                       </div>
                     </div>
                   )}
@@ -462,7 +466,7 @@ export default function CoordinadorMallaPage() {
           <button
             type="button"
             onClick={() => setSelectedDays(new Set())}
-            className="px-4 py-3 bg-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-300"
+            className="px-4 py-3 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 font-medium rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600"
           >
             Limpiar
           </button>
@@ -470,27 +474,27 @@ export default function CoordinadorMallaPage() {
       )}
 
       {mallaModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-20 p-4" onClick={() => setMallaModalOpen(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Asignar valor a {selectedTecnicos.size > 0 ? `${selectedTecnicos.size} técnico(s) × ` : ""}{selectedDays.size} día(s)</h3>
-            <p className="text-xs text-gray-500 mb-3">Turnos:</p>
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-20 p-4" onClick={() => setMallaModalOpen(false)}>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl dark:shadow-gray-900/50 max-w-md w-full p-6 border border-transparent dark:border-gray-700" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Asignar valor a {selectedTecnicos.size > 0 ? `${selectedTecnicos.size} técnico(s) × ` : ""}{selectedDays.size} día(s)</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Turnos:</p>
             <div className="flex flex-wrap gap-2 mb-4">
               {OPCIONES_TURNO.map((o) => (
-                <button key={o} type="button" onClick={() => assignMallaToSelected(o)} disabled={saving} className="px-3 py-1.5 bg-blue-100 text-blue-800 text-sm rounded-lg hover:bg-blue-200">{o}</button>
+                <button key={o} type="button" onClick={() => assignMallaToSelected(o)} disabled={saving} className="px-3 py-1.5 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 text-sm rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/60">{o}</button>
               ))}
             </div>
-            <p className="text-xs text-gray-500 mb-3">Novedades:</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Novedades:</p>
             <div className="flex flex-wrap gap-2 mb-4">
               {OPCIONES_NOVEDAD.map((o) => (
-                <button key={o} type="button" onClick={() => assignMallaToSelected(o)} disabled={saving} className="px-3 py-1.5 bg-gray-100 text-gray-800 text-sm rounded-lg hover:bg-gray-200">{o}</button>
+                <button key={o} type="button" onClick={() => assignMallaToSelected(o)} disabled={saving} className="px-3 py-1.5 bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600">{o}</button>
               ))}
             </div>
-            <button type="button" onClick={() => setMallaModalOpen(false)} className="text-gray-500 text-sm">Cerrar</button>
+            <button type="button" onClick={() => setMallaModalOpen(false)} className="text-gray-500 dark:text-gray-400 text-sm">Cerrar</button>
           </div>
         </div>
       )}
 
-      <p className="text-xs text-gray-500 mt-2">Click para seleccionar un día (o abrir opciones). Shift+Click para seleccionar rango.</p>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Click para seleccionar un día (o abrir opciones). Shift+Click para seleccionar rango.</p>
     </div>
   );
 }

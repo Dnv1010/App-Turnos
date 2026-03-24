@@ -369,7 +369,7 @@ export default function ReportesGuardadosClient() {
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-10">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Reportes guardados</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Reportes guardados</h1>
         <p className="text-sm text-gray-600 mt-1">
           Genera reportes por rango, guarda los ítems seleccionados y descarga Excel o CSV. Turnos con HE/recargos,
           foráneos aprobados y días de disponibilidad en malla guardados no vuelven a aparecer hasta que elimines el
@@ -389,7 +389,7 @@ export default function ReportesGuardadosClient() {
       )}
 
       <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
-        <h2 className="text-lg font-semibold text-gray-900">Generar reporte</h2>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Generar reporte</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Nombre del reporte</label>
@@ -456,7 +456,7 @@ export default function ReportesGuardadosClient() {
           <div className="space-y-8 pt-4 border-t border-gray-100">
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium text-gray-900">Horas extras / recargos</h3>
+                <h3 className="font-medium text-gray-900 dark:text-gray-100">Horas extras / recargos</h3>
                 <label className="text-sm text-gray-600 flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -513,7 +513,7 @@ export default function ReportesGuardadosClient() {
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium text-gray-900">Turnos coordinadores</h3>
+                <h3 className="font-medium text-gray-900 dark:text-gray-100">Turnos coordinadores</h3>
                 <label className="text-sm text-gray-600 flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -610,7 +610,7 @@ export default function ReportesGuardadosClient() {
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium text-gray-900">Foráneos aprobados</h3>
+                <h3 className="font-medium text-gray-900 dark:text-gray-100">Foráneos aprobados</h3>
                 <label className="text-sm text-gray-600 flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -665,7 +665,7 @@ export default function ReportesGuardadosClient() {
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium text-gray-900">Disponibilidades</h3>
+                <h3 className="font-medium text-gray-900 dark:text-gray-100">Disponibilidades</h3>
                 <label className="text-sm text-gray-600 flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -776,7 +776,7 @@ export default function ReportesGuardadosClient() {
 
       <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold text-gray-900">Reportes guardados</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Reportes guardados</h2>
           {!isCoord && (
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">Filtrar lista</span>
@@ -817,7 +817,7 @@ export default function ReportesGuardadosClient() {
               <tbody>
                 {reportes.map((r) => (
                   <tr key={r.id} className="border-t border-gray-100">
-                    <td className="p-2 font-medium text-gray-900">{r.nombre}</td>
+                    <td className="p-2 font-medium text-gray-900 dark:text-gray-100">{r.nombre}</td>
                     <td className="p-2 whitespace-nowrap">
                       {format(parseISO(r.fechaInicio), "dd/MM/yy")} – {format(parseISO(r.fechaFin), "dd/MM/yy")}
                     </td>
@@ -868,7 +868,7 @@ export default function ReportesGuardadosClient() {
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
           <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 space-y-4">
-            <h3 className="font-semibold text-gray-900">¿Eliminar reporte?</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">¿Eliminar reporte?</h3>
             <p className="text-sm text-gray-600">
               Los turnos (técnicos y coordinadores), foráneos y disponibilidades incluidos volverán a estar disponibles
               para futuros reportes.

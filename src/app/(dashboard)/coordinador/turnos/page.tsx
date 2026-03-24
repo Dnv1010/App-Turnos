@@ -240,7 +240,7 @@ export default function CoordinadorTurnosPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Turnos Equipo</h2>
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Turnos Equipo</h2>
       <p className="text-gray-500">Zona {session?.user?.zona} — Editar o cancelar turnos de técnicos de tu zona.</p>
 
       <div className="card">
@@ -290,7 +290,7 @@ export default function CoordinadorTurnosPage() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b border-gray-200">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Editar turno</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Editar turno</h3>
                 <p className="text-sm text-gray-500">{editingTurno.user?.nombre} — {formatFechaTurnoDdMmmYyyy(editingTurno.fecha)}</p>
               </div>
               <button type="button" onClick={() => setEditingTurno(null)} className="p-2 hover:bg-gray-100 rounded-lg"><HiX className="w-5 h-5" /></button>
@@ -366,7 +366,7 @@ export default function CoordinadorTurnosPage() {
               <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <HiTrash className="w-6 h-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">¿Cancelar turno?</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">¿Cancelar turno?</h3>
               <p className="text-gray-500 text-sm mb-6">
                 Vas a cancelar el turno de <strong>{confirmDelete.nombre}</strong>. Esta acción quedará registrada.
               </p>

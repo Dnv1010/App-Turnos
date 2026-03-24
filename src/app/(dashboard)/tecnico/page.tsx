@@ -199,17 +199,17 @@ export default function TecnicoDashboard() {
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Mi Dashboard</h2>
-          <p className="text-sm text-gray-500">Turnos y horas extras</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Mi Dashboard</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Turnos y horas extras</p>
         </div>
       </div>
       <div className="card p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-4 gap-3 sm:gap-4 items-end">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Desde</label>
           <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="input-field" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Hasta</label>
           <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="input-field" />
         </div>
         <div className="sm:col-span-2 flex items-end">
@@ -221,11 +221,11 @@ export default function TecnicoDashboard() {
       </div>
       <TecnicoPushSetup />
       {bloqueoMalla && (
-        <div className="bg-amber-50 border-2 border-amber-400 rounded-xl p-4 flex items-start gap-3">
+        <div className="bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-400 dark:border-amber-600 rounded-xl p-4 flex items-start gap-3">
           <span className="text-2xl flex-shrink-0">⚠️</span>
           <div>
-            <h3 className="font-bold text-amber-900">Hoy estás en &quot;{bloqueoMalla.estado}&quot;</h3>
-            <p className="text-sm text-amber-800 mt-1">
+            <h3 className="font-bold text-amber-900 dark:text-amber-100">Hoy estás en &quot;{bloqueoMalla.estado}&quot;</h3>
+            <p className="text-sm text-amber-800 dark:text-amber-200 mt-1">
               Según la malla de turnos, el día {bloqueoMalla.fecha} no tienes jornada laboral asignada. Si esto es un error,
               comunícale la novedad a tu coordinador.
             </p>
@@ -260,20 +260,20 @@ export default function TecnicoDashboard() {
         </div>
       )}
       <div className="min-w-0">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Detalle de turnos</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 sm:mb-4">Detalle de turnos</h3>
         <div className="overflow-x-auto w-full">
           <DataTable columns={columns as never} data={turnos as never} emptyMessage="No hay turnos registrados este mes" />
         </div>
       </div>
 
       <div className="min-w-0 space-y-3">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900">Mis foráneos (km)</h3>
-        <p className="text-sm text-gray-500">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">Mis foráneos (km)</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
           El coordinador debe aprobar cada registro. En nómina solo cuentan los <strong>aprobados</strong>.
         </p>
         <div className="flex flex-wrap gap-3 items-end">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estado</label>
             <select
               value={estadoFiltroForaneo}
               onChange={(e) => setEstadoFiltroForaneo(e.target.value)}
@@ -298,56 +298,56 @@ export default function TecnicoDashboard() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px]">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Fecha</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Estado</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Km rec.</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Nota coordinador</th>
+                <tr className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Fecha</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Estado</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Km rec.</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Nota coordinador</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
                 {loadingForaneosLista && foraneosRows.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                       <div className="inline-block w-6 h-6 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
                     </td>
                   </tr>
                 ) : foraneosRows.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                       No hay registros con este filtro
                     </td>
                   </tr>
                 ) : (
                   foraneosRows.map((f) => (
-                    <tr key={f.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm text-gray-800 whitespace-nowrap">
+                    <tr key={f.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200 whitespace-nowrap">
                         {f.fecha.split("T")[0]}
                       </td>
                       <td className="px-4 py-3 text-sm">
                         {f.estadoAprobacion === "APROBADA" && (
-                          <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200">
                             Aprobada
                           </span>
                         )}
                         {f.estadoAprobacion === "PENDIENTE" && (
-                          <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-900">
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
                             Pendiente por autorizar
                           </span>
                         )}
                         {f.estadoAprobacion === "NO_APROBADA" && (
                           <span
-                            className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"
+                            className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200"
                             title={f.notaAprobacion ?? undefined}
                           >
                             No aprobada
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                      <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-200 whitespace-nowrap">
                         {f.kmRecorridos != null ? `${Number(f.kmRecorridos).toFixed(1)} km` : "—"}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 max-w-xs">
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 max-w-xs">
                         {f.notaAprobacion ? (
                           <span title={f.notaAprobacion}>{f.notaAprobacion}</span>
                         ) : (

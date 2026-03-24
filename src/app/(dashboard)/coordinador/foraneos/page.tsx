@@ -38,7 +38,7 @@ export default function CoordinadorForaneosPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Foráneos</h2>
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Foráneos</h2>
       <p className="text-gray-500">
         {session?.user?.role === "COORDINADOR"
           ? `Zona ${session.user.zona} — Registros de foráneos de los técnicos de tu zona.`

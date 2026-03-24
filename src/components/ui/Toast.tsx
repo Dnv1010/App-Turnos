@@ -10,7 +10,7 @@ function BiaLogoMini() {
       <svg width="12" height="15" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M24 0L0 28H16L12 48L40 18H22L24 0Z" fill="#00D4AA"/>
       </svg>
-      <span className="font-black text-xs text-gray-700">Bia</span>
+      <span className="font-black text-xs text-gray-700 dark:text-gray-200">Bia</span>
     </div>
   );
 }
@@ -43,22 +43,22 @@ export function useToast() {
 
 const toastStyles: Record<ToastType, { bg: string; border: string; icon: typeof HiCheckCircle; iconColor: string }> = {
   success: {
-    bg: "bg-green-50",
-    border: "border-green-200",
+    bg: "bg-green-50 dark:bg-green-950/50",
+    border: "border-green-200 dark:border-green-800",
     icon: HiCheckCircle,
-    iconColor: "text-green-500",
+    iconColor: "text-green-500 dark:text-green-400",
   },
   error: {
-    bg: "bg-red-50",
-    border: "border-red-200",
+    bg: "bg-red-50 dark:bg-red-950/50",
+    border: "border-red-200 dark:border-red-800",
     icon: HiXCircle,
-    iconColor: "text-red-500",
+    iconColor: "text-red-500 dark:text-red-400",
   },
   info: {
-    bg: "bg-blue-50",
-    border: "border-blue-200",
+    bg: "bg-blue-50 dark:bg-blue-950/50",
+    border: "border-blue-200 dark:border-blue-800",
     icon: HiInformationCircle,
-    iconColor: "text-blue-500",
+    iconColor: "text-blue-500 dark:text-blue-400",
   },
 };
 
@@ -96,14 +96,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           return (
             <div
               key={toast.id}
-              className={`pointer-events-auto w-80 max-w-[calc(100vw-2rem)] ${style.bg} ${style.border} border rounded-xl shadow-lg overflow-hidden animate-slide-in`}
+              className={`pointer-events-auto w-80 max-w-[calc(100vw-2rem)] ${style.bg} ${style.border} border rounded-xl shadow-lg dark:shadow-gray-900/50 overflow-hidden animate-slide-in`}
             >
               {/* Header con logo */}
-              <div className="flex items-center justify-between px-4 py-2 bg-white/50 border-b border-gray-100">
+              <div className="flex items-center justify-between px-4 py-2 bg-white/50 dark:bg-gray-800/80 border-b border-gray-100 dark:border-gray-700">
                 <BiaLogoMini />
                 <button
                   onClick={() => removeToast(toast.id)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 >
                   <HiX className="w-4 h-4" />
                 </button>
@@ -113,9 +113,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <div className="flex items-start gap-3 p-4">
                 <Icon className={`w-5 h-5 ${style.iconColor} flex-shrink-0 mt-0.5`} />
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 text-sm">{toast.title}</p>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{toast.title}</p>
                   {toast.message && (
-                    <p className="text-gray-600 text-sm mt-0.5">{toast.message}</p>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm mt-0.5">{toast.message}</p>
                   )}
                 </div>
               </div>
