@@ -17,7 +17,7 @@ async function parseJsonFromResponse(response: Response): Promise<Record<string,
 const CameraCapture = dynamic(() => import("@/components/fotos/CameraCapture"), {
   ssr: false,
   loading: () => (
-    <div className="flex flex-col items-center justify-center gap-3 py-8 text-gray-500">
+    <div className="flex flex-col items-center justify-center gap-3 py-8 text-gray-500 dark:text-gray-400">
       <div className="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
       <p className="text-sm font-medium">Cargando cámara...</p>
       <p className="text-xs">Solo se muestra en el cliente (HTTPS)</p>
@@ -204,12 +204,12 @@ export default function BotonFichaje({
       )}
 
       {step === "camera" && (
-        <div className="w-full bg-white rounded-2xl shadow-lg overflow-hidden p-4">
+        <div className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg dark:shadow-gray-900/50 overflow-hidden p-4 border border-transparent dark:border-gray-700">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
               📸 Foto de {isCerrandoTurno ? "salida" : "entrada"}
             </p>
-            <button type="button" onClick={cancelCamera} className="text-sm text-gray-500 hover:text-gray-700 underline">
+            <button type="button" onClick={cancelCamera} className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline">
               Cancelar
             </button>
           </div>
@@ -221,7 +221,7 @@ export default function BotonFichaje({
       )}
 
       {step === "preview" && capturedPhoto && (
-        <div className="w-full bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg dark:shadow-gray-900/50 overflow-hidden border border-transparent dark:border-gray-700">
           <div className="bg-primary-600 p-2 text-center">
             <span className="text-white text-xs font-medium">
               ¿Confirmar foto de {isCerrandoTurno ? "salida" : "entrada"}?
@@ -245,7 +245,7 @@ export default function BotonFichaje({
       {step === "uploading" && (
         <div className="flex flex-col items-center gap-3 py-8">
           <div className="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             {isCerrandoTurno ? "Cerrando turno" : "Iniciando turno"} y subiendo foto...
           </p>
         </div>
@@ -257,20 +257,20 @@ export default function BotonFichaje({
         </p>
       )}
       {ubicacion && step === "idle" && (
-        <div className="flex items-center gap-1 text-xs text-gray-400">
+        <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
           <HiLocationMarker className="h-3 w-3" />
           <span>{ubicacion.lat.toFixed(4)}, {ubicacion.lng.toFixed(4)}</span>
         </div>
       )}
       {bloqueoMalla && step === "idle" && (
-        <div className="w-full bg-amber-50 border-2 border-amber-400 rounded-2xl p-5 shadow-lg">
+        <div className="w-full bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-400 dark:border-amber-600 rounded-2xl p-5 shadow-lg">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/40 rounded-full flex items-center justify-center flex-shrink-0">
               <span className="text-xl">⚠️</span>
             </div>
             <div className="flex-1">
-              <h3 className="text-base font-bold text-amber-900 mb-1">No puedes abrir turno</h3>
-              <p className="text-sm text-amber-800 mb-3">
+              <h3 className="text-base font-bold text-amber-900 dark:text-amber-100 mb-1">No puedes abrir turno</h3>
+              <p className="text-sm text-amber-800 dark:text-amber-200 mb-3">
                 El día <strong>{bloqueoMalla.fecha}</strong> estás en <strong>&quot;{bloqueoMalla.estado}&quot;</strong> según
                 la malla de turnos.
               </p>
@@ -282,13 +282,13 @@ export default function BotonFichaje({
           <button
             type="button"
             onClick={() => setBloqueoMalla(null)}
-            className="mt-4 w-full text-center text-sm font-medium text-amber-700 hover:text-amber-900 underline"
+            className="mt-4 w-full text-center text-sm font-medium text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 underline"
           >
             Cerrar aviso
           </button>
         </div>
       )}
-      {error && <p className="text-sm text-red-600 bg-red-50 px-4 py-2 rounded-lg">{error}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 px-4 py-2 rounded-lg border border-red-100 dark:border-red-900/50">{error}</p>}
     </div>
   );
 }

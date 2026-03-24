@@ -13,15 +13,15 @@ export default function MapaUbicacion({ lat, lng, label }: MapaUbicacionProps) {
   return (
     <div className="card p-0 overflow-hidden">
       {label && (
-        <div className="px-4 py-2 border-b border-gray-200 bg-gray-50">
-          <p className="text-sm font-medium text-gray-700">{label}</p>
+        <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{label}</p>
         </div>
       )}
       <div className="relative w-full h-48">
         <iframe src={mapUrl} className="absolute inset-0 w-full h-full border-0" loading="lazy" title="Ubicación de fichaje" />
       </div>
-      <div className="px-4 py-2 bg-gray-50 border-t border-gray-200">
-        <a href={linkUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 hover:text-primary-800">
+      <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-700">
+        <a href={linkUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300">
           Ver en mapa completo →
         </a>
       </div>
