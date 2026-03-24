@@ -295,8 +295,9 @@ export default function CoordinadorPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <>
       <CoordinadorPushSetup />
+      <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Dashboard Líder de Zona</h2>
@@ -435,5 +436,6 @@ export default function CoordinadorPage() {
         <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
       )}
     </div>
+    </>
   );
 }
