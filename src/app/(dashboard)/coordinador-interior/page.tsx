@@ -1,26 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { HiKey } from "react-icons/hi";
 import TurnoCoordinadorClient from "@/components/coordinador/TurnoCoordinadorClient";
-import CambiarPinModal from "@/components/shared/CambiarPinModal";
 
 export default function CoordinadorInteriorPage() {
-  const [showCambiarPin, setShowCambiarPin] = useState(false);
-  return (
-    <>
-      <div className="mb-4 flex justify-end">
-        <button
-          type="button"
-          onClick={() => setShowCambiarPin(true)}
-          className="btn-secondary flex items-center gap-2 py-2 px-3 text-sm"
-        >
-          <HiKey className="h-4 w-4" />
-          Cambiar PIN
-        </button>
-      </div>
-      <CambiarPinModal open={showCambiarPin} onClose={() => setShowCambiarPin(false)} />
-      <TurnoCoordinadorClient titulo="Mi turno" />
-    </>
-  );
+  return <TurnoCoordinadorClient titulo="Mi turno" />;
 }

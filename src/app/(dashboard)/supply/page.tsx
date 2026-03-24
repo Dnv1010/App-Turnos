@@ -9,11 +9,9 @@ import { useTurnosStream } from "@/hooks/useTurnosStream";
 import KPICards from "@/components/dashboard/KPICards";
 import GraficoHoras from "@/components/dashboard/GraficoHoras";
 import DataTable from "@/components/ui/DataTable";
-import { HiDownload, HiSearch, HiPhotograph, HiLocationMarker, HiRefresh, HiTrash, HiKey } from "react-icons/hi";
+import { HiDownload, HiSearch, HiPhotograph, HiLocationMarker, HiRefresh, HiTrash } from "react-icons/hi";
 import { getZonaLabel } from "@/lib/roleLabels";
 import SupplyPushSetup from "@/components/supply/SupplyPushSetup";
-import CambiarPinModal from "@/components/shared/CambiarPinModal";
-
 interface TurnoRow {
   id: string;
   userId: string;
@@ -107,7 +105,6 @@ export default function SupplyDashboardPage() {
   const [loadingDisp, setLoadingDisp] = useState(false);
   const [reporteError, setReporteError] = useState<string | null>(null);
   const [syncingSheets, setSyncingSheets] = useState(false);
-  const [showCambiarPin, setShowCambiarPin] = useState(false);
   const [filtroZona, setFiltroZona] = useState<"ALL" | "BOGOTA" | "COSTA" | "INTERIOR">("ALL");
 
   const detalleFiltrado = useMemo(() => {
@@ -366,7 +363,6 @@ export default function SupplyDashboardPage() {
   return (
     <>
       <SupplyPushSetup />
-      <CambiarPinModal open={showCambiarPin} onClose={() => setShowCambiarPin(false)} />
       <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
@@ -376,14 +372,6 @@ export default function SupplyDashboardPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setShowCambiarPin(true)}
-            className="btn-secondary flex items-center gap-2 py-2 px-3 text-sm"
-          >
-            <HiKey className="h-4 w-4" />
-            Cambiar PIN
-          </button>
           {data && (
             <>
               <button onClick={exportarCSV} className="btn-secondary flex items-center gap-2 py-2 px-3 sm:py-2.5 sm:px-5 text-sm"><HiDownload className="h-4 w-4 sm:h-5 sm:w-5" />Exportar CSV</button>
