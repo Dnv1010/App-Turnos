@@ -1,1 +1,1 @@
-{"crons":[{"path":"/api/cron/jornada-alerta","schedule":"0 12 * * *"}]}
+{"crons":[{"path":"/api/cron/jornada-alerta","schedule":"* * * * *"}]}
