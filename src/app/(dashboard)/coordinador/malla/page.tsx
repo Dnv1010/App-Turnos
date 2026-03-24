@@ -241,7 +241,7 @@ export default function CoordinadorMallaPage() {
 
   const assignMallaToSelected = async (valor: string) => {
     if (selectedTecnicos.size === 0) {
-      alert("Selecciona al menos un técnico");
+      alert("Selecciona al menos un operador");
       return;
     }
     if (selectedDays.size === 0) {
@@ -261,7 +261,7 @@ export default function CoordinadorMallaPage() {
       });
       const data = await parseResponseJson<{ ok?: boolean; registros?: number; error?: string }>(res);
       if (data?.ok) {
-        alert(`✓ Malla "${valor}" asignada a ${selectedTecnicos.size} técnico(s) en ${selectedDays.size} día(s) = ${data.registros ?? 0} registros`);
+        alert(`✓ Malla "${valor}" asignada a ${selectedTecnicos.size} operador(es) en ${selectedDays.size} día(s) = ${data.registros ?? 0} registros`);
         setSelectedDays(new Set());
         setMallaModalOpen(false);
         if (primaryTecnico) cargarMalla(primaryTecnico);
@@ -284,7 +284,7 @@ export default function CoordinadorMallaPage() {
 
       <div className="card flex flex-wrap gap-4 items-end">
         <div className="relative min-w-[220px]" ref={dropdownRef}>
-          <label className="block text-xs font-medium text-gray-600 dark:text-bia-label mb-1">Técnicos</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-bia-label mb-1">Operadores</label>
           <button
             type="button"
             onClick={() => setShowTecnicoDropdown(!showTecnicoDropdown)}
@@ -292,10 +292,10 @@ export default function CoordinadorMallaPage() {
           >
             <span>
               {selectedTecnicos.size === 0
-                ? "Seleccionar técnicos..."
+                ? "Seleccionar operadores..."
                 : selectedTecnicos.size === tecnicos.length
-                  ? "Todos los técnicos"
-                  : `${selectedTecnicos.size} técnico${selectedTecnicos.size > 1 ? "s" : ""} seleccionado${selectedTecnicos.size > 1 ? "s" : ""}`
+                  ? "Todos los operadores"
+                  : `${selectedTecnicos.size} operador${selectedTecnicos.size > 1 ? "es" : ""} seleccionado${selectedTecnicos.size > 1 ? "s" : ""}`
               }
             </span>
             <HiChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0 ml-2" />
@@ -352,7 +352,7 @@ export default function CoordinadorMallaPage() {
       </div>
 
       {selectedTecnicos.size === 0 ? (
-        <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">Selecciona uno o más técnicos para ver o asignar la malla</div>
+        <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">Selecciona uno o más operadores para ver o asignar la malla</div>
       ) : loading ? (
         <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
       ) : (
@@ -476,7 +476,7 @@ export default function CoordinadorMallaPage() {
       {mallaModalOpen && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-20 p-4" onClick={() => setMallaModalOpen(false)}>
           <div className="bg-white dark:bg-bia-navy-700 rounded-xl shadow-xl dark:shadow-black/40 max-w-md w-full p-6 border border-transparent dark:border-bia-navy-400" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Asignar valor a {selectedTecnicos.size > 0 ? `${selectedTecnicos.size} técnico(s) × ` : ""}{selectedDays.size} día(s)</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Asignar valor a {selectedTecnicos.size > 0 ? `${selectedTecnicos.size} operador(es) × ` : ""}{selectedDays.size} día(s)</h3>
             <p className="text-xs text-gray-500 dark:text-bia-muted mb-3">Turnos:</p>
             <div className="flex flex-wrap gap-2 mb-4">
               {OPCIONES_TURNO.map((o) => (

@@ -24,7 +24,7 @@ export default function KPICards({ data, showTeamMetrics = false }: KPICardsProp
   return (
     <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
       {showTeamMetrics && data.totalTecnicos !== undefined && (
-        <StatCard titulo="Técnicos Activos" valor={data.totalTecnicos} icono={HiUsers} color="indigo" />
+        <StatCard titulo="Operadores activos" valor={data.totalTecnicos} icono={HiUsers} color="indigo" />
       )}
       <StatCard titulo="Horas Ordinarias" valor={`${data.horasOrdinarias}h`} icono={HiClock} color="blue" />
       <StatCard titulo="Horas Extra" valor={`${data.totalHorasExtra}h`}

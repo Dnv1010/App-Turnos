@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     if (session.user.role === "COORDINADOR") {
       const target = await prisma.user.findUnique({ where: { id: userId }, select: { zona: true, role: true } });
       if (!target || target.role !== "TECNICO" || target.zona !== session.user.zona) {
-        return NextResponse.json({ error: "Solo puedes precargar malla de técnicos de tu zona" }, { status: 403 });
+        return NextResponse.json({ error: "Solo puedes precargar malla de operadores de tu zona" }, { status: 403 });
       }
     }
 

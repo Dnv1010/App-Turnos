@@ -8,6 +8,7 @@ import { parseResponseJson } from "@/lib/parseFetchJson";
 import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
 import type { TurnoCoordinadorRow } from "@/components/coordinador/TurnoCoordinadorClient";
 import { HiPencil, HiTrash } from "react-icons/hi";
+import { getRoleLabel, getZonaLabel } from "@/lib/roleLabels";
 
 function totalHE(t: TurnoCoordinadorRow): number {
   return (
@@ -20,12 +21,6 @@ function totalHE(t: TurnoCoordinadorRow): number {
 
 function totalRec(t: TurnoCoordinadorRow): number {
   return (t.recNocturno ?? 0) + (t.recDominical ?? 0) + (t.recNoctDominical ?? 0);
-}
-
-function rolLabel(role: string | undefined): string {
-  if (role === "COORDINADOR_INTERIOR") return "Coord. interior";
-  if (role === "COORDINADOR") return "Coordinador";
-  return role ?? "—";
 }
 
 function toDatetimeLocalValue(iso: string): string {
@@ -43,7 +38,7 @@ export default function TurnosCoordinadoresVista() {
   const [hasta, setHasta] = useState(() =>
     format(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0), "yyyy-MM-dd")
   );
-  const [zona, setZona] = useState<"ALL" | "BOGOTA" | "COSTA">("ALL");
+  const [zona, setZona] = useState<"ALL" | "BOGOTA" | "COSTA" | "INTERIOR">("ALL");
   const [userIdFiltro, setUserIdFiltro] = useState("");
   const [rows, setRows] = useState<TurnoCoordinadorRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -173,7 +168,7 @@ export default function TurnosCoordinadoresVista() {
       <div>
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Turnos coordinadores</h2>
         <p className="mt-1 text-sm text-gray-600">
-          Turnos de coordinadores y coordinador interior (cerrados y abiertos) según filtros.
+          Turnos de líderes de zona en campo e interior (cerrados y abiertos) según filtros.
         </p>
       </div>
 
@@ -206,6 +201,7 @@ export default function TurnosCoordinadoresVista() {
             <option value="ALL">Todas</option>
             <option value="BOGOTA">Bogotá</option>
             <option value="COSTA">Costa</option>
+            <option value="INTERIOR">Interior</option>
           </select>
         </div>
         <div>
@@ -293,8 +289,8 @@ export default function TurnosCoordinadoresVista() {
                     )}
                     <td className="p-2">{t.user?.nombre ?? "—"}</td>
                     <td className="p-2 font-mono text-xs">{t.user?.cedula ?? "—"}</td>
-                    <td className="p-2">{rolLabel(t.user?.role)}</td>
-                    <td className="p-2">{t.user?.zona ?? "—"}</td>
+                    <td className="p-2">{getRoleLabel(t.user?.role ?? "")}</td>
+                    <td className="p-2">{t.user?.zona ? getZonaLabel(t.user.zona) : "—"}</td>
                     <td className="p-2 whitespace-nowrap">{formatFechaTurnoDdMmmYyyy(t.fecha)}</td>
                     <td className="p-2 font-mono">{t.codigoOrden}</td>
                     <td className="p-2 whitespace-nowrap">

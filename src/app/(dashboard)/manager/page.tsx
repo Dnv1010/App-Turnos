@@ -9,7 +9,8 @@ import KPICards from "@/components/dashboard/KPICards";
 import GraficoHoras from "@/components/dashboard/GraficoHoras";
 import DataTable from "@/components/ui/DataTable";
 import StatCard from "@/components/ui/StatCard";
-import { HiUserGroup, HiOfficeBuilding } from "react-icons/hi";
+import { HiUserGroup, HiOfficeBuilding, HiGlobeAlt } from "react-icons/hi";
+import { getZonaLabel } from "@/lib/roleLabels";
 
 interface DetalleUsuario {
   userId: string; nombre: string; zona: string; role: string; totalTurnos: number;
@@ -81,11 +82,28 @@ export default function ManagerPage() {
 
   const bogota = data.detalle.filter((d) => d.zona === "BOGOTA");
   const costa = data.detalle.filter((d) => d.zona === "COSTA");
+  const interior = data.detalle.filter((d) => d.zona === "INTERIOR");
   const datosGrafico = data.detalle.map((d) => ({ nombre: d.nombre.split(" ")[0], horasOrdinarias: d.horasOrdinarias, heDiurna: d.heDiurna, heNocturna: d.heNocturna, recargos: d.totalRecargos }));
 
   const columns = [
-    { key: "nombre", label: "Técnico", sortable: true },
-    { key: "zona", label: "Zona", render: (d: DetalleUsuario) => <span className={d.zona === "BOGOTA" ? "badge-blue" : "badge-green"}>{d.zona}</span> },
+    { key: "nombre", label: "Operador", sortable: true },
+    {
+      key: "zona",
+      label: "Zona",
+      render: (d: DetalleUsuario) => (
+        <span
+          className={
+            d.zona === "BOGOTA"
+              ? "badge-blue"
+              : d.zona === "INTERIOR"
+                ? "badge-zona-interior"
+                : "badge-green"
+          }
+        >
+          {getZonaLabel(d.zona)}
+        </span>
+      ),
+    },
     { key: "totalTurnos", label: "Turnos", sortable: true },
     { key: "horasOrdinarias", label: "Ordinarias", sortable: true },
     { key: "totalHorasExtra", label: "HE Total", sortable: true },
@@ -100,10 +118,10 @@ export default function ManagerPage() {
         <div><h2 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard Global</h2>
           <p className="text-gray-500 dark:text-bia-muted">{format(ahora, "MMMM yyyy", { locale: es })}</p></div>
         <div className="flex gap-2">
-          {["ALL", "BOGOTA", "COSTA"].map((z) => (
+          {(["ALL", "BOGOTA", "COSTA", "INTERIOR"] as const).map((z) => (
             <button key={z} onClick={() => { setZonaFilter(z); setLoading(true); }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${zonaFilter === z ? "bg-primary-600 text-white" : "bg-white dark:bg-bia-navy-600 text-gray-600 dark:text-white border border-gray-300 dark:border-bia-navy-400 hover:bg-gray-50 dark:hover:bg-bia-navy-500"}`}>
-              {z === "ALL" ? "Todas" : z}
+              {z === "ALL" ? "Todas" : getZonaLabel(z)}
             </button>
           ))}
         </div>
@@ -116,16 +134,18 @@ export default function ManagerPage() {
       )}
       <KPICards data={{ totalTecnicos: data.resumen.totalTecnicos, horasOrdinarias: data.resumen.totalHorasOrdinarias, totalHorasExtra: data.resumen.totalHorasExtra, totalRecargos: data.resumen.totalRecargos, totalDisponibilidades: data.resumen.totalDisponibilidades }} showTeamMetrics />
       {zonaFilter === "ALL" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <StatCard titulo="Zona Bogotá" valor={`${bogota.length} técnicos`}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatCard titulo="Zona Bogotá" valor={`${bogota.length} operadores`}
             subtitulo={`${Math.round(bogota.reduce((s, d) => s + d.totalHorasExtra, 0) * 100) / 100}h extras`} icono={HiOfficeBuilding} color="blue" />
-          <StatCard titulo="Zona Costa" valor={`${costa.length} técnicos`}
+          <StatCard titulo="Zona Costa" valor={`${costa.length} operadores`}
             subtitulo={`${Math.round(costa.reduce((s, d) => s + d.totalHorasExtra, 0) * 100) / 100}h extras`} icono={HiUserGroup} color="green" />
+          <StatCard titulo="Zona Interior" valor={`${interior.length} operadores`}
+            subtitulo={`${Math.round(interior.reduce((s, d) => s + d.totalHorasExtra, 0) * 100) / 100}h extras`} icono={HiGlobeAlt} color="indigo" />
         </div>
       )}
       <GraficoHoras datos={datosGrafico} titulo="Consolidado de Horas" />
-      <div><h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Detalle por Técnico</h3>
-        <DataTable columns={columns as never} data={data.detalle as never} searchable searchPlaceholder="Buscar técnico..." /></div>
+      <div><h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Detalle por operador</h3>
+        <DataTable columns={columns as never} data={data.detalle as never} searchable searchPlaceholder="Buscar operador..." /></div>
     </div>
   );
 }

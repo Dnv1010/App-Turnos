@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     if (session.user.role !== "TECNICO") {
-      return NextResponse.json({ error: "Solo técnicos" }, { status: 403 });
+      return NextResponse.json({ error: "Solo operadores" }, { status: 403 });
     }
 
     let body: { turnoId?: string; ordenTrabajo?: string };

@@ -16,7 +16,7 @@ interface GraficoHorasProps {
   titulo?: string;
 }
 
-export default function GraficoHoras({ datos, titulo = "Horas por Técnico" }: GraficoHorasProps) {
+export default function GraficoHoras({ datos, titulo = "Horas por operador" }: GraficoHorasProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const chartColors = isDark

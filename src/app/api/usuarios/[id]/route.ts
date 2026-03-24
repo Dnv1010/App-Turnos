@@ -17,7 +17,7 @@ export async function PATCH(
 
   if (session.user.role === "COORDINADOR") {
     if (target.role !== "TECNICO" || target.zona !== session.user.zona) {
-      return NextResponse.json({ error: "Solo puedes editar técnicos de tu zona" }, { status: 403 });
+      return NextResponse.json({ error: "Solo puedes editar operadores de tu zona" }, { status: 403 });
     }
   } else if (session.user.role !== "ADMIN" && session.user.role !== "MANAGER") {
     return NextResponse.json({ error: "Sin permisos para editar usuarios" }, { status: 403 });
@@ -63,7 +63,7 @@ export async function DELETE(
 
   if (session.user.role === "COORDINADOR") {
     if (target.zona !== session.user.zona) {
-      return NextResponse.json({ error: "Solo puedes desactivar técnicos de tu zona" }, { status: 403 });
+      return NextResponse.json({ error: "Solo puedes desactivar operadores de tu zona" }, { status: 403 });
     }
   } else if (session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });

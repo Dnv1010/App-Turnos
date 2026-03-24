@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type { Zona } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
@@ -82,7 +83,7 @@ export async function GET(req: NextRequest) {
   if (session.user.role === "TECNICO") {
     where.userId = session.user.userId;
   } else if (session.user.role === "COORDINADOR") {
-    const zona = (zonaParam || session.user.zona) as "BOGOTA" | "COSTA";
+    const zona = (zonaParam || session.user.zona) as Zona;
     const usersZona = await prisma.user.findMany({
       where: { zona, role: "TECNICO", isActive: true },
       select: { id: true },
@@ -124,7 +125,7 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   if (session.user.role !== "TECNICO") {
-    return NextResponse.json({ error: "Solo los técnicos pueden iniciar turnos" }, { status: 403 });
+    return NextResponse.json({ error: "Solo los operadores pueden iniciar turnos" }, { status: 403 });
   }
 
   const body = await req.json();
@@ -206,7 +207,7 @@ export async function PATCH(req: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     if (session.user.role !== "TECNICO") {
-      return NextResponse.json({ error: "Solo los técnicos pueden cerrar turnos" }, { status: 403 });
+      return NextResponse.json({ error: "Solo los operadores pueden cerrar turnos" }, { status: 403 });
     }
 
     let body: { turnoId?: string; lat?: number; lng?: number; endPhotoUrl?: string };

@@ -15,7 +15,8 @@
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "pwa:icons": "node scripts/generate-icons.mjs"
+    "pwa:icons": "node scripts/generate-icons.mjs",
+    "user:alejandro-interior": "tsx scripts/set-alejandro-zona-interior.ts"
   },
   "keywords": [],
   "author": "",

@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
         (t) => t.role !== "TECNICO" || t.zona !== session.user.zona
       );
       if (invalid || targets.length !== userIds.length) {
-        return NextResponse.json({ error: "Solo puedes asignar malla a técnicos de tu zona" }, { status: 403 });
+        return NextResponse.json({ error: "Solo puedes asignar malla a operadores de tu zona" }, { status: 403 });
       }
     }
 

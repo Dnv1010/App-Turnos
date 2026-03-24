@@ -526,7 +526,7 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-bia-navy-700 rounded-2xl shadow-2xl dark:shadow-black/40 w-full max-w-md p-6 border border-transparent dark:border-bia-navy-400">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Rechazar foráneo(s)</h3>
-            <p className="text-sm text-gray-500 dark:text-bia-muted mb-3">Opcional: nota para el técnico ({rejectModal.ids.length} registro(s)).</p>
+            <p className="text-sm text-gray-500 dark:text-bia-muted mb-3">Opcional: nota para el operador ({rejectModal.ids.length} registro(s)).</p>
             <textarea
               value={rejectNota}
               onChange={(e) => setRejectNota(e.target.value)}

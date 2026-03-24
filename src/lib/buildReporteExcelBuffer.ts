@@ -6,6 +6,7 @@ import {
   getMesEspanol,
 } from "@/lib/reporteExportColombia";
 import { valorDisponibilidadMallaPorRol } from "@/lib/reporteDisponibilidadValor";
+import { getRoleLabel } from "@/lib/roleLabels";
 
 const TARIFA_KM_FORANEO = 1100;
 
@@ -34,7 +35,7 @@ type FotoForaneoRow = {
 type MallaDispRow = {
   fecha: Date;
   valor: string;
-  user: { nombre: string; cedula: string | null };
+  user: { nombre: string; cedula: string | null; role: string };
 };
 
 export type TurnoCoordinadorExportRow = {
@@ -192,7 +193,7 @@ export function buildReporteGuardadoExcelBuffer(
     return {
       Cédula: d.user.cedula ?? "",
       Nombre: d.user.nombre ?? "",
-      Rol: d.user.role,
+      Rol: getRoleLabel(d.user.role),
       Fecha: formatFechaDDMMYYYY(d.fecha),
       Disponibilidad: d.valor || "Disponible",
       Valor: valor,

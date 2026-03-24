@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { parseResponseJson } from "@/lib/parseFetchJson";
 import CoordinadorForaneosPanel from "@/components/foraneos/CoordinadorForaneosPanel";
+import { getZonaLabel } from "@/lib/roleLabels";
 
 interface TecnicoOption {
   id: string;
@@ -41,7 +42,7 @@ export default function CoordinadorForaneosPage() {
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Foráneos</h2>
       <p className="text-gray-500">
         {session?.user?.role === "COORDINADOR"
-          ? `Zona ${session.user.zona} — Registros de foráneos de los técnicos de tu zona.`
+          ? `Zona ${getZonaLabel(session.user.zona)} — Registros de foráneos de los operadores de tu zona.`
           : "Registros foráneos."}
       </p>
 
@@ -61,7 +62,7 @@ export default function CoordinadorForaneosPage() {
             <input type="date" value={fin} onChange={(e) => setFin(e.target.value)} className="input-field" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Técnico</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Operador</label>
             <select
               value={tecnicoFilter}
               onChange={(e) => setTecnicoFilter(e.target.value)}
@@ -76,7 +77,7 @@ export default function CoordinadorForaneosPage() {
             </select>
           </div>
           <div className="flex items-end text-sm text-gray-500">
-            Ajusta fechas y técnico; usa &quot;Actualizar&quot; en la tabla inferior para recargar datos.
+            Ajusta fechas y operador; usa &quot;Actualizar&quot; en la tabla inferior para recargar datos.
           </div>
         </div>
       </div>

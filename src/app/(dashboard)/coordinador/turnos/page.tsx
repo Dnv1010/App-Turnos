@@ -8,6 +8,7 @@ import { parseResponseJson } from "@/lib/parseFetchJson";
 import DataTable from "@/components/ui/DataTable";
 import { useToast } from "@/components/ui/Toast";
 import { HiSearch, HiPencil, HiTrash, HiLocationMarker, HiPhotograph, HiX, HiSave } from "react-icons/hi";
+import { getZonaLabel } from "@/lib/roleLabels";
 
 interface TurnoRow {
   id: string;
@@ -197,7 +198,7 @@ export default function CoordinadorTurnosPage() {
   const totalRec = (t: TurnoRow) => (t.recNocturno + t.recDominical + t.recNoctDominical).toFixed(2);
 
   const columns = [
-    { key: "user", label: "Técnico", render: (t: TurnoRow) => t.user?.nombre ?? "—" },
+    { key: "user", label: "Operador", render: (t: TurnoRow) => t.user?.nombre ?? "—" },
     {
       key: "estadoTurno",
       label: "Estado",
@@ -241,7 +242,9 @@ export default function CoordinadorTurnosPage() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Turnos Equipo</h2>
-      <p className="text-gray-500">Zona {session?.user?.zona} — Editar o cancelar turnos de técnicos de tu zona.</p>
+      <p className="text-gray-500">
+        Zona {session?.user?.zona ? getZonaLabel(session.user.zona) : ""} — Editar o cancelar turnos de operadores de tu zona.
+      </p>
 
       <div className="card">
         <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
@@ -254,7 +257,7 @@ export default function CoordinadorTurnosPage() {
             <input type="date" value={fin} onChange={(e) => setFin(e.target.value)} className="input-field" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Técnico</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Operador</label>
             <select value={tecnicoFilter} onChange={(e) => setTecnicoFilter(e.target.value)} className="input-field">
               <option value="ALL">Todos</option>
               {tecnicos.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
@@ -281,7 +284,7 @@ export default function CoordinadorTurnosPage() {
       ) : turnos.length === 0 ? (
         <div className="card text-center py-12 text-gray-500">No hay turnos en el período seleccionado</div>
       ) : (
-        <DataTable columns={columns as never} data={turnos as never} searchable searchPlaceholder="Buscar técnico..." />
+        <DataTable columns={columns as never} data={turnos as never} searchable searchPlaceholder="Buscar operador..." />
       )}
 
       {/* Modal Editar Turno */}
@@ -314,7 +317,7 @@ export default function CoordinadorTurnosPage() {
               {!editingTurno.horaSalida && (
                 <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                   <strong>Turno en curso:</strong> puedes corregir la hora de entrada abajo. Deja <strong>hora de salida vacía</strong> hasta
-                  que el técnico cierre el turno; si rellenas salida, el turno quedará cerrado.
+                  que el operador cierre el turno; si rellenas salida, el turno quedará cerrado.
                 </p>
               )}
               <div className="grid grid-cols-2 gap-3">

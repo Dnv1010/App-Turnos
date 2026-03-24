@@ -2,6 +2,7 @@
 import { signOut } from "next-auth/react";
 import { HiMenu, HiLogout, HiUser, HiSun, HiMoon } from "react-icons/hi";
 import { useTheme } from "@/hooks/useTheme";
+import { getRoleLabel, getZonaLabel } from "@/lib/roleLabels";
 
 // Componente del logo Bia con rayo
 function BiaLogo({ size = "sm" }: { size?: "sm" | "md" }) {
@@ -33,17 +34,10 @@ interface NavbarProps {
   onMenuClick: () => void;
 }
 
-const rolLabels: Record<string, string> = {
-  TECNICO: "Técnico",
-  COORDINADOR: "Coordinador",
-  COORDINADOR_INTERIOR: "Coord. interior",
-  MANAGER: "Manager",
-  ADMIN: "Administrador",
-};
-
 const zonaBadgeClasses: Record<string, string> = {
   BOGOTA: "badge-blue",
   COSTA: "badge-green",
+  INTERIOR: "badge-zona-interior",
 };
 
 const rolBadgeClasses: Record<string, string> = {
@@ -93,8 +87,8 @@ export default function Navbar({ nombre, role, zona, onMenuClick }: NavbarProps)
             <div className="text-right hidden sm:block">
               <p className="text-sm font-medium text-gray-900 dark:text-white">{nombre}</p>
               <div className="flex items-center gap-2 justify-end">
-                <span className={rolBadgeClasses[role] || "bia-badge-coordinador"}>{rolLabels[role] || role}</span>
-                <span className={zonaBadgeClasses[zona] || "badge-blue"}>{zona}</span>
+                <span className={rolBadgeClasses[role] || "bia-badge-coordinador"}>{getRoleLabel(role)}</span>
+                <span className={zonaBadgeClasses[zona] || "badge-blue"}>{getZonaLabel(zona)}</span>
               </div>
             </div>
             <div className="w-9 h-9 bg-primary-100 dark:bg-bia-teal/20 rounded-full flex items-center justify-center">

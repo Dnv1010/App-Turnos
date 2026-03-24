@@ -6,6 +6,7 @@ import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { parseResponseJson } from "@/lib/parseFetchJson";
 import { VALOR_DISPONIBILIDAD_TECNICO } from "@/lib/reporteDisponibilidadValor";
+import { getRoleLabel, getZonaLabel } from "@/lib/roleLabels";
 import { HiDownload, HiTrash, HiRefresh, HiCheckCircle, HiDocumentText } from "react-icons/hi";
 
 const TARIFA_KM = 1100;
@@ -112,12 +113,6 @@ function totalHorasTrabajoCoord(t: PreviewTurnoCoordinador): number {
   return (t.horasOrdinarias ?? 0) + totalHECoord(t);
 }
 
-function rolReporteCoord(role: string): string {
-  if (role === "COORDINADOR_INTERIOR") return "Coord. interior";
-  if (role === "COORDINADOR") return "Coordinador";
-  return role;
-}
-
 function kmForaneo(f: PreviewForaneo): number {
   if (f.kmInicial != null && f.kmFinal != null && f.kmFinal > f.kmInicial) {
     return f.kmFinal - f.kmInicial;
@@ -145,7 +140,7 @@ export default function ReportesGuardadosClient() {
 
   const [desde, setDesde] = useState(() => format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), "yyyy-MM-dd"));
   const [hasta, setHasta] = useState(() => format(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0), "yyyy-MM-dd"));
-  const [zonaFiltro, setZonaFiltro] = useState<"ALL" | "BOGOTA" | "COSTA">("ALL");
+  const [zonaFiltro, setZonaFiltro] = useState<"ALL" | "BOGOTA" | "COSTA" | "INTERIOR">("ALL");
   const [nombre, setNombre] = useState("");
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [selTurnos, setSelTurnos] = useState<Set<string>>(new Set());
@@ -424,11 +419,12 @@ export default function ReportesGuardadosClient() {
               <select
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 value={zonaFiltro}
-                onChange={(e) => setZonaFiltro(e.target.value as "ALL" | "BOGOTA" | "COSTA")}
+                onChange={(e) => setZonaFiltro(e.target.value as "ALL" | "BOGOTA" | "COSTA" | "INTERIOR")}
               >
                 <option value="ALL">Todas</option>
                 <option value="BOGOTA">Bogotá</option>
                 <option value="COSTA">Costa</option>
+                <option value="INTERIOR">Interior</option>
               </select>
             </div>
           )}
@@ -471,7 +467,7 @@ export default function ReportesGuardadosClient() {
                   <thead className="bg-gray-50 text-gray-600">
                     <tr>
                       <th className="p-2 w-10" />
-                      <th className="text-left p-2">Técnico</th>
+                      <th className="text-left p-2">Operador</th>
                       <th className="text-left p-2">Fecha</th>
                       <th className="text-right p-2">HE</th>
                       <th className="text-right p-2">Rec.</th>
@@ -527,7 +523,7 @@ export default function ReportesGuardadosClient() {
                 </label>
               </div>
               <p className="text-sm text-gray-500 mb-2">
-                Coordinadores y coordinador interior con HE o recargos, no incluidos en reportes anteriores.
+                Líderes de zona (campo e interior) con HE o recargos, no incluidos en reportes anteriores.
               </p>
               <div className="overflow-x-auto border border-gray-200 rounded-lg">
                 <table className="min-w-full text-sm">
@@ -577,7 +573,7 @@ export default function ReportesGuardadosClient() {
                           </td>
                           <td className="p-2 font-mono text-xs">{t.user.cedula ?? "—"}</td>
                           <td className="p-2">{t.user.nombre}</td>
-                          <td className="p-2">{rolReporteCoord(t.user.role)}</td>
+                          <td className="p-2">{getRoleLabel(t.user.role)}</td>
                           <td className="p-2 capitalize">
                             {format(parseISO(t.fecha.split("T")[0]), "LLLL", { locale: es })}
                           </td>
@@ -625,7 +621,7 @@ export default function ReportesGuardadosClient() {
                   <thead className="bg-gray-50 text-gray-600">
                     <tr>
                       <th className="p-2 w-10" />
-                      <th className="text-left p-2">Técnico</th>
+                      <th className="text-left p-2">Operador</th>
                       <th className="text-left p-2">Fecha registro</th>
                       <th className="text-right p-2">Km</th>
                     </tr>
@@ -679,9 +675,8 @@ export default function ReportesGuardadosClient() {
                 </label>
               </div>
               <p className="text-sm text-gray-500 mb-2">
-                Días con &quot;disponible&quot; en la malla. Técnico:{" "}
-                {VALOR_DISPONIBILIDAD_TECNICO.toLocaleString("es-CO")} COP/día · Coordinador / coord. interior:{" "}
-                110.000 COP/día.
+                Días con &quot;disponible&quot; en la malla. Operador:{" "}
+                {VALOR_DISPONIBILIDAD_TECNICO.toLocaleString("es-CO")} COP/día · Líder de zona: 110.000 COP/día.
               </p>
               <div className="overflow-x-auto border border-gray-200 rounded-lg">
                 <table className="min-w-full text-sm">
@@ -690,6 +685,7 @@ export default function ReportesGuardadosClient() {
                       <th className="p-2 w-10" />
                       <th className="text-left p-2">Cédula</th>
                       <th className="text-left p-2">Nombre</th>
+                      <th className="text-left p-2">Rol</th>
                       <th className="text-left p-2">Fecha</th>
                       <th className="text-left p-2">Malla</th>
                       <th className="text-right p-2">Valor</th>
@@ -698,7 +694,7 @@ export default function ReportesGuardadosClient() {
                   <tbody>
                     {preview.disponibilidades.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="p-4 text-center text-gray-500">
+                        <td colSpan={8} className="p-4 text-center text-gray-500">
                           No hay disponibilidades disponibles en este rango
                         </td>
                       </tr>
@@ -719,7 +715,7 @@ export default function ReportesGuardadosClient() {
                           </td>
                           <td className="p-2 font-mono text-xs">{d.user.cedula ?? "—"}</td>
                           <td className="p-2">{d.user.nombre}</td>
-                          <td className="p-2 text-xs">{d.user.role}</td>
+                          <td className="p-2 text-xs">{getRoleLabel(d.user.role)}</td>
                           <td className="p-2">{format(parseISO(d.fecha), "dd/MM/yyyy")}</td>
                           <td className="p-2 max-w-[200px] truncate" title={d.valor}>
                             {d.valor}
@@ -783,11 +779,12 @@ export default function ReportesGuardadosClient() {
               <select
                 className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
                 value={zonaFiltro}
-                onChange={(e) => setZonaFiltro(e.target.value as "ALL" | "BOGOTA" | "COSTA")}
+                onChange={(e) => setZonaFiltro(e.target.value as "ALL" | "BOGOTA" | "COSTA" | "INTERIOR")}
               >
                 <option value="ALL">Todas las zonas</option>
                 <option value="BOGOTA">Bogotá</option>
                 <option value="COSTA">Costa</option>
+                <option value="INTERIOR">Interior</option>
               </select>
             </div>
           )}
@@ -806,7 +803,7 @@ export default function ReportesGuardadosClient() {
                   <th className="text-left p-2">Rango</th>
                   <th className="text-left p-2">Zona</th>
                   <th className="text-right p-2">Turnos</th>
-                  <th className="text-right p-2">Coord.</th>
+                  <th className="text-right p-2">Líder</th>
                   <th className="text-right p-2">Foráneos</th>
                   <th className="text-right p-2">Disp.</th>
                   <th className="text-left p-2">Creado</th>
@@ -821,7 +818,7 @@ export default function ReportesGuardadosClient() {
                     <td className="p-2 whitespace-nowrap">
                       {format(parseISO(r.fechaInicio), "dd/MM/yy")} – {format(parseISO(r.fechaFin), "dd/MM/yy")}
                     </td>
-                    <td className="p-2">{r.zona ?? "Todas"}</td>
+                    <td className="p-2">{r.zona ? getZonaLabel(r.zona) : "Todas"}</td>
                     <td className="p-2 text-right">{r._count.turnosIncluidos}</td>
                     <td className="p-2 text-right">{r._count.turnosCoordinadorIncluidos ?? 0}</td>
                     <td className="p-2 text-right">{r._count.foraneosIncluidos}</td>
@@ -870,7 +867,7 @@ export default function ReportesGuardadosClient() {
           <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 space-y-4">
             <h3 className="font-semibold text-gray-900 dark:text-white">¿Eliminar reporte?</h3>
             <p className="text-sm text-gray-600">
-              Los turnos (técnicos y coordinadores), foráneos y disponibilidades incluidos volverán a estar disponibles
+              Los turnos (operadores y líderes de zona), foráneos y disponibilidades incluidos volverán a estar disponibles
               para futuros reportes.
             </p>
             <div className="flex justify-end gap-2">

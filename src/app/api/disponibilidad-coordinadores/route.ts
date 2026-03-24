@@ -62,8 +62,8 @@ export async function GET(req: NextRequest) {
     isActive: true,
     role: { in: [Role.COORDINADOR, Role.COORDINADOR_INTERIOR] },
   };
-  if (zona && zona !== "ALL" && (zona === "BOGOTA" || zona === "COSTA")) {
-    whereUser.zona = zona;
+  if (zona && zona !== "ALL" && (zona === "BOGOTA" || zona === "COSTA" || zona === "INTERIOR")) {
+    whereUser.zona = zona as Zona;
   }
 
   const [coordinadores, disponibilidades] = await Promise.all([
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
     select: { id: true, nombre: true, cedula: true },
   });
   if (!user) {
-    return NextResponse.json({ error: "Usuario no es coordinador válido" }, { status: 400 });
+    return NextResponse.json({ error: "Usuario no es líder de zona válido" }, { status: 400 });
   }
 
   for (const f of fechas) {

@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { parseResponseJson } from "@/lib/parseFetchJson";
 import DataTable from "@/components/ui/DataTable";
 import { HiPlus, HiPencil, HiTrash, HiX, HiRefresh } from "react-icons/hi";
+import { getRoleLabel, getZonaLabel } from "@/lib/roleLabels";
 
 interface Usuario {
   id: string;
@@ -175,15 +176,25 @@ export default function UsuariosPage() {
           COORDINADOR_INTERIOR: "badge-yellow",
           TECNICO: "badge-blue",
         };
-        return <span className={cls[u.role] || "badge-blue"}>{u.role}</span>;
+        return (
+          <span className={cls[u.role] || "badge-blue"}>{getRoleLabel(u.role)}</span>
+        );
       },
     },
     {
       key: "zona",
       label: "Zona",
       render: (u: Usuario) => (
-        <span className={u.zona === "BOGOTA" ? "badge-blue" : "badge-green"}>
-          {u.zona}
+        <span
+          className={
+            u.zona === "BOGOTA"
+              ? "badge-blue"
+              : u.zona === "INTERIOR"
+                ? "badge-zona-interior"
+                : "badge-green"
+          }
+        >
+          {getZonaLabel(u.zona)}
         </span>
       ),
     },
@@ -377,11 +388,11 @@ export default function UsuariosPage() {
                     }
                     className="input-field"
                   >
-                    <option value="TECNICO">Técnico</option>
-                    <option value="COORDINADOR">Coordinador</option>
-                    <option value="COORDINADOR_INTERIOR">Coordinador interior</option>
+                    <option value="TECNICO">Operador</option>
+                    <option value="COORDINADOR">Líder de Zona</option>
+                    <option value="COORDINADOR_INTERIOR">Líder de Zona (Interior)</option>
                     <option value="MANAGER">Manager</option>
-                    <option value="ADMIN">Admin</option>
+                    <option value="ADMIN">Administrador</option>
                   </select>
                 </div>
                 <div>
@@ -397,6 +408,7 @@ export default function UsuariosPage() {
                   >
                     <option value="BOGOTA">Bogotá</option>
                     <option value="COSTA">Costa</option>
+                    <option value="INTERIOR">Interior</option>
                   </select>
                 </div>
               </div>

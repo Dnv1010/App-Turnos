@@ -12,7 +12,7 @@ async function verificarAdmin() {
 }
 
 const ROLES: Role[] = ["ADMIN", "MANAGER", "COORDINADOR", "COORDINADOR_INTERIOR", "TECNICO"];
-const ZONAS: Zona[] = ["BOGOTA", "COSTA"];
+const ZONAS: Zona[] = ["BOGOTA", "COSTA", "INTERIOR"];
 
 export async function PATCH(
   req: NextRequest,

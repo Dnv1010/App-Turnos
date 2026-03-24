@@ -37,7 +37,7 @@ export async function POST() {
         rewriteSheet("Disponibilidades", ["Nombre", "Cédula", "Fecha", "Valor"], []),
         rewriteSheet("Foraneos", ["Nombre", "Cédula", "Fecha", "Cantidad Foráneos", "Total Km", "Total a Pagar"], []),
       ]);
-      return NextResponse.json({ ok: true, message: "Sheets vacíos (sin técnicos)" });
+      return NextResponse.json({ ok: true, message: "Sheets vacíos (sin operadores)" });
     }
 
     const [turnos, mallaDisponibles, fotosForaneos] = await Promise.all([

@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     if (session.user.role === "COORDINADOR") {
       const target = await prisma.user.findUnique({ where: { id: userId }, select: { zona: true, role: true } });
       if (!target || target.role !== "TECNICO" || target.zona !== session.user.zona) {
-        return NextResponse.json({ error: "Solo puedes ver la malla de técnicos de tu zona" }, { status: 403 });
+        return NextResponse.json({ error: "Solo puedes ver la malla de operadores de tu zona" }, { status: 403 });
       }
     }
 
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
     if (session.user.role === "COORDINADOR") {
       const target = await prisma.user.findUnique({ where: { id: userId }, select: { zona: true, role: true } });
       if (!target || target.role !== "TECNICO" || target.zona !== session.user.zona) {
-        return NextResponse.json({ error: "Solo puedes editar la malla de técnicos de tu zona" }, { status: 403 });
+        return NextResponse.json({ error: "Solo puedes editar la malla de operadores de tu zona" }, { status: 403 });
       }
     }
 

@@ -6,6 +6,7 @@ import {
   getMesEspanol,
 } from "@/lib/reporteExportColombia";
 import { valorDisponibilidadMallaPorRol } from "@/lib/reporteDisponibilidadValor";
+import { getRoleLabel } from "@/lib/roleLabels";
 
 const TARIFA_KM_FORANEO = 1100;
 
@@ -153,7 +154,7 @@ export function buildReporteGuardadoCsvString(
       [
         t.user.cedula ?? "",
         t.user.nombre ?? "",
-        t.user.role,
+        getRoleLabel(t.user.role),
         t.codigoOrden,
         getMesEspanol(t.fecha),
         getDiaEspanol(t.fecha),
@@ -203,7 +204,7 @@ export function buildReporteGuardadoCsvString(
       [
         d.user.cedula ?? "",
         d.user.nombre ?? "",
-        d.user.role,
+        getRoleLabel(d.user.role),
         formatFechaDDMMYYYY(d.fecha),
         d.valor || "Disponible",
         v,

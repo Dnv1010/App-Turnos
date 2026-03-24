@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     let zona = (bodyZona || "BOGOTA") as string;
     let role = (bodyRole || "TECNICO") as string;
     if (session.user.role === "COORDINADOR") {
-      if (role !== "TECNICO") return NextResponse.json({ error: "Solo puedes agregar técnicos" }, { status: 403 });
+      if (role !== "TECNICO") return NextResponse.json({ error: "Solo puedes agregar operadores" }, { status: 403 });
       zona = session.user.zona;
     }
 

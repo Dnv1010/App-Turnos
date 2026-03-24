@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import type { Zona } from "@prisma/client";
 import * as XLSX from "xlsx";
 
 const VALOR_DISPONIBILIDAD = 80000;
@@ -45,9 +46,9 @@ export async function GET(req: NextRequest) {
       role: "TECNICO",
     };
     if (userId) whereUser.id = userId;
-    if (zona && zona !== "ALL") whereUser.zona = zona as "BOGOTA" | "COSTA";
+    if (zona && zona !== "ALL") whereUser.zona = zona as Zona;
     if (session.user.role === "COORDINADOR") {
-      whereUser.zona = session.user.zona as "BOGOTA" | "COSTA";
+      whereUser.zona = session.user.zona as Zona;
     } else if (session.user.role === "TECNICO") {
       whereUser.id = session.user.userId;
     }

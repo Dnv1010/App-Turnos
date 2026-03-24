@@ -114,12 +114,12 @@ export async function POST(req: NextRequest) {
     userIds.length === 0 &&
     (turnoIds.length > 0 || foraneoIds.length > 0 || disponibilidadIds.length > 0)
   ) {
-    return NextResponse.json({ error: "No hay técnicos en el alcance para esos ítems" }, { status: 400 });
+    return NextResponse.json({ error: "No hay operadores en el alcance para esos ítems" }, { status: 400 });
   }
 
   if (coordUserIds.length === 0 && turnoCoordinadorIds.length > 0) {
     return NextResponse.json(
-      { error: "No hay coordinadores en el alcance para esos turnos" },
+      { error: "No hay líderes de zona en el alcance para esos turnos" },
       { status: 400 }
     );
   }

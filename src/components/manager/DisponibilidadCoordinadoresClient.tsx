@@ -5,6 +5,7 @@ import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { parseResponseJson } from "@/lib/parseFetchJson";
 import { VALOR_DISPONIBILIDAD_COORDINADOR } from "@/lib/reporteDisponibilidadValor";
+import { getZonaLabel } from "@/lib/roleLabels";
 
 type CoordUser = { id: string; nombre: string; cedula: string; zona: string; role: string };
 type DispoRow = {
@@ -16,7 +17,7 @@ type DispoRow = {
 };
 
 export default function DisponibilidadCoordinadoresClient() {
-  const [zona, setZona] = useState<"ALL" | "BOGOTA" | "COSTA">("ALL");
+  const [zona, setZona] = useState<"ALL" | "BOGOTA" | "COSTA" | "INTERIOR">("ALL");
   const [mes, setMes] = useState(() => format(new Date(), "yyyy-MM"));
   const [userId, setUserId] = useState("");
   const [coordinadores, setCoordinadores] = useState<CoordUser[]>([]);
@@ -122,9 +123,9 @@ export default function DisponibilidadCoordinadoresClient() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Disponibilidad coordinadores</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Disponibilidad líderes de zona</h1>
         <p className="mt-1 text-sm text-gray-600">
-          Marca días disponibles por coordinador. Valor diario ${VALOR_DISPONIBILIDAD_COORDINADOR.toLocaleString("es-CO")} COP.
+          Marca días disponibles por líder de zona. Valor diario ${VALOR_DISPONIBILIDAD_COORDINADOR.toLocaleString("es-CO")} COP.
         </p>
       </div>
 
@@ -143,10 +144,11 @@ export default function DisponibilidadCoordinadoresClient() {
             <option value="ALL">Todas</option>
             <option value="BOGOTA">Bogotá</option>
             <option value="COSTA">Costa</option>
+            <option value="INTERIOR">Interior</option>
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">Coordinador</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500">Líder de zona</label>
           <select
             className="min-w-[220px] rounded-lg border border-gray-300 px-3 py-2 text-sm"
             value={userId}
@@ -155,7 +157,7 @@ export default function DisponibilidadCoordinadoresClient() {
             <option value="">Seleccionar…</option>
             {coordinadores.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.nombre} ({c.zona})
+                {c.nombre} ({getZonaLabel(c.zona)})
               </option>
             ))}
           </select>
@@ -191,7 +193,7 @@ export default function DisponibilidadCoordinadoresClient() {
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
           </div>
         ) : !userId ? (
-          <p className="text-sm text-gray-500">Selecciona un coordinador.</p>
+          <p className="text-sm text-gray-500">Selecciona un líder de zona.</p>
         ) : (
           <>
             <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-gray-500 mb-1">

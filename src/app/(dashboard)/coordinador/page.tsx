@@ -10,6 +10,7 @@ import KPICards from "@/components/dashboard/KPICards";
 import GraficoHoras from "@/components/dashboard/GraficoHoras";
 import DataTable from "@/components/ui/DataTable";
 import { HiDownload, HiSearch, HiPhotograph, HiLocationMarker, HiRefresh, HiTrash } from "react-icons/hi";
+import { getZonaLabel } from "@/lib/roleLabels";
 
 interface TurnoRow {
   id: string;
@@ -197,11 +198,11 @@ export default function CoordinadorPage() {
   const exportarCSV = () => {
     if (!data) return;
     const headers = [
-      "Técnico", "Zona", "Turnos", "H. Ordinarias", "HE Diurna", "HE Nocturna",
+      "Operador", "Zona", "Turnos", "H. Ordinarias", "HE Diurna", "HE Nocturna",
       "Total HE", "Total Recargos", "Malla", "Km Recorridos", "Reg. Foráneos", "Links Fotos Drive",
     ];
     const rows = data.detalle.map((d) => [
-      d.nombre, d.zona, d.totalTurnos, d.horasOrdinarias, d.heDiurna, d.heNocturna,
+      d.nombre, getZonaLabel(d.zona), d.totalTurnos, d.horasOrdinarias, d.heDiurna, d.heNocturna,
       d.totalHorasExtra, d.totalRecargos, mallaResumen(d.turnos),
       d.totalKmRecorridos,
       d.totalKmRecorridos > 0 ? `${d.totalKmRecorridos} km` : "—",
@@ -264,7 +265,7 @@ export default function CoordinadorPage() {
   };
 
   const columnsTurnos = [
-    { key: "user", label: "Técnico", render: (t: TurnoRow) => t.user?.nombre ?? "—" },
+    { key: "user", label: "Operador", render: (t: TurnoRow) => t.user?.nombre ?? "—" },
     { key: "fecha", label: "Fecha", render: (t: TurnoRow) => formatFechaTurnoDdMmmYyyy(t.fecha) },
     { key: "horaEntrada", label: "Entrada", render: (t: TurnoRow) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
     { key: "horaSalida", label: "Salida", render: (t: TurnoRow) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
@@ -296,8 +297,10 @@ export default function CoordinadorPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Dashboard Equipo</h2>
-          <p className="text-sm text-gray-500 dark:text-bia-muted">Zona {session?.user?.zona} — {session?.user?.nombre}</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Dashboard Líder de Zona</h2>
+          <p className="text-sm text-gray-500 dark:text-bia-muted">
+            Zona {session?.user?.zona ? getZonaLabel(session.user.zona) : ""} — {session?.user?.nombre}
+          </p>
         </div>
         {data && (
           <div className="flex flex-wrap gap-2">
@@ -319,7 +322,7 @@ export default function CoordinadorPage() {
             <input type="date" value={fin} onChange={(e) => setFin(e.target.value)} className="input-field" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Técnico</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Operador</label>
             <select value={tecnicoFilter} onChange={(e) => setTecnicoFilter(e.target.value)} className="input-field">
               <option value="ALL">Todos</option>
               {tecnicosList.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
@@ -359,7 +362,7 @@ export default function CoordinadorPage() {
           {turnos.length === 0 ? (
             <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay turnos en el período seleccionado</div>
           ) : (
-            <DataTable columns={columnsTurnos as never} data={turnos as never} searchable searchPlaceholder="Buscar técnico..." />
+            <DataTable columns={columnsTurnos as never} data={turnos as never} searchable searchPlaceholder="Buscar operador..." />
           )}
         </div>
       )}
@@ -381,11 +384,11 @@ export default function CoordinadorPage() {
             </div>
           )}
           <KPICards data={{ totalTecnicos: data.resumen.totalTecnicos, horasOrdinarias: data.resumen.totalHorasOrdinarias, totalHorasExtra: data.resumen.totalHorasExtra, totalRecargos: data.resumen.totalRecargos, totalDisponibilidades: data.resumen.totalDisponibilidades }} showTeamMetrics />
-          <GraficoHoras datos={data.detalle.map((d) => ({ nombre: d.nombre.split(" ")[0], horasOrdinarias: d.horasOrdinarias, heDiurna: d.heDiurna, heNocturna: d.heNocturna, recargos: d.totalRecargos }))} titulo="Horas por Técnico" />
+          <GraficoHoras datos={data.detalle.map((d) => ({ nombre: d.nombre.split(" ")[0], horasOrdinarias: d.horasOrdinarias, heDiurna: d.heDiurna, heNocturna: d.heNocturna, recargos: d.totalRecargos }))} titulo="Horas por operador" />
           <DataTable columns={[
             { key: "nombre", label: "Nombre", sortable: true },
             { key: "cedula", label: "Cedula" },
-            { key: "zona", label: "Zona" },
+            { key: "zona", label: "Zona", render: (d: DetalleUsuario) => getZonaLabel(d.zona) },
             { key: "totalTurnos", label: "Turnos" },
             { key: "horasOrdinarias", label: "Ordinarias" },
             { key: "heDiurna", label: "HE Dia" },
@@ -398,7 +401,7 @@ export default function CoordinadorPage() {
             { key: "totalHorasExtra", label: "Total HE" },
             { key: "totalRecargos", label: "Total Recargos" },
             { key: "totalKmRecorridos", label: "Km", render: (d: DetalleUsuario) => d.totalKmRecorridos > 0 ? `${d.totalKmRecorridos} km` : "—" },
-          ] as never} data={data.detalle as never} searchable searchPlaceholder="Buscar técnico..." />
+          ] as never} data={data.detalle as never} searchable searchPlaceholder="Buscar operador..." />
             </>
           ) : null}
         </>
