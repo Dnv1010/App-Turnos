@@ -37,11 +37,13 @@ self.addEventListener("push", (event) => {
       } catch {
         /* sin payload legible */
       }
-      await self.registration.showNotification(payload.title, {
-        body: payload.body,
+      await self.registration.showNotification(payload.title || "App Turnos", {
+        body: payload.body != null ? String(payload.body) : "",
         icon: "/icon-192.png",
         badge: "/icon-192.png",
+        vibrate: [200, 100, 200],
         tag: payload.tag || "turnos-bia",
+        renotify: true,
         data: { url: payload.url || "/tecnico" },
         requireInteraction: true,
       });

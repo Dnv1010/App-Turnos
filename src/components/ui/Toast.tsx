@@ -25,10 +25,10 @@ interface Toast {
 }
 
 interface ToastContextType {
-  showToast: (type: ToastType, title: string, message?: string) => void;
-  success: (title: string, message?: string) => void;
-  error: (title: string, message?: string) => void;
-  info: (title: string, message?: string) => void;
+  showToast: (type: ToastType, title: string, message?: string, durationMs?: number) => void;
+  success: (title: string, message?: string, durationMs?: number) => void;
+  error: (title: string, message?: string, durationMs?: number) => void;
+  info: (title: string, message?: string, options?: { duration?: number }) => void;
 }
 
 const ToastContext = createContext<ToastContextType | null>(null);
@@ -69,19 +69,30 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const showToast = useCallback((type: ToastType, title: string, message?: string) => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, type, title, message }]);
-    
-    // Auto-remove after 4 seconds
-    setTimeout(() => {
-      removeToast(id);
-    }, 4000);
-  }, [removeToast]);
+  const showToast = useCallback(
+    (type: ToastType, title: string, message?: string, durationMs = 4000) => {
+      const id = Math.random().toString(36).substring(2, 9);
+      setToasts((prev) => [...prev, { id, type, title, message }]);
+      setTimeout(() => {
+        removeToast(id);
+      }, durationMs);
+    },
+    [removeToast]
+  );
 
-  const success = useCallback((title: string, message?: string) => showToast("success", title, message), [showToast]);
-  const error = useCallback((title: string, message?: string) => showToast("error", title, message), [showToast]);
-  const info = useCallback((title: string, message?: string) => showToast("info", title, message), [showToast]);
+  const success = useCallback(
+    (title: string, message?: string, durationMs?: number) => showToast("success", title, message, durationMs ?? 4000),
+    [showToast]
+  );
+  const error = useCallback(
+    (title: string, message?: string, durationMs?: number) => showToast("error", title, message, durationMs ?? 4000),
+    [showToast]
+  );
+  const info = useCallback(
+    (title: string, message?: string, options?: { duration?: number }) =>
+      showToast("info", title, message, options?.duration ?? 4000),
+    [showToast]
+  );
 
   return (
     <ToastContext.Provider value={{ showToast, success, error, info }}>
@@ -115,7 +126,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-gray-900 dark:text-white text-sm">{toast.title}</p>
                   {toast.message && (
-                    <p className="text-gray-600 dark:text-[#CBD5E1] text-sm mt-0.5">{toast.message}</p>
+                    <p className="text-gray-600 dark:text-[#CBD5E1] text-sm mt-0.5 break-words whitespace-pre-wrap">
+                      {toast.message}
+                    </p>
                   )}
                 </div>
               </div>

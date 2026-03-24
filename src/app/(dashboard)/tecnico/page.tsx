@@ -232,7 +232,11 @@ export default function TecnicoDashboard() {
           </div>
         </div>
       )}
-      <JornadaAlertaFlow turnoActivo={turnoActivo} onAfterReport={cargarDatos} />
+      <JornadaAlertaFlow
+        turnoActivo={turnoActivo}
+        operadorNombre={session?.user?.nombre ?? ""}
+        onAfterReport={cargarDatos}
+      />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="lg:col-span-2 order-2 lg:order-1">
           <KPICards data={{

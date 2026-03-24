@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { getAlertaJornadaAt, etiquetaJornadaEsperada, jornadaTotalMsDesdeEntrada } from "@/lib/jornada-alerta";
+import {
+  getAlertaJornadaAt,
+  etiquetaJornadaEsperada,
+  jornadaTotalMsDesdeEntrada,
+  mensajeCuerpoOperador15min,
+  primerNombreOperador,
+} from "@/lib/jornada-alerta";
 import { parseResponseJson } from "@/lib/parseFetchJson";
+import { useToast } from "@/components/ui/Toast";
 import { HiClock, HiX } from "react-icons/hi";
 
 type Step = "closed" | "pregunta" | "orden" | "cerrar";
@@ -13,10 +20,15 @@ function storageKeyHandled(turnoId: string) {
 
 interface Props {
   turnoActivo: { id: string; horaEntrada: string } | null;
+  /** Nombre del operador (sesión) para personalizar toast / modal / Notification local */
+  operadorNombre?: string;
   onAfterReport?: () => void;
 }
 
-export default function JornadaAlertaFlow({ turnoActivo, onAfterReport }: Props) {
+const TITULO_ALERTA = "⏰ Jornada por finalizar";
+
+export default function JornadaAlertaFlow({ turnoActivo, operadorNombre = "", onAfterReport }: Props) {
+  const toast = useToast();
   const [step, setStep] = useState<Step>("closed");
   const [orden, setOrden] = useState("");
   const [sending, setSending] = useState(false);
@@ -32,10 +44,13 @@ export default function JornadaAlertaFlow({ turnoActivo, onAfterReport }: Props)
       }
       setStep("pregunta");
       setErr(null);
+      const primer = primerNombreOperador(operadorNombre);
+      const cuerpoAmigable = mensajeCuerpoOperador15min(primer);
+      toast.info(TITULO_ALERTA, cuerpoAmigable, { duration: 15000 });
       if (Notification.permission === "granted") {
         try {
-          new Notification("Turnos BIA — Fin de jornada", {
-            body: "Faltan 15 minutos para el fin de tu jornada. Indica si sigues laborando o cierra turno en la app.",
+          new Notification(TITULO_ALERTA, {
+            body: cuerpoAmigable,
             icon: "/icon-192.png",
             tag: `jornada-ui-${turnoId}`,
           });
@@ -44,7 +59,7 @@ export default function JornadaAlertaFlow({ turnoActivo, onAfterReport }: Props)
         }
       }
     },
-    []
+    [toast, operadorNombre]
   );
 
   useEffect(() => {
@@ -122,6 +137,7 @@ export default function JornadaAlertaFlow({ turnoActivo, onAfterReport }: Props)
 
   const entrada = new Date(turnoActivo.horaEntrada);
   const horaFin = new Date(entrada.getTime() + jornadaTotalMsDesdeEntrada(entrada));
+  const textoAmigable = mensajeCuerpoOperador15min(primerNombreOperador(operadorNombre));
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 dark:bg-black/70">
@@ -133,9 +149,9 @@ export default function JornadaAlertaFlow({ turnoActivo, onAfterReport }: Props)
 
         {step === "pregunta" && (
           <div className="p-5 space-y-4">
-            <p className="text-sm text-gray-800 dark:text-[#CBD5E1]">
-              Faltan <strong>15 minutos</strong> para completar tu jornada prevista ({etiquetaJornadaEsperada(entrada)}). Hora
-              referencia de cierre:{" "}
+            <p className="text-sm text-gray-800 dark:text-[#CBD5E1]">{textoAmigable}</p>
+            <p className="text-xs text-gray-600 dark:text-[#A0AEC0]">
+              Jornada prevista: {etiquetaJornadaEsperada(entrada)}. Hora referencia de cierre:{" "}
               <strong>
                 {horaFin.toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })}
               </strong>{" "}

@@ -31,3 +31,14 @@ export function getAlertaJornadaAt(horaEntrada: Date): Date {
 export function etiquetaJornadaEsperada(horaEntrada: Date): string {
   return getDowColombia(horaEntrada) === 6 ? "4 horas (sábado)" : "9 horas (8 h trabajo + 1 h almuerzo)";
 }
+
+/** Primer token del nombre (push / toast / modal de 15 min). */
+export function primerNombreOperador(nombre: string): string {
+  const p = nombre.trim().split(/\s+/)[0];
+  return p || nombre.trim() || "compañero";
+}
+
+/** Cuerpo del mensaje de aviso 15 min (operador): mismo texto en cron push, SW y app. */
+export function mensajeCuerpoOperador15min(primer: string): string {
+  return `¡Gran trabajo el de hoy, ${primer}! 🚀 Faltan solo 15 minutos para finalizar la jornada. Es el momento perfecto para ir cerrando tareas, guardar herramientas y prepararse para un merecido descanso. ¡Gracias por su esfuerzo!`;
+}
