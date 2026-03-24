@@ -18,7 +18,9 @@ export async function GET(req: NextRequest) {
     let zona = searchParams.get("zona");
     const role = searchParams.get("role");
     const cargo = searchParams.get("cargo");
-    if (session?.user?.role === "COORDINADOR" && !zona) zona = session.user.zona;
+    if ((session?.user?.role === "COORDINADOR" || session?.user?.role === "SUPPLY") && !zona) {
+      zona = session.user.zona;
+    }
 
     const where: Record<string, unknown> = { isActive: true };
     if (zona && zona !== "ALL") where.zona = zona;
@@ -64,7 +66,7 @@ export async function POST(req: NextRequest) {
 
     let zona = (bodyZona || "BOGOTA") as string;
     let role = (bodyRole || "TECNICO") as string;
-    if (session.user.role === "COORDINADOR") {
+    if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
       if (role !== "TECNICO") return NextResponse.json({ error: "Solo puedes agregar operadores" }, { status: 403 });
       zona = session.user.zona;
     }
@@ -80,10 +82,13 @@ export async function POST(req: NextRequest) {
     if (!pinNormalized) return NextResponse.json({ error: "El PIN es obligatorio" }, { status: 400 });
     const hashedPin = await bcrypt.hash(pinNormalized, 10);
 
-    const cargoCreate =
+    let cargoCreate =
       typeof bodyCargo === "string" && Object.values(Cargo).includes(bodyCargo as Cargo)
         ? (bodyCargo as Cargo)
         : Cargo.TECNICO;
+    if (session.user.role === "SUPPLY") {
+      cargoCreate = Cargo.ALMACENISTA;
+    }
 
     const user = await prisma.user.create({
       data: {

@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
   const lideres = await prisma.user.findMany({
     where: {
       zona: tecnico.zona,
-      role: { in: [Role.COORDINADOR, Role.COORDINADOR_INTERIOR] },
+      role: { in: [Role.COORDINADOR, Role.COORDINADOR_INTERIOR, Role.SUPPLY] },
       isActive: true,
     },
     select: {

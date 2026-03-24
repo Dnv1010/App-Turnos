@@ -27,9 +27,17 @@ export async function POST(req: NextRequest) {
     if (session.user.role === "TECNICO" && userId !== session.user.userId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
-    if (session.user.role === "COORDINADOR") {
-      const target = await prisma.user.findUnique({ where: { id: userId }, select: { zona: true, role: true } });
-      if (!target || target.role !== "TECNICO" || target.zona !== session.user.zona) {
+    if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
+      const target = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { zona: true, role: true, cargo: true },
+      });
+      const ok =
+        target &&
+        target.role === "TECNICO" &&
+        target.zona === session.user.zona &&
+        (session.user.role === "COORDINADOR" || target.cargo === "ALMACENISTA");
+      if (!ok) {
         return NextResponse.json({ error: "Solo puedes precargar malla de operadores de tu zona" }, { status: 403 });
       }
     }

@@ -174,6 +174,7 @@ export default function UsuariosPage() {
           MANAGER: "badge-purple",
           COORDINADOR: "badge-yellow",
           COORDINADOR_INTERIOR: "badge-yellow",
+          SUPPLY: "badge-blue",
           TECNICO: "badge-blue",
         };
         return (
@@ -393,6 +394,7 @@ export default function UsuariosPage() {
                     <option value="COORDINADOR_INTERIOR">Líder de Zona (Interior)</option>
                     <option value="MANAGER">Manager</option>
                     <option value="ADMIN">Administrador</option>
+                    <option value="SUPPLY">Supply</option>
                   </select>
                 </div>
                 <div>

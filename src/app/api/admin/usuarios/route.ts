@@ -55,6 +55,9 @@ export async function POST(req: NextRequest) {
 
   const activo = typeof isActive === "boolean" ? isActive : true;
 
+  const roleResolved = (role as Role) || Role.TECNICO;
+  const filtroEquipoDefault = roleResolved === Role.SUPPLY ? "ALMACENISTA" : "TODOS";
+
   const cargoCreate =
     typeof bodyCargo === "string" && Object.values(Cargo).includes(bodyCargo as Cargo)
       ? (bodyCargo as Cargo)
@@ -66,9 +69,10 @@ export async function POST(req: NextRequest) {
       nombre: String(nombre),
       email: (email as string).toLowerCase(),
       password: hashedPin,
-      role: (role as Role) || "TECNICO",
+      role: roleResolved,
       zona: (zona as Zona) || "BOGOTA",
       cargo: cargoCreate,
+      filtroEquipo: filtroEquipoDefault,
       isActive: activo,
     },
   });

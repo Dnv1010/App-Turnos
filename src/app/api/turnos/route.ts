@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
 
   if (session.user.role === "TECNICO") {
     where.userId = session.user.userId;
-  } else if (session.user.role === "COORDINADOR") {
+  } else if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
     const zona = (zonaParam || session.user.zona) as Zona;
     const usersZona = await prisma.user.findMany({
       where: { zona, role: "TECNICO", isActive: true },

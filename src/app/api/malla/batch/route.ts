@@ -18,14 +18,16 @@ export async function POST(req: NextRequest) {
     if (session.user.role === "TECNICO") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
-    if (session.user.role === "COORDINADOR") {
+    if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
       const targets = await prisma.user.findMany({
         where: { id: { in: userIds } },
-        select: { id: true, zona: true, role: true },
+        select: { id: true, zona: true, role: true, cargo: true },
       });
-      const invalid = targets.some(
-        (t) => t.role !== "TECNICO" || t.zona !== session.user.zona
-      );
+      const invalid = targets.some((t) => {
+        if (t.role !== "TECNICO" || t.zona !== session.user.zona) return true;
+        if (session.user.role === "SUPPLY" && t.cargo !== "ALMACENISTA") return true;
+        return false;
+      });
       if (invalid || targets.length !== userIds.length) {
         return NextResponse.json({ error: "Solo puedes asignar malla a operadores de tu zona" }, { status: 403 });
       }

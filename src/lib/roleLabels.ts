@@ -9,6 +9,7 @@ export function getRoleLabel(role: string): string {
     COORDINADOR_INTERIOR: "Líder de Zona",
     MANAGER: "Manager",
     ADMIN: "Administrador",
+    SUPPLY: "Supply",
   };
   return labels[role] || role;
 }

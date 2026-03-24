@@ -11,7 +11,7 @@ async function verificarAdmin() {
   return session;
 }
 
-const ROLES: Role[] = ["ADMIN", "MANAGER", "COORDINADOR", "COORDINADOR_INTERIOR", "TECNICO"];
+const ROLES: Role[] = ["ADMIN", "MANAGER", "COORDINADOR", "COORDINADOR_INTERIOR", "TECNICO", "SUPPLY"];
 const ZONAS: Zona[] = ["BOGOTA", "COSTA", "INTERIOR"];
 const FILTROS_EQUIPO = ["TODOS", "TECNICO", "ALMACENISTA"] as const;
 

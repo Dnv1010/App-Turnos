@@ -31,10 +31,10 @@ export async function GET(req: NextRequest) {
   if (zona && zona !== "ALL") whereUser.zona = zona;
   if (userId) whereUser.id = userId;
   if (rol && rol !== "ALL") whereUser.role = rol;
-  if (session.user.role === "COORDINADOR" || session.user.role === "MANAGER") {
+  if (session.user.role === "COORDINADOR" || session.user.role === "MANAGER" || session.user.role === "SUPPLY") {
     whereUser.role = "TECNICO";
   }
-  if (session.user.role === "COORDINADOR") {
+  if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
     whereUser.zona = session.user.zona;
   } else if (session.user.role === "TECNICO") {
     whereUser.id = session.user.userId;

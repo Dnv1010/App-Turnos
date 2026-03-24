@@ -7,6 +7,8 @@ export function getPostLoginPath(role: string): string {
       return "/coordinador";
     case "COORDINADOR_INTERIOR":
       return "/coordinador-interior";
+    case "SUPPLY":
+      return "/supply";
     case "MANAGER":
     case "ADMIN":
       return "/manager";

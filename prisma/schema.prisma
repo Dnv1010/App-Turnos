@@ -13,6 +13,7 @@ enum Role {
   COORDINADOR_INTERIOR
   MANAGER
   ADMIN
+  SUPPLY
 }
 
 enum Zona {

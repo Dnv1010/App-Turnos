@@ -23,6 +23,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (role !== "COORDINADOR_INTERIOR" && pathname.startsWith("/coordinador-interior")) {
       router.replace(getPostLoginPath(role));
     }
+    if (role === "SUPPLY" && !pathname.startsWith("/supply")) {
+      router.replace("/supply");
+      return;
+    }
+    if (role !== "SUPPLY" && pathname.startsWith("/supply")) {
+      router.replace(getPostLoginPath(role));
+    }
   }, [status, session, pathname, router]);
 
   if (status === "loading") {
@@ -48,6 +55,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   if (role !== "COORDINADOR_INTERIOR" && pathname.startsWith("/coordinador-interior")) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-bia-navy-800">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
+      </div>
+    );
+  }
+
+  if (role === "SUPPLY" && !pathname.startsWith("/supply")) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-bia-navy-800">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
+      </div>
+    );
+  }
+
+  if (role !== "SUPPLY" && pathname.startsWith("/supply")) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-bia-navy-800">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />

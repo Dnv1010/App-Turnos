@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     };
     if (userId) whereUser.id = userId;
     if (zona && zona !== "ALL") whereUser.zona = zona as Zona;
-    if (session.user.role === "COORDINADOR") {
+    if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
       whereUser.zona = session.user.zona as Zona;
     } else if (session.user.role === "TECNICO") {
       whereUser.id = session.user.userId;

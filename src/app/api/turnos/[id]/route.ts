@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Cargo } from "@prisma/client";
 import { turnoEventEmitter } from "@/lib/turno-event-emitter";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
 import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
@@ -25,7 +26,11 @@ export async function PATCH(
     if (!session) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
-    if (session.user.role !== "COORDINADOR" && session.user.role !== "ADMIN") {
+    if (
+      session.user.role !== "COORDINADOR" &&
+      session.user.role !== "ADMIN" &&
+      session.user.role !== "SUPPLY"
+    ) {
       return NextResponse.json({ error: "Solo coordinadores y admins pueden editar turnos" }, { status: 403 });
     }
 
@@ -44,10 +49,21 @@ export async function PATCH(
 
     const turnoExistente = await prisma.turno.findUnique({
       where: { id: turnoId },
-      include: { user: { select: { id: true, zona: true } } },
+      include: { user: { select: { id: true, zona: true, role: true, cargo: true } } },
     });
     if (!turnoExistente) {
       return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
+    }
+
+    if (session.user.role === "SUPPLY") {
+      const u = turnoExistente.user;
+      if (
+        u.role !== "TECNICO" ||
+        u.zona !== session.user.zona ||
+        u.cargo !== Cargo.ALMACENISTA
+      ) {
+        return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+      }
     }
 
     // Convertir hora Colombia (sin tz) a UTC sumando 5h
@@ -202,7 +218,11 @@ export async function DELETE(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    if (session.user.role !== "COORDINADOR" && session.user.role !== "ADMIN") {
+    if (
+      session.user.role !== "COORDINADOR" &&
+      session.user.role !== "ADMIN" &&
+      session.user.role !== "SUPPLY"
+    ) {
       return NextResponse.json(
         { error: "Solo coordinadores y admins pueden eliminar turnos" },
         { status: 403 }
@@ -213,11 +233,22 @@ export async function DELETE(
 
     const turnoAnterior = await prisma.turno.findUnique({
       where: { id: turnoId },
-      include: { user: { select: { zona: true } } },
+      include: { user: { select: { zona: true, role: true, cargo: true } } },
     });
 
     if (!turnoAnterior) {
       return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
+    }
+
+    if (session.user.role === "SUPPLY") {
+      const u = turnoAnterior.user;
+      if (
+        u.role !== "TECNICO" ||
+        u.zona !== session.user.zona ||
+        u.cargo !== Cargo.ALMACENISTA
+      ) {
+        return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+      }
     }
 
     await prisma.turno.delete({

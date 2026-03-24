@@ -35,7 +35,9 @@ export async function PATCH(
 
   const isCoordSelf =
     session.user.userId === id &&
-    (session.user.role === "COORDINADOR" || session.user.role === "COORDINADOR_INTERIOR");
+    (session.user.role === "COORDINADOR" ||
+      session.user.role === "COORDINADOR_INTERIOR" ||
+      session.user.role === "SUPPLY");
 
   if (isCoordSelf) {
     if (nombre != null || email != null || pin != null || cargo != null) {
@@ -55,9 +57,12 @@ export async function PATCH(
     return NextResponse.json(updated);
   }
 
-  if (session.user.role === "COORDINADOR") {
+  if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
     if (target.role !== "TECNICO" || target.zona !== session.user.zona) {
       return NextResponse.json({ error: "Solo puedes editar operadores de tu zona" }, { status: 403 });
+    }
+    if (session.user.role === "SUPPLY" && target.cargo !== "ALMACENISTA") {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
   } else if (session.user.role !== "ADMIN" && session.user.role !== "MANAGER") {
     return NextResponse.json({ error: "Sin permisos para editar usuarios" }, { status: 403 });
@@ -82,6 +87,9 @@ export async function PATCH(
   if (cargo != null) {
     if (typeof cargo !== "string" || !Object.values(Cargo).includes(cargo as Cargo)) {
       return NextResponse.json({ error: "cargo inválido" }, { status: 400 });
+    }
+    if (session.user.role === "SUPPLY" && (cargo as Cargo) !== Cargo.ALMACENISTA) {
+      return NextResponse.json({ error: "Solo puedes mantener cargo Almacenista" }, { status: 400 });
     }
     data.cargo = cargo as Cargo;
   }
@@ -116,9 +124,12 @@ export async function DELETE(
     return NextResponse.json({ error: "No se puede desactivar coordinadores, managers ni administradores" }, { status: 400 });
   }
 
-  if (session.user.role === "COORDINADOR") {
+  if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
     if (target.zona !== session.user.zona) {
       return NextResponse.json({ error: "Solo puedes desactivar operadores de tu zona" }, { status: 403 });
+    }
+    if (session.user.role === "SUPPLY" && target.cargo !== "ALMACENISTA") {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
   } else if (session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
