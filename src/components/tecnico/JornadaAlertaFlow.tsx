@@ -124,16 +124,16 @@ export default function JornadaAlertaFlow({ turnoActivo, onAfterReport }: Props)
   const horaFin = new Date(entrada.getTime() + jornadaTotalMsDesdeEntrada(entrada));
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border-2 border-amber-400">
-        <div className="bg-amber-50 px-4 py-3 border-b border-amber-200 flex items-center gap-2">
-          <HiClock className="h-6 w-6 text-amber-700" />
-          <h3 className="font-bold text-amber-900">Fin de jornada</h3>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 dark:bg-black/70">
+      <div className="bg-white dark:bg-[#1A2340] rounded-2xl shadow-2xl dark:shadow-black/40 max-w-md w-full overflow-hidden border-2 border-amber-400 dark:border-amber-600/80">
+        <div className="bg-amber-50 dark:bg-amber-950/50 px-4 py-3 border-b border-amber-200 dark:border-amber-800 flex items-center gap-2">
+          <HiClock className="h-6 w-6 text-amber-700 dark:text-amber-400" />
+          <h3 className="font-bold text-amber-900 dark:text-amber-100">Fin de jornada</h3>
         </div>
 
         {step === "pregunta" && (
           <div className="p-5 space-y-4">
-            <p className="text-sm text-gray-800">
+            <p className="text-sm text-gray-800 dark:text-[#CBD5E1]">
               Faltan <strong>15 minutos</strong> para completar tu jornada prevista ({etiquetaJornadaEsperada(entrada)}). Hora
               referencia de cierre:{" "}
               <strong>
@@ -148,7 +148,7 @@ export default function JornadaAlertaFlow({ turnoActivo, onAfterReport }: Props)
               </button>
               <button
                 type="button"
-                className="w-full py-2.5 px-4 rounded-lg border border-gray-300 dark:border-[#3A4565] dark:bg-[#1E2A45] text-gray-800 dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-bia-navy-500"
+                className="w-full py-2.5 px-4 rounded-lg border border-gray-300 dark:border-[#3A4565] dark:bg-[#1E2A45] text-gray-800 dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-[#243052]"
                 onClick={irCerrarTurno}
               >
                 No, ya terminé
@@ -159,7 +159,7 @@ export default function JornadaAlertaFlow({ turnoActivo, onAfterReport }: Props)
 
         {step === "orden" && (
           <div className="p-5 space-y-4">
-            <p className="text-sm text-gray-700 dark:text-bia-label">
+            <p className="text-sm text-gray-700 dark:text-[#CBD5E1]">
               Indica en qué <strong>orden de trabajo</strong> sigues laborando. Tu coordinador verá esta información en las
               observaciones del turno.
             </p>
@@ -173,7 +173,7 @@ export default function JornadaAlertaFlow({ turnoActivo, onAfterReport }: Props)
             <div className="flex gap-2">
               <button
                 type="button"
-                className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700 dark:border-[#3A4565] dark:bg-[#1E2A45] dark:text-white dark:hover:bg-bia-navy-500"
+                className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700 dark:border-[#3A4565] dark:bg-[#1E2A45] dark:text-white dark:hover:bg-[#243052]"
                 onClick={() => setStep("pregunta")}
               >
                 Atrás

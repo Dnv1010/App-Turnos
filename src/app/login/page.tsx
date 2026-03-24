@@ -73,14 +73,14 @@ export default function LoginPage() {
         </div>
 
         {/* Formulario */}
-        <div className="bg-white dark:bg-bia-navy-700 rounded-2xl shadow-2xl dark:shadow-black/40 p-8 border border-transparent dark:border-bia-navy-400 dark:text-white">
+        <div className="bg-white dark:bg-[#1A2340] rounded-2xl shadow-2xl dark:shadow-black/40 p-8 border border-gray-200 dark:border-[#3A4565] dark:text-white">
           <form onSubmit={handleCredentials} className="space-y-5">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1.5">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1.5">
                 Correo electrónico
               </label>
               <div className="relative">
-                <HiMail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <HiMail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-[#64748B]" />
                 <input
                   id="email"
                   type="email"
@@ -93,11 +93,11 @@ export default function LoginPage() {
               </div>
             </div>
             <div>
-              <label htmlFor="pin" className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1.5">
+              <label htmlFor="pin" className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1.5">
                 PIN de acceso
               </label>
               <div className="relative">
-                <HiKey className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <HiKey className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-[#64748B]" />
                 <input
                   id="pin"
                   type="password"
@@ -134,10 +134,10 @@ export default function LoginPage() {
           {/* Separador */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200 dark:border-bia-navy-400" />
+              <div className="w-full border-t border-gray-200 dark:border-[#3A4565]" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-3 bg-white dark:bg-bia-navy-700 text-gray-500 dark:text-bia-muted">o continúa con</span>
+              <span className="px-3 bg-white dark:bg-[#1A2340] text-gray-500 dark:text-[#A0AEC0]">o continúa con</span>
             </div>
           </div>
 

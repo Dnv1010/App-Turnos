@@ -354,7 +354,7 @@ export default function ReportesGuardadosClient() {
   }
 
   if (status === "loading") {
-    return <div className="p-6 text-gray-600">Cargando…</div>;
+    return <div className="p-6 text-gray-600 dark:text-[#A0AEC0]">Cargando…</div>;
   }
 
   if (status !== "authenticated") {
@@ -365,7 +365,7 @@ export default function ReportesGuardadosClient() {
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-10">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Reportes guardados</h1>
-        <p className="text-sm text-gray-600 mt-1">
+        <p className="text-sm text-gray-600 dark:text-[#A0AEC0] mt-1">
           Genera reportes por rango, guarda los ítems seleccionados y descarga Excel o CSV. Turnos con HE/recargos,
           foráneos aprobados y días de disponibilidad en malla guardados no vuelven a aparecer hasta que elimines el
           reporte.
@@ -383,41 +383,41 @@ export default function ReportesGuardadosClient() {
         </div>
       )}
 
-      <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
+      <section className="bg-white dark:bg-[#1A2340] rounded-xl border border-gray-200 dark:border-[#3A4565] shadow-sm dark:shadow-black/30 p-6 space-y-4">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Generar reporte</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Nombre del reporte</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-[#A0AEC0] mb-1">Nombre del reporte</label>
             <input
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              className="w-full border border-gray-300 dark:border-[#3A4565] rounded-lg px-3 py-2 text-sm dark:bg-[#1E2A45] dark:text-white"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               placeholder={nombreSugerido(desde, hasta)}
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-[#A0AEC0] mb-1">Desde</label>
             <input
               type="date"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              className="w-full border border-gray-300 dark:border-[#3A4565] rounded-lg px-3 py-2 text-sm dark:bg-[#1E2A45] dark:text-white"
               value={desde}
               onChange={(e) => setDesde(e.target.value)}
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-[#A0AEC0] mb-1">Hasta</label>
             <input
               type="date"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              className="w-full border border-gray-300 dark:border-[#3A4565] rounded-lg px-3 py-2 text-sm dark:bg-[#1E2A45] dark:text-white"
               value={hasta}
               onChange={(e) => setHasta(e.target.value)}
             />
           </div>
           {!isCoord && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Zona</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-[#A0AEC0] mb-1">Zona</label>
               <select
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                className="w-full border border-gray-300 dark:border-[#3A4565] rounded-lg px-3 py-2 text-sm dark:bg-[#1E2A45] dark:text-white"
                 value={zonaFiltro}
                 onChange={(e) => setZonaFiltro(e.target.value as "ALL" | "BOGOTA" | "COSTA" | "INTERIOR")}
               >
@@ -442,18 +442,18 @@ export default function ReportesGuardadosClient() {
           <button
             type="button"
             onClick={() => setNombre(nombreSugerido(desde, hasta))}
-            className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-[#3A4565] text-sm text-gray-700 dark:text-[#CBD5E1] hover:bg-gray-50 dark:hover:bg-[#243052]"
           >
             Usar nombre sugerido
           </button>
         </div>
 
         {preview && (
-          <div className="space-y-8 pt-4 border-t border-gray-100">
+          <div className="space-y-8 pt-4 border-t border-gray-100 dark:border-[#2A3555]">
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-medium text-gray-900 dark:text-white">Horas extras / recargos</h3>
-                <label className="text-sm text-gray-600 flex items-center gap-2">
+                <label className="text-sm text-gray-600 dark:text-[#A0AEC0] flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={preview.turnos.length > 0 && selTurnos.size === preview.turnos.length}
@@ -462,9 +462,9 @@ export default function ReportesGuardadosClient() {
                   Seleccionar todos
                 </label>
               </div>
-              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <div className="overflow-x-auto border border-gray-200 dark:border-[#3A4565] rounded-lg dark:bg-[#1A2340]">
                 <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-600">
+                  <thead className="bg-gray-50 dark:bg-[#162035] text-gray-600 dark:text-[#A0AEC0]">
                     <tr>
                       <th className="p-2 w-10" />
                       <th className="text-left p-2">Operador</th>
@@ -476,13 +476,13 @@ export default function ReportesGuardadosClient() {
                   <tbody>
                     {preview.turnos.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="p-4 text-center text-gray-500">
+                        <td colSpan={5} className="p-4 text-center text-gray-500 dark:text-[#A0AEC0]">
                           No hay turnos disponibles en este rango
                         </td>
                       </tr>
                     ) : (
                       preview.turnos.map((t) => (
-                        <tr key={t.id} className="border-t border-gray-100">
+                        <tr key={t.id} className="border-t border-gray-100 dark:border-[#2A3555] hover:bg-gray-50/80 dark:hover:bg-[#243052]">
                           <td className="p-2">
                             <input
                               type="checkbox"
@@ -510,7 +510,7 @@ export default function ReportesGuardadosClient() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-medium text-gray-900 dark:text-white">Turnos coordinadores</h3>
-                <label className="text-sm text-gray-600 flex items-center gap-2">
+                <label className="text-sm text-gray-600 dark:text-[#A0AEC0] flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={(() => {
@@ -522,12 +522,12 @@ export default function ReportesGuardadosClient() {
                   Seleccionar todos
                 </label>
               </div>
-              <p className="text-sm text-gray-500 mb-2">
+              <p className="text-sm text-gray-500 dark:text-[#A0AEC0] mb-2">
                 Líderes de zona (campo e interior) con HE o recargos, no incluidos en reportes anteriores.
               </p>
-              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <div className="overflow-x-auto border border-gray-200 dark:border-[#3A4565] rounded-lg dark:bg-[#1A2340]">
                 <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-600">
+                  <thead className="bg-gray-50 dark:bg-[#162035] text-gray-600 dark:text-[#A0AEC0]">
                     <tr>
                       <th className="p-2 w-10" />
                       <th className="text-left p-2">Cédula</th>
@@ -552,13 +552,13 @@ export default function ReportesGuardadosClient() {
                   <tbody>
                     {(preview.turnosCoordinador ?? []).length === 0 ? (
                       <tr>
-                        <td colSpan={17} className="p-4 text-center text-gray-500">
+                        <td colSpan={17} className="p-4 text-center text-gray-500 dark:text-[#A0AEC0]">
                           No hay turnos de coordinador disponibles en este rango
                         </td>
                       </tr>
                     ) : (
                       (preview.turnosCoordinador ?? []).map((t) => (
-                        <tr key={t.id} className="border-t border-gray-100">
+                        <tr key={t.id} className="border-t border-gray-100 dark:border-[#2A3555] hover:bg-gray-50/80 dark:hover:bg-[#243052]">
                           <td className="p-2">
                             <input
                               type="checkbox"
@@ -607,7 +607,7 @@ export default function ReportesGuardadosClient() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-medium text-gray-900 dark:text-white">Foráneos aprobados</h3>
-                <label className="text-sm text-gray-600 flex items-center gap-2">
+                <label className="text-sm text-gray-600 dark:text-[#A0AEC0] flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={preview.foraneos.length > 0 && selForaneos.size === preview.foraneos.length}
@@ -616,9 +616,9 @@ export default function ReportesGuardadosClient() {
                   Seleccionar todos
                 </label>
               </div>
-              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <div className="overflow-x-auto border border-gray-200 dark:border-[#3A4565] rounded-lg dark:bg-[#1A2340]">
                 <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-600">
+                  <thead className="bg-gray-50 dark:bg-[#162035] text-gray-600 dark:text-[#A0AEC0]">
                     <tr>
                       <th className="p-2 w-10" />
                       <th className="text-left p-2">Operador</th>
@@ -629,13 +629,13 @@ export default function ReportesGuardadosClient() {
                   <tbody>
                     {preview.foraneos.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="p-4 text-center text-gray-500">
+                        <td colSpan={4} className="p-4 text-center text-gray-500 dark:text-[#A0AEC0]">
                           No hay foráneos aprobados disponibles en este rango
                         </td>
                       </tr>
                     ) : (
                       preview.foraneos.map((f) => (
-                        <tr key={f.id} className="border-t border-gray-100">
+                        <tr key={f.id} className="border-t border-gray-100 dark:border-[#2A3555] hover:bg-gray-50/80 dark:hover:bg-[#243052]">
                           <td className="p-2">
                             <input
                               type="checkbox"
@@ -662,7 +662,7 @@ export default function ReportesGuardadosClient() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-medium text-gray-900 dark:text-white">Disponibilidades</h3>
-                <label className="text-sm text-gray-600 flex items-center gap-2">
+                <label className="text-sm text-gray-600 dark:text-[#A0AEC0] flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={
@@ -674,13 +674,13 @@ export default function ReportesGuardadosClient() {
                   Seleccionar todos
                 </label>
               </div>
-              <p className="text-sm text-gray-500 mb-2">
+              <p className="text-sm text-gray-500 dark:text-[#A0AEC0] mb-2">
                 Días con &quot;disponible&quot; en la malla. Operador:{" "}
                 {VALOR_DISPONIBILIDAD_TECNICO.toLocaleString("es-CO")} COP/día · Líder de zona: 110.000 COP/día.
               </p>
-              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <div className="overflow-x-auto border border-gray-200 dark:border-[#3A4565] rounded-lg dark:bg-[#1A2340]">
                 <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-600">
+                  <thead className="bg-gray-50 dark:bg-[#162035] text-gray-600 dark:text-[#A0AEC0]">
                     <tr>
                       <th className="p-2 w-10" />
                       <th className="text-left p-2">Cédula</th>
@@ -694,13 +694,13 @@ export default function ReportesGuardadosClient() {
                   <tbody>
                     {preview.disponibilidades.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="p-4 text-center text-gray-500">
+                        <td colSpan={8} className="p-4 text-center text-gray-500 dark:text-[#A0AEC0]">
                           No hay disponibilidades disponibles en este rango
                         </td>
                       </tr>
                     ) : (
                       preview.disponibilidades.map((d) => (
-                        <tr key={d.id} className="border-t border-gray-100">
+                        <tr key={d.id} className="border-t border-gray-100 dark:border-[#2A3555] hover:bg-gray-50/80 dark:hover:bg-[#243052]">
                           <td className="p-2">
                             <input
                               type="checkbox"
@@ -731,8 +731,8 @@ export default function ReportesGuardadosClient() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-4 bg-gray-50 rounded-lg p-4">
-              <div className="text-sm text-gray-700 space-y-1">
+            <div className="flex flex-wrap items-center justify-between gap-4 bg-gray-50 dark:bg-[#0F1629] rounded-lg p-4 border border-gray-100 dark:border-[#2A3555]">
+              <div className="text-sm text-gray-700 dark:text-[#CBD5E1] space-y-1">
                 <div>
                   <span className="font-medium">Total HE (selección):</span> {totalesPreview.he}
                 </div>
@@ -770,14 +770,14 @@ export default function ReportesGuardadosClient() {
         )}
       </section>
 
-      <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
+      <section className="bg-white dark:bg-[#1A2340] rounded-xl border border-gray-200 dark:border-[#3A4565] shadow-sm dark:shadow-black/30 p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Reportes guardados</h2>
           {!isCoord && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">Filtrar lista</span>
+              <span className="text-xs text-gray-500 dark:text-[#A0AEC0]">Filtrar lista</span>
               <select
-                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                className="border border-gray-300 dark:border-[#3A4565] rounded-lg px-3 py-1.5 text-sm dark:bg-[#1E2A45] dark:text-white"
                 value={zonaFiltro}
                 onChange={(e) => setZonaFiltro(e.target.value as "ALL" | "BOGOTA" | "COSTA" | "INTERIOR")}
               >
@@ -791,13 +791,13 @@ export default function ReportesGuardadosClient() {
         </div>
 
         {loadingList ? (
-          <p className="text-gray-500 text-sm">Cargando…</p>
+          <p className="text-gray-500 dark:text-[#A0AEC0] text-sm">Cargando…</p>
         ) : reportes.length === 0 ? (
-          <p className="text-gray-500 text-sm">No hay reportes guardados.</p>
+          <p className="text-gray-500 dark:text-[#A0AEC0] text-sm">No hay reportes guardados.</p>
         ) : (
-          <div className="overflow-x-auto border border-gray-200 rounded-lg">
+          <div className="overflow-x-auto border border-gray-200 dark:border-[#3A4565] rounded-lg dark:bg-[#1A2340]">
             <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 text-gray-600">
+              <thead className="bg-gray-50 dark:bg-[#162035] text-gray-600 dark:text-[#A0AEC0]">
                 <tr>
                   <th className="text-left p-2">Nombre</th>
                   <th className="text-left p-2">Rango</th>
@@ -813,7 +813,7 @@ export default function ReportesGuardadosClient() {
               </thead>
               <tbody>
                 {reportes.map((r) => (
-                  <tr key={r.id} className="border-t border-gray-100">
+                  <tr key={r.id} className="border-t border-gray-100 dark:border-[#2A3555] hover:bg-gray-50/80 dark:hover:bg-[#243052]">
                     <td className="p-2 font-medium text-gray-900 dark:text-white">{r.nombre}</td>
                     <td className="p-2 whitespace-nowrap">
                       {format(parseISO(r.fechaInicio), "dd/MM/yy")} – {format(parseISO(r.fechaFin), "dd/MM/yy")}
@@ -839,7 +839,7 @@ export default function ReportesGuardadosClient() {
                           type="button"
                           title="Descargar CSV"
                           onClick={() => void descargarCSV(r.id, r.nombre)}
-                          className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-gray-700 hover:bg-gray-100 text-xs font-medium"
+                          className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-gray-700 dark:text-[#CBD5E1] hover:bg-gray-100 dark:hover:bg-[#243052] text-xs font-medium"
                         >
                           <HiDocumentText className="h-4 w-4" />
                           CSV
@@ -864,16 +864,16 @@ export default function ReportesGuardadosClient() {
 
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 space-y-4">
+          <div className="bg-white dark:bg-[#1A2340] rounded-xl shadow-lg dark:shadow-black/40 max-w-md w-full p-6 space-y-4 border border-gray-200 dark:border-[#3A4565]">
             <h3 className="font-semibold text-gray-900 dark:text-white">¿Eliminar reporte?</h3>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-[#A0AEC0]">
               Los turnos (operadores y líderes de zona), foráneos y disponibilidades incluidos volverán a estar disponibles
               para futuros reportes.
             </p>
             <div className="flex justify-end gap-2">
               <button
                 type="button"
-                className="px-4 py-2 rounded-lg border border-gray-300 text-sm"
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-[#3A4565] text-sm text-gray-700 dark:text-[#CBD5E1] dark:bg-[#1E2A45] hover:bg-gray-50 dark:hover:bg-[#243052]"
                 onClick={() => setDeleteId(null)}
                 disabled={deleting}
               >

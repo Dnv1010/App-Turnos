@@ -288,7 +288,7 @@ export default function CoordinadorMallaPage() {
           <button
             type="button"
             onClick={() => setShowTecnicoDropdown(!showTecnicoDropdown)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-bia-navy-400 rounded-lg text-sm text-left bg-white dark:bg-bia-navy-600 dark:text-white hover:border-gray-400 dark:hover:border-gray-500 flex items-center justify-between"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-[#3A4565] rounded-lg text-sm text-left bg-white dark:bg-[#1E2A45] dark:text-white hover:border-gray-400 dark:hover:border-gray-500 flex items-center justify-between"
           >
             <span>
               {selectedTecnicos.size === 0
@@ -298,18 +298,18 @@ export default function CoordinadorMallaPage() {
                   : `${selectedTecnicos.size} operador${selectedTecnicos.size > 1 ? "es" : ""} seleccionado${selectedTecnicos.size > 1 ? "s" : ""}`
               }
             </span>
-            <HiChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0 ml-2" />
+            <HiChevronDown className="w-4 h-4 text-gray-400 dark:text-[#64748B] flex-shrink-0 ml-2" />
           </button>
           {showTecnicoDropdown && (
-            <div className="absolute z-20 mt-1 w-full max-w-sm bg-white dark:bg-bia-navy-600 border border-gray-200 dark:border-bia-navy-400 rounded-lg shadow-lg dark:shadow-black/40 max-h-64 overflow-y-auto">
-              <div className="sticky top-0 bg-gray-50 dark:bg-bia-navy-700 px-3 py-2 border-b border-gray-200 dark:border-bia-navy-400 flex gap-2">
+            <div className="absolute z-20 mt-1 w-full max-w-sm bg-white dark:bg-[#1E2A45] border border-gray-200 dark:border-[#3A4565] rounded-lg shadow-lg dark:shadow-black/40 max-h-64 overflow-y-auto">
+              <div className="sticky top-0 bg-gray-50 dark:bg-[#162035] px-3 py-2 border-b border-gray-200 dark:border-[#3A4565] flex gap-2">
                 <button type="button" onClick={selectAllTecnicos} className="text-xs text-blue-600 dark:text-bia-teal-light font-medium hover:underline">Seleccionar todos</button>
                 <span className="text-gray-300 dark:text-bia-navy-400">|</span>
                 <button type="button" onClick={deselectAllTecnicos} className="text-xs text-gray-500 dark:text-bia-muted font-medium hover:underline">Ninguno</button>
               </div>
               {tecnicos.map((t) => (
-                <label key={t.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-bia-navy-500 cursor-pointer">
-                  <input type="checkbox" checked={selectedTecnicos.has(t.id)} onChange={() => toggleTecnico(t.id)} className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-bia-navy-400 dark:bg-bia-navy-600" />
+                <label key={t.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-[#243052] cursor-pointer">
+                  <input type="checkbox" checked={selectedTecnicos.has(t.id)} onChange={() => toggleTecnico(t.id)} className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-[#3A4565] dark:bg-[#1E2A45]" />
                   <div className="min-w-0">
                     <span className="text-sm font-medium text-gray-900 dark:text-white">{t.nombre}</span>
                     {t.email && <span className="text-xs text-gray-400 dark:text-bia-placeholder ml-2">{t.email}</span>}
@@ -359,7 +359,7 @@ export default function CoordinadorMallaPage() {
         <div className="card overflow-x-auto">
           <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
             {weekDays.map((d) => (
-              <div key={d} className="text-center text-xs font-semibold text-gray-600 dark:text-bia-label py-2">{d}</div>
+              <div key={d} className="text-center text-xs font-semibold text-gray-600 dark:text-[#A0AEC0] py-2 bg-gray-50 dark:bg-[#162035] rounded">{d}</div>
             ))}
             {Array.from({ length: firstWeekday }, (_, i) => <div key={`empty-${i}`} />)}
             {days.map((day) => {
@@ -371,7 +371,7 @@ export default function CoordinadorMallaPage() {
               const esFestivo = festivosSet.has(keyStr);
               const esRojo = esDomingo || esFestivo;
               return (
-                <div key={day.toISOString()} className="min-h-[80px] border border-gray-200 dark:border-bia-navy-400 rounded-lg p-2 relative bg-white dark:bg-bia-navy-700">
+                <div key={day.toISOString()} className="min-h-[80px] border border-gray-200 dark:border-[#3A4565] rounded-lg p-2 relative bg-white dark:bg-[#1A2340] text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-[#243052] transition-colors">
                   <div className="text-xs mb-1">
                     <span className={esRojo ? "text-red-500 font-bold" : "text-gray-900 dark:text-white"}>
                       {format(day, "d")}
@@ -405,7 +405,7 @@ export default function CoordinadorMallaPage() {
                     {valor || "—"}
                   </button>
                   {isEdit && (
-                    <div className="absolute top-full left-0 mt-1 z-10 bg-white dark:bg-bia-navy-600 border border-gray-200 dark:border-bia-navy-400 rounded-lg shadow-lg dark:shadow-black/40 p-3 w-72">
+                    <div className="absolute top-full left-0 mt-1 z-10 bg-white dark:bg-[#1E2A45] border border-gray-200 dark:border-[#3A4565] rounded-lg shadow-lg dark:shadow-black/40 p-3 w-72">
                       <p className="text-xs font-medium text-gray-700 dark:text-white mb-2">Tipo:</p>
                       <select value={editTipo} onChange={(e) => setEditTipo(e.target.value as TipoDia)} className="input-field w-full text-xs py-1.5 mb-2">
                         <option value="TRABAJO">Trabajo</option>
@@ -438,7 +438,7 @@ export default function CoordinadorMallaPage() {
                           const [h1, h2] = o.split("-").map((x) => x.length <= 2 ? `${x.padStart(2, "0")}:00` : `${x.slice(0, 2).padStart(2, "0")}:${x.slice(2)}`);
                           return <button key={o} type="button" onClick={() => guardar(day, o, "TRABAJO", h1, h2)} className="px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-bia-teal-light text-xs rounded hover:bg-blue-200 dark:hover:bg-blue-900/60">{o}</button>;
                         })}
-                        <button type="button" onClick={() => guardar(day, "descanso", "DESCANSO")} className="px-2 py-0.5 bg-gray-200 text-gray-800 dark:bg-bia-navy-500 dark:text-white text-xs rounded hover:bg-gray-300 dark:hover:bg-bia-navy-300">Descanso</button>
+                        <button type="button" onClick={() => guardar(day, "descanso", "DESCANSO")} className="px-2 py-0.5 bg-gray-200 text-gray-800 dark:bg-[#243052] dark:text-white text-xs rounded hover:bg-gray-300 dark:hover:bg-[#2A3555]">Descanso</button>
                         <button type="button" onClick={() => guardar(day, "disponible", "DISPONIBLE")} className="px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200 text-xs rounded hover:bg-green-200 dark:hover:bg-green-900/60">Disponible</button>
                         <button type="button" onClick={() => guardar(day, "Día de la familia", "DIA_FAMILIA")} className="px-2 py-0.5 bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200 text-xs rounded hover:bg-purple-200 dark:hover:bg-purple-900/60">Día Familia</button>
                         <button type="button" onClick={() => guardar(day, "Incapacitado", "INCAPACITADO")} className="px-2 py-0.5 bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200 text-xs rounded hover:bg-orange-200 dark:hover:bg-orange-900/60">Incapacitado</button>
@@ -466,7 +466,7 @@ export default function CoordinadorMallaPage() {
           <button
             type="button"
             onClick={() => setSelectedDays(new Set())}
-            className="px-4 py-3 bg-gray-200 text-gray-700 dark:bg-bia-navy-600 dark:text-white font-medium rounded-xl hover:bg-gray-300 dark:hover:bg-bia-navy-500"
+            className="px-4 py-3 bg-gray-200 text-gray-700 dark:bg-[#1E2A45] dark:text-white font-medium rounded-xl hover:bg-gray-300 dark:hover:bg-[#243052]"
           >
             Limpiar
           </button>
@@ -475,7 +475,7 @@ export default function CoordinadorMallaPage() {
 
       {mallaModalOpen && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-20 p-4" onClick={() => setMallaModalOpen(false)}>
-          <div className="bg-white dark:bg-bia-navy-700 rounded-xl shadow-xl dark:shadow-black/40 max-w-md w-full p-6 border border-transparent dark:border-bia-navy-400" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-[#1A2340] rounded-xl shadow-xl dark:shadow-black/40 max-w-md w-full p-6 border border-transparent dark:border-[#3A4565]" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Asignar valor a {selectedTecnicos.size > 0 ? `${selectedTecnicos.size} operador(es) × ` : ""}{selectedDays.size} día(s)</h3>
             <p className="text-xs text-gray-500 dark:text-bia-muted mb-3">Turnos:</p>
             <div className="flex flex-wrap gap-2 mb-4">
@@ -486,7 +486,7 @@ export default function CoordinadorMallaPage() {
             <p className="text-xs text-gray-500 dark:text-bia-muted mb-3">Novedades:</p>
             <div className="flex flex-wrap gap-2 mb-4">
               {OPCIONES_NOVEDAD.map((o) => (
-                <button key={o} type="button" onClick={() => assignMallaToSelected(o)} disabled={saving} className="px-3 py-1.5 bg-gray-100 text-gray-800 dark:bg-bia-navy-600 dark:text-white text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-bia-navy-500">{o}</button>
+                <button key={o} type="button" onClick={() => assignMallaToSelected(o)} disabled={saving} className="px-3 py-1.5 bg-gray-100 text-gray-800 dark:bg-[#1E2A45] dark:text-white text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-[#243052]">{o}</button>
               ))}
             </div>
             <button type="button" onClick={() => setMallaModalOpen(false)} className="text-gray-500 dark:text-bia-muted text-sm">Cerrar</button>

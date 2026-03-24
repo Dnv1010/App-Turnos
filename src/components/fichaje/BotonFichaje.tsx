@@ -17,7 +17,7 @@ async function parseJsonFromResponse(response: Response): Promise<Record<string,
 const CameraCapture = dynamic(() => import("@/components/fotos/CameraCapture"), {
   ssr: false,
   loading: () => (
-    <div className="flex flex-col items-center justify-center gap-3 py-8 text-gray-500 dark:text-bia-muted">
+    <div className="flex flex-col items-center justify-center gap-3 py-8 text-gray-500 dark:text-[#A0AEC0]">
       <div className="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
       <p className="text-sm font-medium">Cargando cámara...</p>
       <p className="text-xs">Solo se muestra en el cliente (HTTPS)</p>
@@ -196,7 +196,7 @@ export default function BotonFichaje({
               <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full animate-pulse border-2 border-white" />
             )}
           </button>
-          <p className="text-xs text-gray-400 text-center flex items-center gap-1">
+          <p className="text-xs text-gray-400 dark:text-[#64748B] text-center flex items-center gap-1">
             <HiCamera className="h-3.5 w-3.5" />
             Se tomará foto + ubicación GPS
           </p>
@@ -204,12 +204,12 @@ export default function BotonFichaje({
       )}
 
       {step === "camera" && (
-        <div className="w-full bg-white dark:bg-bia-navy-700 rounded-2xl shadow-lg dark:shadow-black/40 overflow-hidden p-4 border border-transparent dark:border-bia-navy-400">
+        <div className="w-full bg-white dark:bg-[#1A2340] rounded-2xl shadow-lg dark:shadow-black/40 overflow-hidden p-4 border border-gray-200 dark:border-[#3A4565]">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-gray-600 dark:text-bia-label">
+            <p className="text-sm text-gray-600 dark:text-[#CBD5E1]">
               📸 Foto de {isCerrandoTurno ? "salida" : "entrada"}
             </p>
-            <button type="button" onClick={cancelCamera} className="text-sm text-gray-500 dark:text-bia-muted hover:text-gray-700 dark:hover:text-gray-200 underline">
+            <button type="button" onClick={cancelCamera} className="text-sm text-gray-500 dark:text-[#A0AEC0] hover:text-gray-700 dark:hover:text-gray-200 underline">
               Cancelar
             </button>
           </div>
@@ -221,7 +221,7 @@ export default function BotonFichaje({
       )}
 
       {step === "preview" && capturedPhoto && (
-        <div className="w-full bg-white dark:bg-bia-navy-700 rounded-2xl shadow-lg dark:shadow-black/40 overflow-hidden border border-transparent dark:border-bia-navy-400">
+        <div className="w-full bg-white dark:bg-[#1A2340] rounded-2xl shadow-lg dark:shadow-black/40 overflow-hidden border border-gray-200 dark:border-[#3A4565]">
           <div className="bg-primary-600 p-2 text-center">
             <span className="text-white text-xs font-medium">
               ¿Confirmar foto de {isCerrandoTurno ? "salida" : "entrada"}?
@@ -245,19 +245,19 @@ export default function BotonFichaje({
       {step === "uploading" && (
         <div className="flex flex-col items-center gap-3 py-8">
           <div className="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
-          <p className="text-sm text-gray-500 dark:text-bia-muted">
+          <p className="text-sm text-gray-500 dark:text-[#A0AEC0]">
             {isCerrandoTurno ? "Cerrando turno" : "Iniciando turno"} y subiendo foto...
           </p>
         </div>
       )}
 
       {estaEnTurno && turnoActivo && step === "idle" && (
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-gray-500 dark:text-[#A0AEC0]">
           Turno iniciado: {new Date(turnoActivo.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })}
         </p>
       )}
       {ubicacion && step === "idle" && (
-        <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-bia-placeholder">
+        <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-[#64748B]">
           <HiLocationMarker className="h-3 w-3" />
           <span>{ubicacion.lat.toFixed(4)}, {ubicacion.lng.toFixed(4)}</span>
         </div>

@@ -217,7 +217,7 @@ export default function UsuariosPage() {
               e.stopPropagation();
               abrirEditar(u);
             }}
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-primary-600"
+            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#243052] text-gray-500 dark:text-[#A0AEC0] hover:text-primary-600"
             title="Editar"
           >
             <HiPencil className="h-4 w-4" />
@@ -287,14 +287,14 @@ export default function UsuariosPage() {
 
       {modal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <div className="bg-white dark:bg-[#1A2340] rounded-2xl shadow-xl dark:shadow-black/40 w-full max-w-md border border-gray-200 dark:border-[#3A4565]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-[#3A4565]">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 {editando ? "Editar Usuario" : "Nuevo Usuario"}
               </h3>
               <button
                 onClick={() => setModal(false)}
-                className="p-1 rounded-lg hover:bg-gray-100 text-gray-500"
+                className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-[#243052] text-gray-500 dark:text-[#A0AEC0]"
               >
                 <HiX className="h-5 w-5" />
               </button>
@@ -302,7 +302,7 @@ export default function UsuariosPage() {
 
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">
                   Cédula
                 </label>
                 <input
@@ -317,7 +317,7 @@ export default function UsuariosPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">
                   Nombre completo
                 </label>
                 <input
@@ -331,7 +331,7 @@ export default function UsuariosPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">
                   Email
                 </label>
                 <input
@@ -346,7 +346,7 @@ export default function UsuariosPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">
                   PIN (4 dígitos)
                   {editando && " — dejar vacío para no cambiar"}
                 </label>
@@ -370,15 +370,15 @@ export default function UsuariosPage() {
                   onChange={(e) =>
                     setForm({ ...form, isActive: e.target.checked })
                   }
-                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  className="rounded border-gray-300 dark:border-[#3A4565] text-primary-600 focus:ring-primary-500 dark:focus:ring-[#00D4AA]"
                 />
-                <label htmlFor="activo" className="text-sm font-medium text-gray-700">
+                <label htmlFor="activo" className="text-sm font-medium text-gray-700 dark:text-[#CBD5E1]">
                   Activo
                 </label>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">
                     Rol
                   </label>
                   <select
@@ -396,7 +396,7 @@ export default function UsuariosPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">
                     Zona
                   </label>
                   <select
@@ -414,7 +414,7 @@ export default function UsuariosPage() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-[#3A4565]">
               <button onClick={() => setModal(false)} className="btn-secondary">
                 Cancelar
               </button>

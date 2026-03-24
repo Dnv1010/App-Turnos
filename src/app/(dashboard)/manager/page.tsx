@@ -116,11 +116,11 @@ export default function ManagerPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div><h2 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard Global</h2>
-          <p className="text-gray-500 dark:text-bia-muted">{format(ahora, "MMMM yyyy", { locale: es })}</p></div>
+          <p className="text-gray-500 dark:text-[#A0AEC0]">{format(ahora, "MMMM yyyy", { locale: es })}</p></div>
         <div className="flex gap-2">
           {(["ALL", "BOGOTA", "COSTA", "INTERIOR"] as const).map((z) => (
             <button key={z} onClick={() => { setZonaFilter(z); setLoading(true); }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${zonaFilter === z ? "bg-primary-600 text-white" : "bg-white dark:bg-bia-navy-600 text-gray-600 dark:text-white border border-gray-300 dark:border-bia-navy-400 hover:bg-gray-50 dark:hover:bg-bia-navy-500"}`}>
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm dark:shadow-black/30 ${zonaFilter === z ? "bg-primary-600 text-white" : "bg-white dark:bg-[#1A2340] text-gray-600 dark:text-[#A0AEC0] border border-gray-300 dark:border-[#3A4565] hover:bg-gray-50 dark:hover:bg-[#243052]"}`}>
               {z === "ALL" ? "Todas" : getZonaLabel(z)}
             </button>
           ))}

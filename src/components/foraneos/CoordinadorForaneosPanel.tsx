@@ -333,7 +333,7 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 items-stretch sm:items-end">
         <div className="min-w-[160px]">
-          <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Estado aprobación</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">Estado aprobación</label>
           <select
             value={estadoFiltro}
             onChange={(e) => setEstadoFiltro(e.target.value as EstadoFiltro)}
@@ -346,9 +346,9 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
           </select>
         </div>
         <div className="flex-1 min-w-[200px]">
-          <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Buscar</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">Buscar</label>
           <div className="relative">
-            <HiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <HiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-[#64748B]" />
             <input
               type="text"
               value={search}
@@ -403,13 +403,13 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
           <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
         </div>
       ) : filteredRows.length === 0 ? (
-        <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay registros foráneos en el período / filtro seleccionado</div>
+        <div className="card text-center py-12 text-gray-500 dark:text-[#A0AEC0]">No hay registros foráneos en el período / filtro seleccionado</div>
       ) : (
         <div className="card p-0 overflow-hidden">
           <div className="overflow-x-auto w-full min-w-0">
             <table className="w-full min-w-[900px]">
               <thead>
-                <tr className="bg-gray-50 dark:bg-bia-navy-750 border-b border-gray-200 dark:border-bia-navy-400">
+                <tr className="bg-gray-50 dark:bg-[#162035] border-b border-gray-200 dark:border-[#3A4565]">
                   {canApprove && (
                     <th className="px-3 py-3 w-10">
                       <input
@@ -417,35 +417,35 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
                         type="checkbox"
                         checked={allVisibleSelected}
                         onChange={toggleAllVisible}
-                        className="rounded border-gray-300 dark:border-bia-navy-400 dark:bg-bia-navy-600"
+                        className="rounded border-gray-300 dark:border-[#3A4565] dark:bg-bia-navy-600"
                         aria-label="Seleccionar todos los visibles"
                       />
                     </th>
                   )}
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-bia-muted uppercase">Nombre</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-bia-muted uppercase">Fecha</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-bia-muted uppercase">Estado</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-bia-muted uppercase">Km ini</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-bia-muted uppercase">Img ini</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-bia-muted uppercase">Mapa ini</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-bia-muted uppercase">Km fin</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-bia-muted uppercase">Img fin</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-bia-muted uppercase">Mapa fin</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-bia-muted uppercase">Km rec.</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-bia-muted uppercase">Nota coord.</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-bia-muted uppercase">Acciones</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-[#A0AEC0] uppercase">Nombre</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-[#A0AEC0] uppercase">Fecha</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-[#A0AEC0] uppercase">Estado</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-[#A0AEC0] uppercase">Km ini</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-[#A0AEC0] uppercase">Img ini</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-[#A0AEC0] uppercase">Mapa ini</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-[#A0AEC0] uppercase">Km fin</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-[#A0AEC0] uppercase">Img fin</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-[#A0AEC0] uppercase">Mapa fin</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-[#A0AEC0] uppercase">Km rec.</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-[#A0AEC0] uppercase">Nota coord.</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-[#A0AEC0] uppercase">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-bia-navy-600 bg-white dark:bg-bia-navy-700">
+              <tbody className="divide-y divide-gray-200 dark:divide-[#1E2A45] bg-white dark:bg-[#1A2340]">
                 {filteredRows.map((f) => (
-                  <tr key={f.id} className="hover:bg-gray-50">
+                  <tr key={f.id} className="hover:bg-gray-50 dark:hover:bg-[#243052]">
                     {canApprove && (
                       <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={selected.has(f.id)}
                           onChange={() => toggleRow(f.id)}
-                          className="rounded border-gray-300 dark:border-bia-navy-400 dark:bg-bia-navy-600"
+                          className="rounded border-gray-300 dark:border-[#3A4565] dark:bg-bia-navy-600"
                           aria-label={`Seleccionar ${f.nombre}`}
                         />
                       </td>
@@ -524,9 +524,9 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
 
       {rejectModal && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-bia-navy-700 rounded-2xl shadow-2xl dark:shadow-black/40 w-full max-w-md p-6 border border-transparent dark:border-bia-navy-400">
+          <div className="bg-white dark:bg-[#1A2340] rounded-2xl shadow-2xl dark:shadow-black/40 w-full max-w-md p-6 border border-transparent dark:border-[#3A4565]">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Rechazar foráneo(s)</h3>
-            <p className="text-sm text-gray-500 dark:text-bia-muted mb-3">Opcional: nota para el operador ({rejectModal.ids.length} registro(s)).</p>
+            <p className="text-sm text-gray-500 dark:text-[#A0AEC0] mb-3">Opcional: nota para el operador ({rejectModal.ids.length} registro(s)).</p>
             <textarea
               value={rejectNota}
               onChange={(e) => setRejectNota(e.target.value)}
@@ -541,7 +541,7 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
                   setRejectModal(null);
                   setRejectNota("");
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-white bg-gray-100 dark:bg-bia-navy-600 rounded-lg hover:bg-gray-200 dark:hover:bg-bia-navy-500"
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-white bg-gray-100 dark:bg-bia-navy-600 rounded-lg hover:bg-gray-200 dark:hover:bg-[#243052]"
               >
                 Cancelar
               </button>
@@ -560,21 +560,21 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
 
       {editingForaneo && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-bia-navy-700 rounded-2xl shadow-2xl dark:shadow-black/40 w-full max-w-lg max-h-[90vh] overflow-y-auto border border-transparent dark:border-bia-navy-400">
-            <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-bia-navy-400">
+          <div className="bg-white dark:bg-[#1A2340] rounded-2xl shadow-2xl dark:shadow-black/40 w-full max-w-lg max-h-[90vh] overflow-y-auto border border-transparent dark:border-[#3A4565]">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-[#3A4565]">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Editar foráneo</h3>
-                <p className="text-sm text-gray-500 dark:text-bia-muted">
+                <p className="text-sm text-gray-500 dark:text-[#A0AEC0]">
                   {editingForaneo.nombre} — {formatFechaTurnoDdMmmYyyy(editingForaneo.fecha)}
                 </p>
               </div>
-              <button type="button" onClick={() => setEditingForaneo(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-bia-navy-500 rounded-lg text-gray-600 dark:text-bia-label">
+              <button type="button" onClick={() => setEditingForaneo(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-[#243052] rounded-lg text-gray-600 dark:text-[#CBD5E1]">
                 <HiX className="w-5 h-5" />
               </button>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-bia-label mb-1">Km inicial</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-[#CBD5E1] mb-1">Km inicial</label>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -585,7 +585,7 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-bia-label mb-1">Km final</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-[#CBD5E1] mb-1">Km final</label>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -596,7 +596,7 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-bia-label mb-1">Observaciones</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-[#CBD5E1] mb-1">Observaciones</label>
                 <textarea
                   value={editForm.observaciones}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, observaciones: e.target.value }))}
@@ -605,11 +605,11 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-3 p-5 border-t border-gray-200 dark:border-bia-navy-400">
+            <div className="flex justify-end gap-3 p-5 border-t border-gray-200 dark:border-[#3A4565]">
               <button
                 type="button"
                 onClick={() => setEditingForaneo(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-white bg-gray-100 dark:bg-bia-navy-600 rounded-lg hover:bg-gray-200 dark:hover:bg-bia-navy-500"
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-white bg-gray-100 dark:bg-bia-navy-600 rounded-lg hover:bg-gray-200 dark:hover:bg-[#243052]"
               >
                 Cancelar
               </button>
@@ -633,20 +633,20 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
 
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-bia-navy-700 rounded-2xl shadow-2xl dark:shadow-black/40 w-full max-w-sm p-6 border border-transparent dark:border-bia-navy-400">
+          <div className="bg-white dark:bg-[#1A2340] rounded-2xl shadow-2xl dark:shadow-black/40 w-full max-w-sm p-6 border border-transparent dark:border-[#3A4565]">
             <div className="text-center">
               <div className="w-12 h-12 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
                 <HiTrash className="w-6 h-6 text-red-600 dark:text-red-400" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">¿Eliminar foráneo?</h3>
-              <p className="text-gray-500 dark:text-bia-muted text-sm mb-6">
+              <p className="text-gray-500 dark:text-[#A0AEC0] text-sm mb-6">
                 Vas a eliminar el registro de <strong>{confirmDelete.nombre}</strong>. Esta acción no se puede deshacer.
               </p>
               <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => setConfirmDelete(null)}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-white bg-gray-100 dark:bg-bia-navy-600 rounded-lg hover:bg-gray-200 dark:hover:bg-bia-navy-500"
+                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-white bg-gray-100 dark:bg-bia-navy-600 rounded-lg hover:bg-gray-200 dark:hover:bg-[#243052]"
                 >
                   Cancelar
                 </button>

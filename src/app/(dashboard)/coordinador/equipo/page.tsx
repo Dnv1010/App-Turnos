@@ -110,7 +110,7 @@ export default function CoordinadorEquipoPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Mi Equipo</h2>
-        <p className="text-gray-500">
+        <p className="text-gray-500 dark:text-[#A0AEC0]">
           Zona {session?.user?.zona ? getZonaLabel(session.user.zona) : ""}
         </p>
         <button onClick={openAdd} className="btn-primary flex items-center gap-2">
@@ -124,21 +124,21 @@ export default function CoordinadorEquipoPage() {
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200 dark:bg-bia-navy-750 dark:border-[#3A4565]">
+              <thead className="bg-gray-50 border-b border-gray-200 dark:bg-[#162035] dark:border-[#3A4565]">
                 <tr>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Cédula</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Nombre</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Email</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Estado</th>
-                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Acciones</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-[#CBD5E1]">Cédula</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-[#CBD5E1]">Nombre</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-[#CBD5E1]">Email</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-[#CBD5E1]">Estado</th>
+                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700 dark:text-[#CBD5E1]">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {list.map((t) => (
-                  <tr key={t.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <tr key={t.id} className="border-b border-gray-100 dark:border-[#2A3555] hover:bg-gray-50 dark:hover:bg-[#243052]">
                     <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">{t.cedula}</td>
                     <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">{t.nombre}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{t.email}</td>
+                    <td className="py-3 px-4 text-sm text-gray-600 dark:text-[#A0AEC0]">{t.email}</td>
                     <td className="py-3 px-4">
                       <span className={t.isActive ? "badge-green" : "badge-blue"}>{t.isActive ? "Activo" : "Inactivo"}</span>
                     </td>
@@ -153,33 +153,33 @@ export default function CoordinadorEquipoPage() {
               </tbody>
             </table>
           </div>
-          {list.length === 0 && <div className="text-center py-12 text-gray-500">No hay operadores en tu zona</div>}
+          {list.length === 0 && <div className="text-center py-12 text-gray-500 dark:text-[#A0AEC0]">No hay operadores en tu zona</div>}
         </div>
       )}
 
       {modal !== "none" && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+          <div className="bg-white dark:bg-[#1A2340] rounded-xl shadow-xl dark:shadow-black/40 max-w-md w-full p-6 border border-gray-200 dark:border-[#3A4565]">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{modal === "add" ? "Agregar operador" : "Editar operador"}</h3>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><HiX className="h-5 w-5" /></button>
+              <button onClick={closeModal} className="text-gray-400 dark:text-[#64748B] hover:text-gray-600 dark:hover:text-white"><HiX className="h-5 w-5" /></button>
             </div>
             {error && <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg">{error}</div>}
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cédula</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">Cédula</label>
                 <input type="text" value={cedula} onChange={(e) => setCedula(e.target.value)} className="input-field" placeholder="Ej: 1023891601" disabled={modal === "edit"} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">Nombre</label>
                 <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} className="input-field" placeholder="Nombre completo" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">Email</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input-field" placeholder="correo@bia.app" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">PIN {modal === "edit" && "(dejar vacío para no cambiar)"}</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">PIN {modal === "edit" && "(dejar vacío para no cambiar)"}</label>
                 <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} className="input-field" placeholder="1234" maxLength={6} />
               </div>
             </div>

@@ -93,7 +93,7 @@ export default function CameraCapture({ onCapture, onCancel, disabled }: CameraC
                   : "Permite el acceso a la cámara si el navegador lo solicita"}
               </p>
               {showFallbackInput && (
-                <label className="mt-4 px-4 py-2 bg-white text-gray-800 rounded-xl font-medium text-sm cursor-pointer">
+                <label className="mt-4 px-4 py-2 bg-white dark:bg-[#1A2340] text-gray-800 dark:text-white rounded-xl font-medium text-sm cursor-pointer border border-gray-200 dark:border-[#3A4565]">
                   Subir foto desde galería
                   <input
                     type="file"
@@ -127,7 +127,7 @@ export default function CameraCapture({ onCapture, onCancel, disabled }: CameraC
               type="button"
               onClick={capture}
               disabled={!cameraReady}
-              className="w-16 h-16 bg-white rounded-full border-4 border-red-500 flex items-center justify-center shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-16 h-16 bg-white dark:bg-[#1E2A45] rounded-full border-4 border-red-500 flex items-center justify-center shadow-lg dark:shadow-black/40 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="w-12 h-12 bg-red-500 rounded-full" />
             </button>
@@ -178,7 +178,7 @@ export default function CameraCapture({ onCapture, onCancel, disabled }: CameraC
         >
           Tomar foto
         </button>
-        <label className="inline-flex items-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 cursor-pointer transition-colors">
+        <label className="inline-flex items-center gap-2 px-6 py-3 bg-gray-100 dark:bg-[#1E2A45] text-gray-700 dark:text-[#CBD5E1] font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-[#243052] cursor-pointer transition-colors border border-gray-200 dark:border-[#3A4565]">
           Subir desde galería
           <input type="file" accept="image/*" capture="environment" onChange={handleFileUpload} className="hidden" />
         </label>

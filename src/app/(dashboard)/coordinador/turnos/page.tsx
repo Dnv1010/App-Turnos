@@ -204,7 +204,7 @@ export default function CoordinadorTurnosPage() {
       label: "Estado",
       render: (t: TurnoRow) =>
         t.horaSalida ? (
-          <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">Finalizado</span>
+          <span className="text-xs font-medium text-gray-600 dark:text-[#A0AEC0] bg-gray-100 dark:bg-[#1E2A45] px-2 py-0.5 rounded-full">Finalizado</span>
         ) : (
           <span className="text-xs font-semibold text-green-800 bg-green-100 px-2 py-0.5 rounded-full">En curso</span>
         ),
@@ -242,29 +242,29 @@ export default function CoordinadorTurnosPage() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Turnos Equipo</h2>
-      <p className="text-gray-500">
+      <p className="text-gray-500 dark:text-[#A0AEC0]">
         Zona {session?.user?.zona ? getZonaLabel(session.user.zona) : ""} — Editar o cancelar turnos de operadores de tu zona.
       </p>
 
       <div className="card">
         <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">Desde</label>
             <input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} className="input-field" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">Hasta</label>
             <input type="date" value={fin} onChange={(e) => setFin(e.target.value)} className="input-field" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Operador</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">Operador</label>
             <select value={tecnicoFilter} onChange={(e) => setTecnicoFilter(e.target.value)} className="input-field">
               <option value="ALL">Todos</option>
               {tecnicos.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">Estado</label>
             <select value={estadoFilter} onChange={(e) => setEstadoFilter(e.target.value as "ALL" | "ACTIVO" | "FINALIZADO")} className="input-field">
               <option value="ALL">Todos (incluye en curso)</option>
               <option value="ACTIVO">Solo en curso (sin salida)</option>
@@ -282,7 +282,7 @@ export default function CoordinadorTurnosPage() {
       {loading && turnos.length === 0 ? (
         <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
       ) : turnos.length === 0 ? (
-        <div className="card text-center py-12 text-gray-500">No hay turnos en el período seleccionado</div>
+        <div className="card text-center py-12 text-gray-500 dark:text-[#A0AEC0]">No hay turnos en el período seleccionado</div>
       ) : (
         <DataTable columns={columns as never} data={turnos as never} searchable searchPlaceholder="Buscar operador..." />
       )}
@@ -290,27 +290,27 @@ export default function CoordinadorTurnosPage() {
       {/* Modal Editar Turno */}
       {editingTurno && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b border-gray-200">
+          <div className="bg-white dark:bg-[#1A2340] rounded-2xl shadow-2xl dark:shadow-black/40 w-full max-w-lg max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-[#3A4565]">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-[#3A4565]">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Editar turno</h3>
-                <p className="text-sm text-gray-500">{editingTurno.user?.nombre} — {formatFechaTurnoDdMmmYyyy(editingTurno.fecha)}</p>
+                <p className="text-sm text-gray-500 dark:text-[#A0AEC0]">{editingTurno.user?.nombre} — {formatFechaTurnoDdMmmYyyy(editingTurno.fecha)}</p>
               </div>
-              <button type="button" onClick={() => setEditingTurno(null)} className="p-2 hover:bg-gray-100 rounded-lg"><HiX className="w-5 h-5" /></button>
+              <button type="button" onClick={() => setEditingTurno(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-[#243052] rounded-lg text-gray-600 dark:text-[#A0AEC0]"><HiX className="w-5 h-5" /></button>
             </div>
             <div className="p-5 space-y-4">
-              <div className="bg-gray-50 rounded-lg p-3 text-sm">
-                <p className="text-gray-500">Turno actual:</p>
-                <p className="font-medium">{new Date(editingTurno.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })} → {editingTurno.horaSalida ? new Date(editingTurno.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "En curso"}</p>
-                <p className="text-gray-500 mt-1">Total: {totalHoras(editingTurno)}h | HE: {totalHE(editingTurno)}h</p>
+              <div className="bg-gray-50 dark:bg-[#0F1629] rounded-lg p-3 text-sm border border-gray-100 dark:border-[#2A3555]">
+                <p className="text-gray-500 dark:text-[#A0AEC0]">Turno actual:</p>
+                <p className="font-medium text-gray-900 dark:text-white">{new Date(editingTurno.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })} → {editingTurno.horaSalida ? new Date(editingTurno.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "En curso"}</p>
+                <p className="text-gray-500 dark:text-[#A0AEC0] mt-1">Total: {totalHoras(editingTurno)}h | HE: {totalHE(editingTurno)}h</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Fecha inicio</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-[#A0AEC0] mb-1">Fecha inicio</label>
                   <input type="date" value={editForm.startDate} onChange={(e) => setEditForm((f) => ({ ...f, startDate: e.target.value }))} className="input-field w-full" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Hora inicio</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-[#A0AEC0] mb-1">Hora inicio</label>
                   <input type="time" step="60" value={editForm.startTime} onChange={(e) => setEditForm((f) => ({ ...f, startTime: e.target.value }))} className="input-field w-full" />
                 </div>
               </div>
@@ -322,11 +322,11 @@ export default function CoordinadorTurnosPage() {
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Fecha fin</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-[#A0AEC0] mb-1">Fecha fin</label>
                   <input type="date" value={editForm.endDate} onChange={(e) => setEditForm((f) => ({ ...f, endDate: e.target.value }))} className="input-field w-full" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Hora fin</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-[#A0AEC0] mb-1">Hora fin</label>
                   <input type="time" step="60" value={editForm.endTime} onChange={(e) => setEditForm((f) => ({ ...f, endTime: e.target.value }))} className="input-field w-full" />
                 </div>
               </div>
@@ -336,7 +336,7 @@ export default function CoordinadorTurnosPage() {
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Notas / Motivo del ajuste</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-[#A0AEC0] mb-1">Notas / Motivo del ajuste</label>
                 <textarea value={editForm.notes} onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Ej: Corregido hora de salida por olvido de fichaje" rows={2} className="input-field w-full resize-none" />
               </div>
               <div className="flex gap-3 flex-wrap">
@@ -350,8 +350,8 @@ export default function CoordinadorTurnosPage() {
                 {editingTurno.endPhotoUrl && <a href={editingTurno.endPhotoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-blue-600 hover:underline"><HiPhotograph className="w-3 h-3" /> Foto fin</a>}
               </div>
             </div>
-            <div className="flex justify-end gap-3 p-5 border-t border-gray-200">
-              <button type="button" onClick={() => setEditingTurno(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">Cancelar</button>
+            <div className="flex justify-end gap-3 p-5 border-t border-gray-200 dark:border-[#3A4565]">
+              <button type="button" onClick={() => setEditingTurno(null)} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-[#CBD5E1] bg-gray-100 dark:bg-[#1E2A45] rounded-lg hover:bg-gray-200 dark:hover:bg-[#2A3555]">Cancelar</button>
               <button type="button" onClick={saveTurnoEdit} disabled={saving} className="px-6 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2">
                 {saving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <HiSave className="w-4 h-4" />}
                 Guardar y recalcular
@@ -364,19 +364,19 @@ export default function CoordinadorTurnosPage() {
       {/* Modal Confirmar Cancelación */}
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+          <div className="bg-white dark:bg-[#1A2340] rounded-2xl shadow-2xl dark:shadow-black/40 w-full max-w-sm p-6 border border-gray-200 dark:border-[#3A4565]">
             <div className="text-center">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <HiTrash className="w-6 h-6 text-red-600" />
+              <div className="w-12 h-12 bg-red-100 dark:bg-red-950/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <HiTrash className="w-6 h-6 text-red-600 dark:text-red-400" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">¿Cancelar turno?</h3>
-              <p className="text-gray-500 text-sm mb-6">
+              <p className="text-gray-500 dark:text-[#A0AEC0] text-sm mb-6">
                 Vas a cancelar el turno de <strong>{confirmDelete.nombre}</strong>. Esta acción quedará registrada.
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={() => setConfirmDelete(null)}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-[#CBD5E1] bg-gray-100 dark:bg-[#1E2A45] rounded-lg hover:bg-gray-200 dark:hover:bg-[#2A3555]"
                 >
                   No, volver
                 </button>

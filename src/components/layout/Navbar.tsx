@@ -52,17 +52,17 @@ export default function Navbar({ nombre, role, zona, onMenuClick }: NavbarProps)
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <header className="sticky top-0 z-30 bg-white dark:bg-bia-navy-700 border-b border-gray-200 dark:border-bia-navy-400 dark:shadow-black/40 shadow-sm">
+    <header className="sticky top-0 z-30 bg-white dark:bg-[#1A2340] border-b border-gray-200 dark:border-[#3A4565] dark:shadow-black/40 shadow-sm">
       <div className="flex items-center justify-between h-14 sm:h-16 px-2 sm:px-6">
         <div className="flex items-center gap-2 sm:gap-3">
-          <button onClick={onMenuClick} className="lg:hidden p-3 sm:p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-bia-navy-500 hover:text-gray-700 dark:hover:text-white touch-manipulation" aria-label="Abrir menú">
+          <button onClick={onMenuClick} className="lg:hidden p-3 sm:p-2 rounded-lg text-gray-500 dark:text-[#A0AEC0] hover:bg-gray-100 dark:hover:bg-[#243052] hover:text-gray-700 dark:hover:text-white touch-manipulation" aria-label="Abrir menú">
             <HiMenu className="h-6 w-6 sm:h-5 sm:w-5" />
           </button>
           {/* Logo + App Turnos en desktop */}
           <div className="hidden sm:flex items-center gap-2">
             <BiaLogo size="sm" />
             <span className="text-gray-400 dark:text-bia-muted font-light">|</span>
-            <span className="text-sm font-medium text-gray-600 dark:text-bia-muted">App Turnos</span>
+            <span className="text-sm font-medium text-gray-600 dark:text-[#A0AEC0]">App Turnos</span>
           </div>
           {/* Logo compacto en mobile */}
           <div className="sm:hidden">
@@ -73,14 +73,14 @@ export default function Navbar({ nombre, role, zona, onMenuClick }: NavbarProps)
           <button
             type="button"
             onClick={toggleTheme}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-bia-navy-500 transition-colors"
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#243052] transition-colors"
             title={theme === "dark" ? "Modo claro" : "Modo oscuro"}
             aria-label={theme === "dark" ? "Activar modo claro" : "Activar modo oscuro"}
           >
             {theme === "dark" ? (
               <HiSun className="h-5 w-5 text-yellow-400" />
             ) : (
-              <HiMoon className="h-5 w-5 text-gray-500" />
+              <HiMoon className="h-5 w-5 text-gray-500 dark:text-[#A0AEC0]" />
             )}
           </button>
           <div className="flex items-center gap-3">

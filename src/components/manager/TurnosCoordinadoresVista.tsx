@@ -167,34 +167,34 @@ export default function TurnosCoordinadoresVista() {
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Turnos coordinadores</h2>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="mt-1 text-sm text-gray-600 dark:text-[#A0AEC0]">
           Turnos de líderes de zona en campo e interior (cerrados y abiertos) según filtros.
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap gap-4 rounded-xl border border-gray-200 dark:border-[#3A4565] bg-white dark:bg-[#1A2340] p-4 shadow-sm dark:shadow-black/30">
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">Desde</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-[#A0AEC0]">Desde</label>
           <input
             type="date"
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-gray-300 dark:border-[#3A4565] px-3 py-2 text-sm dark:bg-[#1E2A45] dark:text-white"
             value={desde}
             onChange={(e) => setDesde(e.target.value)}
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">Hasta</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-[#A0AEC0]">Hasta</label>
           <input
             type="date"
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-gray-300 dark:border-[#3A4565] px-3 py-2 text-sm dark:bg-[#1E2A45] dark:text-white"
             value={hasta}
             onChange={(e) => setHasta(e.target.value)}
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">Zona</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-[#A0AEC0]">Zona</label>
           <select
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-gray-300 dark:border-[#3A4565] px-3 py-2 text-sm dark:bg-[#1E2A45] dark:text-white"
             value={zona}
             onChange={(e) => setZona(e.target.value as typeof zona)}
           >
@@ -205,9 +205,9 @@ export default function TurnosCoordinadoresVista() {
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">Usuario</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-[#A0AEC0]">Usuario</label>
           <select
-            className="min-w-[200px] rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            className="min-w-[200px] rounded-lg border border-gray-300 dark:border-[#3A4565] px-3 py-2 text-sm dark:bg-[#1E2A45] dark:text-white"
             value={userIdFiltro}
             onChange={(e) => setUserIdFiltro(e.target.value)}
           >
@@ -237,9 +237,9 @@ export default function TurnosCoordinadoresVista() {
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#3A4565] bg-white dark:bg-[#1A2340] shadow-sm dark:shadow-black/30">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 text-gray-600">
+            <thead className="bg-gray-50 dark:bg-[#162035] text-gray-600 dark:text-[#A0AEC0]">
               <tr>
                 {canEdit && <th className="p-2 w-24 text-left">Acciones</th>}
                 <th className="p-2 text-left">Nombre</th>
@@ -258,13 +258,13 @@ export default function TurnosCoordinadoresVista() {
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={canEdit ? 12 : 11} className="p-8 text-center text-gray-500">
+                  <td colSpan={canEdit ? 12 : 11} className="p-8 text-center text-gray-500 dark:text-[#A0AEC0]">
                     No hay turnos en el rango.
                   </td>
                 </tr>
               ) : (
                 rows.map((t) => (
-                  <tr key={t.id} className="border-t border-gray-100">
+                  <tr key={t.id} className="border-t border-gray-100 dark:border-[#2A3555] hover:bg-gray-50 dark:hover:bg-[#243052]">
                     {canEdit && (
                       <td className="p-2">
                         <div className="flex gap-1">
@@ -287,27 +287,27 @@ export default function TurnosCoordinadoresVista() {
                         </div>
                       </td>
                     )}
-                    <td className="p-2">{t.user?.nombre ?? "—"}</td>
-                    <td className="p-2 font-mono text-xs">{t.user?.cedula ?? "—"}</td>
-                    <td className="p-2">{t.user?.role ? getRoleLabel(t.user.role) : "—"}</td>
-                    <td className="p-2">{t.user?.zona ? getZonaLabel(t.user.zona) : "—"}</td>
-                    <td className="p-2 whitespace-nowrap">{formatFechaTurnoDdMmmYyyy(t.fecha)}</td>
-                    <td className="p-2 font-mono">{t.codigoOrden}</td>
-                    <td className="p-2 whitespace-nowrap">
+                    <td className="p-2 text-gray-900 dark:text-white">{t.user?.nombre ?? "—"}</td>
+                    <td className="p-2 font-mono text-xs text-gray-800 dark:text-[#CBD5E1]">{t.user?.cedula ?? "—"}</td>
+                    <td className="p-2 text-gray-800 dark:text-[#CBD5E1]">{t.user?.role ? getRoleLabel(t.user.role) : "—"}</td>
+                    <td className="p-2 text-gray-800 dark:text-[#CBD5E1]">{t.user?.zona ? getZonaLabel(t.user.zona) : "—"}</td>
+                    <td className="p-2 whitespace-nowrap text-gray-800 dark:text-white">{formatFechaTurnoDdMmmYyyy(t.fecha)}</td>
+                    <td className="p-2 font-mono text-gray-800 dark:text-white">{t.codigoOrden}</td>
+                    <td className="p-2 whitespace-nowrap text-gray-800 dark:text-white">
                       {format(parseISO(t.horaEntrada), "dd/MM/yyyy HH:mm", { locale: es })}
                     </td>
-                    <td className="p-2 whitespace-nowrap">
+                    <td className="p-2 whitespace-nowrap text-gray-800 dark:text-white">
                       {t.horaSalida ? (
                         format(parseISO(t.horaSalida), "dd/MM/yyyy HH:mm", { locale: es })
                       ) : (
                         <span className="font-medium text-amber-700">Abierto</span>
                       )}
                     </td>
-                    <td className="p-2 text-right font-mono">
+                    <td className="p-2 text-right font-mono text-gray-800 dark:text-white">
                       {t.horaSalida ? ((t.horasOrdinarias ?? 0) + totalHE(t)).toFixed(2) : "—"}
                     </td>
-                    <td className="p-2 text-right font-mono">{totalHE(t).toFixed(2)}</td>
-                    <td className="p-2 text-right font-mono">{totalRec(t).toFixed(2)}</td>
+                    <td className="p-2 text-right font-mono text-gray-800 dark:text-white">{totalHE(t).toFixed(2)}</td>
+                    <td className="p-2 text-right font-mono text-gray-800 dark:text-white">{totalRec(t).toFixed(2)}</td>
                   </tr>
                 ))
               )}
@@ -318,12 +318,12 @@ export default function TurnosCoordinadoresVista() {
 
       {editRow && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white dark:bg-[#1A2340] p-6 shadow-xl dark:shadow-black/40 border border-gray-200 dark:border-[#3A4565]">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Editar turno coordinador</h3>
-            <p className="mt-1 text-sm text-gray-600">{editRow.user?.nombre}</p>
+            <p className="mt-1 text-sm text-gray-600 dark:text-[#A0AEC0]">{editRow.user?.nombre}</p>
             <div className="mt-4 space-y-3">
               <div>
-                <label className="text-xs font-medium text-gray-500">Hora entrada</label>
+                <label className="text-xs font-medium text-gray-500 dark:text-[#A0AEC0]">Hora entrada</label>
                 <input
                   type="datetime-local"
                   className="input-field mt-1 w-full"
@@ -332,7 +332,7 @@ export default function TurnosCoordinadoresVista() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500">Hora salida (vacío = abierto)</label>
+                <label className="text-xs font-medium text-gray-500 dark:text-[#A0AEC0]">Hora salida (vacío = abierto)</label>
                 <input
                   type="datetime-local"
                   className="input-field mt-1 w-full"
@@ -341,7 +341,7 @@ export default function TurnosCoordinadoresVista() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500">Código / orden</label>
+                <label className="text-xs font-medium text-gray-500 dark:text-[#A0AEC0]">Código / orden</label>
                 <input
                   className="input-field mt-1 w-full"
                   value={formCodigo}
@@ -349,7 +349,7 @@ export default function TurnosCoordinadoresVista() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500">Nota (opcional)</label>
+                <label className="text-xs font-medium text-gray-500 dark:text-[#A0AEC0]">Nota (opcional)</label>
                 <textarea
                   className="input-field mt-1 w-full min-h-[72px]"
                   value={formNota}
@@ -381,9 +381,9 @@ export default function TurnosCoordinadoresVista() {
 
       {deleteRow && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+          <div className="w-full max-w-md rounded-xl bg-white dark:bg-[#1A2340] p-6 shadow-xl dark:shadow-black/40 border border-gray-200 dark:border-[#3A4565]">
             <h3 className="font-semibold text-gray-900 dark:text-white">¿Eliminar turno?</h3>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm text-gray-600 dark:text-[#A0AEC0]">
               ¿Eliminar este turno de <strong>{deleteRow.user?.nombre}</strong>? Esta acción no se puede
               deshacer.
             </p>

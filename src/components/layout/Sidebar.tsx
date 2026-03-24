@@ -78,11 +78,11 @@ export default function Sidebar({ role, isOpen, onClose }: SidebarProps) {
   return (
     <>
       {isOpen && <div className="fixed inset-0 bg-black/30 dark:bg-black/70 z-40 lg:hidden" onClick={onClose} />}
-      <aside className={`fixed top-0 left-0 z-50 h-full w-64 bg-white dark:bg-bia-navy-900 border-r border-gray-200 dark:border-bia-navy-600 transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:z-auto ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-bia-navy-600">
+      <aside className={`fixed top-0 left-0 z-50 h-full w-64 bg-white dark:bg-[#0F1629] border-r border-gray-200 dark:border-[#3A4565] transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:z-auto ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-[#3A4565]">
           <div className="flex items-center gap-2">
             <BiaLogo size="sm" />
-            <span className="font-semibold text-gray-600 dark:text-bia-muted text-sm">App Turnos</span>
+            <span className="font-semibold text-gray-600 dark:text-[#A0AEC0] text-sm">App Turnos</span>
           </div>
           <button onClick={onClose} className="lg:hidden text-gray-500 hover:text-gray-700 dark:hover:text-white">
             <HiX className="h-5 w-5" />
@@ -100,10 +100,10 @@ export default function Sidebar({ role, isOpen, onClose }: SidebarProps) {
             );
           })}
         </nav>
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-bia-navy-400">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-[#3A4565]">
           <div className="flex items-center gap-2 px-3 py-2">
             <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="text-xs text-gray-500 dark:text-bia-muted">Conectado</span>
+            <span className="text-xs text-gray-500 dark:text-[#A0AEC0]">Conectado</span>
           </div>
         </div>
       </aside>

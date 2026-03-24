@@ -58,7 +58,7 @@ export default function DataTable<T extends Record<string, unknown>>({
       {searchable && (
         <div className="p-4 border-b border-gray-200 dark:border-[#3A4565]">
           <div className="relative">
-            <HiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <HiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-[#64748B]" />
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder={searchPlaceholder} className="input-field pl-10" />
           </div>
@@ -67,10 +67,10 @@ export default function DataTable<T extends Record<string, unknown>>({
       <div className="overflow-x-auto w-full min-w-0">
         <table className="w-full min-w-[600px]">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-200 dark:bg-bia-navy-750 dark:border-[#3A4565]">
+            <tr className="bg-gray-50 border-b border-gray-200 dark:bg-[#162035] dark:border-[#3A4565]">
               {columns.map((col) => (
                 <th key={col.key}
-                  className={`px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-bia-muted uppercase tracking-wider ${col.sortable ? "cursor-pointer select-none hover:text-gray-700 dark:hover:text-bia-label" : ""} ${col.className || ""}`}
+                  className={`px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-[#A0AEC0] uppercase tracking-wider ${col.sortable ? "cursor-pointer select-none hover:text-gray-700 dark:hover:text-[#CBD5E1]" : ""} ${col.className || ""}`}
                   onClick={() => col.sortable && handleSort(col.key)}>
                   <div className="flex items-center gap-1">
                     {col.label}
@@ -80,12 +80,12 @@ export default function DataTable<T extends Record<string, unknown>>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-[#1E2A45] bg-white dark:bg-bia-navy-700">
+          <tbody className="divide-y divide-gray-200 dark:divide-[#1E2A45] bg-white dark:bg-[#1A2340]">
             {filteredData.length === 0 ? (
-              <tr><td colSpan={columns.length} className="px-6 py-12 text-center text-gray-500 dark:text-bia-muted">{emptyMessage}</td></tr>
+              <tr><td colSpan={columns.length} className="px-6 py-12 text-center text-gray-500 dark:text-[#A0AEC0]">{emptyMessage}</td></tr>
             ) : (
               filteredData.map((item, idx) => (
-                <tr key={idx} className={`hover:bg-gray-50 dark:hover:bg-bia-navy-500 transition-colors ${onRowClick ? "cursor-pointer" : ""}`}
+                <tr key={idx} className={`hover:bg-gray-50 dark:hover:bg-[#243052] transition-colors ${onRowClick ? "cursor-pointer" : ""}`}
                   onClick={() => onRowClick?.(item)}>
                   {columns.map((col) => (
                     <td key={col.key} className={`px-6 py-4 text-sm text-gray-700 dark:text-white whitespace-nowrap ${col.className || ""}`}>

@@ -43,10 +43,10 @@ export function useToast() {
 
 const toastStyles: Record<ToastType, { bg: string; border: string; icon: typeof HiCheckCircle; iconColor: string }> = {
   success: {
-    bg: "bg-green-50 dark:bg-bia-teal/10",
-    border: "border-green-200 dark:border-bia-teal/30",
+    bg: "bg-green-50 dark:bg-[#00D4AA]/10",
+    border: "border-green-200 dark:border-[#00D4AA]/30",
     icon: HiCheckCircle,
-    iconColor: "text-green-500 dark:text-bia-teal",
+    iconColor: "text-green-500 dark:text-[#00D4AA]",
   },
   error: {
     bg: "bg-red-50 dark:bg-[rgba(248,113,113,0.1)]",
@@ -99,11 +99,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               className={`pointer-events-auto w-80 max-w-[calc(100vw-2rem)] ${style.bg} ${style.border} border rounded-xl shadow-lg dark:shadow-black/40 overflow-hidden animate-slide-in`}
             >
               {/* Header con logo */}
-              <div className="flex items-center justify-between px-4 py-2 bg-white/50 dark:bg-bia-navy-700/80 border-b border-gray-100 dark:border-bia-navy-400">
+              <div className="flex items-center justify-between px-4 py-2 bg-white/50 dark:bg-[#1A2340]/90 border-b border-gray-100 dark:border-[#3A4565]">
                 <BiaLogoMini />
                 <button
                   onClick={() => removeToast(toast.id)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  className="text-gray-400 dark:text-[#64748B] hover:text-gray-600 dark:hover:text-white transition-colors"
                 >
                   <HiX className="w-4 h-4" />
                 </button>
@@ -115,7 +115,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-gray-900 dark:text-white text-sm">{toast.title}</p>
                   {toast.message && (
-                    <p className="text-gray-600 dark:text-bia-label text-sm mt-0.5">{toast.message}</p>
+                    <p className="text-gray-600 dark:text-[#CBD5E1] text-sm mt-0.5">{toast.message}</p>
                   )}
                 </div>
               </div>

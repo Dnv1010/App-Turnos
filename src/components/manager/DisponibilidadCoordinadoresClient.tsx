@@ -124,7 +124,7 @@ export default function DisponibilidadCoordinadoresClient() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Disponibilidad líderes de zona</h1>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="mt-1 text-sm text-gray-600 dark:text-[#A0AEC0]">
           Marca días disponibles por líder de zona. Valor diario ${VALOR_DISPONIBILIDAD_COORDINADOR.toLocaleString("es-CO")} COP.
         </p>
       </div>
@@ -133,11 +133,11 @@ export default function DisponibilidadCoordinadoresClient() {
         <div className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-800">{msg}</div>
       )}
 
-      <div className="flex flex-wrap gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap gap-4 rounded-xl border border-gray-200 dark:border-[#3A4565] bg-white dark:bg-[#1A2340] p-4 shadow-sm dark:shadow-black/30">
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">Zona</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-[#A0AEC0]">Zona</label>
           <select
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-gray-300 dark:border-[#3A4565] px-3 py-2 text-sm dark:bg-[#1E2A45] dark:text-white"
             value={zona}
             onChange={(e) => setZona(e.target.value as typeof zona)}
           >
@@ -148,9 +148,9 @@ export default function DisponibilidadCoordinadoresClient() {
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">Líder de zona</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-[#A0AEC0]">Líder de zona</label>
           <select
-            className="min-w-[220px] rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            className="min-w-[220px] rounded-lg border border-gray-300 dark:border-[#3A4565] px-3 py-2 text-sm dark:bg-[#1E2A45] dark:text-white"
             value={userId}
             onChange={(e) => setUserId(e.target.value)}
           >
@@ -163,10 +163,10 @@ export default function DisponibilidadCoordinadoresClient() {
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">Mes</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-[#A0AEC0]">Mes</label>
           <input
             type="month"
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-gray-300 dark:border-[#3A4565] px-3 py-2 text-sm dark:bg-[#1E2A45] dark:text-white"
             value={mes}
             onChange={(e) => setMes(e.target.value)}
           />
@@ -175,15 +175,15 @@ export default function DisponibilidadCoordinadoresClient() {
           <button
             type="button"
             onClick={() => void cargar()}
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
+            className="rounded-lg border border-gray-300 dark:border-[#3A4565] px-4 py-2 text-sm text-gray-700 dark:text-white hover:bg-gray-50 dark:hover:bg-[#243052]"
           >
             Actualizar
           </button>
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <p className="text-sm text-gray-600 mb-4">
+      <div className="rounded-xl border border-gray-200 dark:border-[#3A4565] bg-white dark:bg-[#1A2340] p-6 shadow-sm dark:shadow-black/30">
+        <p className="text-sm text-gray-600 dark:text-[#A0AEC0] mb-4">
           Clic en un día para marcar o quitar disponibilidad.
           {saving && <span className="ml-2 text-primary-600">Guardando…</span>}
         </p>
@@ -193,12 +193,12 @@ export default function DisponibilidadCoordinadoresClient() {
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
           </div>
         ) : !userId ? (
-          <p className="text-sm text-gray-500">Selecciona un líder de zona.</p>
+          <p className="text-sm text-gray-500 dark:text-[#A0AEC0]">Selecciona un líder de zona.</p>
         ) : (
           <>
-            <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-gray-500 mb-1">
+            <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-gray-500 dark:text-[#A0AEC0] mb-1">
               {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((d) => (
-                <div key={d} className="py-2">
+                <div key={d} className="py-2 bg-gray-50 dark:bg-[#162035] rounded">
                   {d}
                 </div>
               ))}
@@ -217,8 +217,8 @@ export default function DisponibilidadCoordinadoresClient() {
                     onClick={() => void toggleDia(key)}
                     className={`rounded-lg border py-2 text-sm transition-colors ${
                       on
-                        ? "border-green-600 bg-green-100 font-semibold text-green-900 hover:bg-green-200"
-                        : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                        ? "border-green-600 dark:border-[#00D4AA]/50 bg-green-100 dark:bg-[#00D4AA]/15 font-semibold text-green-900 dark:text-[#00D4AA] hover:bg-green-200 dark:hover:bg-[#00D4AA]/25"
+                        : "border-gray-200 dark:border-[#3A4565] bg-white dark:bg-[#1A2340] text-gray-700 dark:text-white hover:bg-gray-50 dark:hover:bg-[#243052]"
                     } disabled:opacity-50`}
                   >
                     {day}
@@ -227,7 +227,7 @@ export default function DisponibilidadCoordinadoresClient() {
               })}
             </div>
 
-            <div className="mt-6 rounded-lg bg-gray-50 p-4 text-sm text-gray-800 space-y-1">
+            <div className="mt-6 rounded-lg bg-gray-50 dark:bg-[#0F1629] p-4 text-sm text-gray-800 dark:text-white border border-gray-100 dark:border-[#2A3555] space-y-1">
               <div>
                 <span className="font-medium">Días disponibles en el mes:</span> {totalMes}
               </div>
@@ -245,9 +245,9 @@ export default function DisponibilidadCoordinadoresClient() {
       </div>
 
       {userId && disponibilidades.filter((d) => d.userId === userId).length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-gray-200 dark:border-[#3A4565] bg-white dark:bg-[#1A2340] p-4 shadow-sm dark:shadow-black/30">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Registro del mes</h3>
-          <ul className="text-sm text-gray-600 space-y-1">
+          <ul className="text-sm text-gray-600 dark:text-[#A0AEC0] space-y-1">
             {disponibilidades
               .filter((d) => d.userId === userId)
               .map((d) => (
