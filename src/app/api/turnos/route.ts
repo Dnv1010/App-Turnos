@@ -170,7 +170,8 @@ export async function POST(req: NextRequest) {
       "keynote",
     ];
 
-    const estaBloqueado = console.log("[POST /turnos] estaBloqueado:", estaBloqueado, "valorMalla:", valorMalla);estadosBloqueantes.some((estado) => valorMalla.includes(estado));
+    const estaBloqueado = estadosBloqueantes.some((estado) => valorMalla.includes(estado));
+console.log("[POST /turnos] estaBloqueado:", estaBloqueado, "valorMalla:", valorMalla);
 
     if (estaBloqueado) {
       const fechaStr = fecha.toISOString().split("T")[0].split("-").reverse().join("/");
