@@ -289,7 +289,7 @@ export default function TurnosCoordinadoresVista() {
                     )}
                     <td className="p-2">{t.user?.nombre ?? "—"}</td>
                     <td className="p-2 font-mono text-xs">{t.user?.cedula ?? "—"}</td>
-                    <td className="p-2">{getRoleLabel(t.user?.role ?? "")}</td>
+                    <td className="p-2">{t.user?.role ? getRoleLabel(t.user.role) : "—"}</td>
                     <td className="p-2">{t.user?.zona ? getZonaLabel(t.user.zona) : "—"}</td>
                     <td className="p-2 whitespace-nowrap">{formatFechaTurnoDdMmmYyyy(t.fecha)}</td>
                     <td className="p-2 font-mono">{t.codigoOrden}</td>
