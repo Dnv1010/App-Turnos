@@ -124,7 +124,7 @@ export default function CoordinadorEquipoPage() {
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gray-50 border-b border-gray-200 dark:bg-bia-navy-750 dark:border-[#3A4565]">
                 <tr>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Cédula</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Nombre</th>

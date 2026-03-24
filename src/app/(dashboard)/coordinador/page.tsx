@@ -344,14 +344,14 @@ export default function CoordinadorPage() {
         </div>
       </div>
 
-      <div className="flex gap-2 border-b border-gray-200 dark:border-bia-navy-400 overflow-x-auto pb-0 scrollbar-hide min-w-0">
-        <button onClick={() => setTabView("turnos")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${tabView === "turnos" ? "border-primary-600 text-primary-700 dark:text-bia-teal" : "border-transparent text-gray-500 dark:text-bia-muted"}`}>
+      <div className="flex gap-2 border-b border-gray-200 dark:border-[#3A4565] overflow-x-auto pb-0 scrollbar-hide min-w-0">
+        <button onClick={() => setTabView("turnos")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${tabView === "turnos" ? "border-primary-600 text-primary-700 dark:border-bia-teal dark:text-bia-teal" : "border-transparent text-gray-500 dark:text-bia-muted"}`}>
           Turnos
         </button>
-        <button onClick={() => setTabView("equipo")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 flex items-center gap-1.5 whitespace-nowrap ${tabView === "equipo" ? "border-primary-600 text-primary-700 dark:text-bia-teal" : "border-transparent text-gray-500 dark:text-bia-muted"}`}>
+        <button onClick={() => setTabView("equipo")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 flex items-center gap-1.5 whitespace-nowrap ${tabView === "equipo" ? "border-primary-600 text-primary-700 dark:border-bia-teal dark:text-bia-teal" : "border-transparent text-gray-500 dark:text-bia-muted"}`}>
           <HiPhotograph className="h-3.5 w-3.5 sm:h-4 sm:w-4" />Reporte Equipo
         </button>
-        <button onClick={() => setTabView("disponibilidades")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${tabView === "disponibilidades" ? "border-primary-600 text-primary-700 dark:text-bia-teal" : "border-transparent text-gray-500 dark:text-bia-muted"}`}>
+        <button onClick={() => setTabView("disponibilidades")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${tabView === "disponibilidades" ? "border-primary-600 text-primary-700 dark:border-bia-teal dark:text-bia-teal" : "border-transparent text-gray-500 dark:text-bia-muted"}`}>
           Disponibilidades
         </button>
       </div>

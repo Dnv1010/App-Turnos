@@ -56,7 +56,7 @@ export default function DataTable<T extends Record<string, unknown>>({
   return (
     <div className="card p-0 overflow-hidden">
       {searchable && (
-        <div className="p-4 border-b border-gray-200 dark:border-bia-navy-400">
+        <div className="p-4 border-b border-gray-200 dark:border-[#3A4565]">
           <div className="relative">
             <HiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
@@ -67,7 +67,7 @@ export default function DataTable<T extends Record<string, unknown>>({
       <div className="overflow-x-auto w-full min-w-0">
         <table className="w-full min-w-[600px]">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-200 dark:bg-bia-navy-750 dark:border-bia-navy-400">
+            <tr className="bg-gray-50 border-b border-gray-200 dark:bg-bia-navy-750 dark:border-[#3A4565]">
               {columns.map((col) => (
                 <th key={col.key}
                   className={`px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-bia-muted uppercase tracking-wider ${col.sortable ? "cursor-pointer select-none hover:text-gray-700 dark:hover:text-bia-label" : ""} ${col.className || ""}`}
@@ -80,7 +80,7 @@ export default function DataTable<T extends Record<string, unknown>>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-bia-navy-600 bg-white dark:bg-bia-navy-700">
+          <tbody className="divide-y divide-gray-200 dark:divide-[#1E2A45] bg-white dark:bg-bia-navy-700">
             {filteredData.length === 0 ? (
               <tr><td colSpan={columns.length} className="px-6 py-12 text-center text-gray-500 dark:text-bia-muted">{emptyMessage}</td></tr>
             ) : (

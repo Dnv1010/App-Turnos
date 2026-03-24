@@ -191,19 +191,19 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
     <div className="mx-auto max-w-6xl space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{titulo}</h1>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="mt-1 text-sm text-gray-600 dark:text-bia-muted">
           Registra inicio y fin de jornada con el código u orden de trabajo asignado.
         </p>
       </div>
 
-      <div className="flex gap-2 border-b border-gray-200">
+      <div className="flex gap-2 border-b border-gray-200 dark:border-[#3A4565]">
         <button
           type="button"
           onClick={() => setTab("fichaje")}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
             tab === "fichaje"
-              ? "border-primary-600 text-primary-700"
-              : "border-transparent text-gray-500 hover:text-gray-700"
+              ? "border-primary-600 text-primary-700 dark:border-bia-teal dark:text-bia-teal"
+              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-bia-muted dark:hover:text-white"
           }`}
         >
           Fichaje e historial
@@ -213,8 +213,8 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
           onClick={() => setTab("dispo")}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
             tab === "dispo"
-              ? "border-primary-600 text-primary-700"
-              : "border-transparent text-gray-500 hover:text-gray-700"
+              ? "border-primary-600 text-primary-700 dark:border-bia-teal dark:text-bia-teal"
+              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-bia-muted dark:hover:text-white"
           }`}
         >
           Disponibilidad
@@ -224,7 +224,9 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
       {msg && (
         <div
           className={`rounded-lg px-4 py-3 text-sm ${
-            msg.type === "ok" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
+            msg.type === "ok"
+              ? "bg-green-50 text-green-800 dark:bg-green-950/40 dark:text-green-200"
+              : "bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-200"
           }`}
         >
           {msg.text}
@@ -232,15 +234,15 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
       )}
 
       {tab === "dispo" && (
-        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#3A4565] dark:bg-bia-navy-700 dark:shadow-black/40">
           <CoordinadorDisponibilidadTab />
         </section>
       )}
 
       {tab === "fichaje" && (
         <>
-      <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="mb-4 flex items-center gap-2 text-primary-700">
+      <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#3A4565] dark:bg-bia-navy-700 dark:shadow-black/40">
+        <div className="mb-4 flex items-center gap-2 text-primary-700 dark:text-bia-teal">
           <HiClock className="h-6 w-6" />
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Fichaje</h2>
         </div>
@@ -264,7 +266,7 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
             </p>
           </div>
         ) : (
-          <div className="space-y-4 rounded-lg border border-primary-100 bg-primary-50/40 p-5">
+          <div className="space-y-4 rounded-lg border border-primary-100 bg-primary-50/40 p-5 dark:border-[#3A4565] dark:bg-[#1A2340]">
             <div className="grid gap-2 text-sm sm:grid-cols-2">
               <div>
                 <span className="font-medium text-gray-700">Código / orden:</span>{" "}
@@ -292,14 +294,14 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
         )}
       </section>
 
-      <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#3A4565] dark:bg-bia-navy-700 dark:shadow-black/40">
         <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Historial</h2>
         <div className="mb-4 flex flex-wrap gap-4">
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-500">Desde</label>
             <input
               type="date"
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-[#3A4565] dark:bg-[#1E2A45] dark:text-white"
               value={desdeHist}
               onChange={(e) => setDesdeHist(e.target.value)}
             />
@@ -308,7 +310,7 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
             <label className="mb-1 block text-xs font-medium text-gray-500">Hasta</label>
             <input
               type="date"
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-[#3A4565] dark:bg-[#1E2A45] dark:text-white"
               value={hastaHist}
               onChange={(e) => setHastaHist(e.target.value)}
             />
@@ -317,7 +319,7 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
             <button
               type="button"
               onClick={() => setRefreshKey((k) => k + 1)}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-[#3A4565] dark:text-white dark:hover:bg-bia-navy-500"
             >
               Actualizar
             </button>
@@ -327,9 +329,9 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
         {loadingHist ? (
           <p className="text-sm text-gray-500">Cargando…</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-gray-200">
+          <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-[#3A4565]">
             <table className="min-w-full text-xs sm:text-sm">
-              <thead className="bg-gray-50 text-gray-600">
+              <thead className="bg-gray-50 text-gray-600 dark:bg-bia-navy-750 dark:text-bia-muted">
                 <tr>
                   <th className="p-2 text-left">Fecha</th>
                   <th className="p-2 text-left">Código / orden</th>

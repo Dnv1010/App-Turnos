@@ -148,7 +148,7 @@ export default function JornadaAlertaFlow({ turnoActivo, onAfterReport }: Props)
               </button>
               <button
                 type="button"
-                className="w-full py-2.5 px-4 rounded-lg border border-gray-300 dark:border-bia-navy-400 text-gray-800 dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-bia-navy-500"
+                className="w-full py-2.5 px-4 rounded-lg border border-gray-300 dark:border-[#3A4565] dark:bg-[#1E2A45] text-gray-800 dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-bia-navy-500"
                 onClick={irCerrarTurno}
               >
                 No, ya terminé
@@ -173,7 +173,7 @@ export default function JornadaAlertaFlow({ turnoActivo, onAfterReport }: Props)
             <div className="flex gap-2">
               <button
                 type="button"
-                className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700"
+                className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700 dark:border-[#3A4565] dark:bg-[#1E2A45] dark:text-white dark:hover:bg-bia-navy-500"
                 onClick={() => setStep("pregunta")}
               >
                 Atrás

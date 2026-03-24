@@ -80,45 +80,9 @@ html.dark .bg-gray-50 {
   color: #ffffff;
 }
 
-html.dark table thead {
-  background-color: #162035 !important;
-}
-
-html.dark table thead th {
-  color: #a0aec0 !important;
-  border-color: #2a3555 !important;
-}
-
-html.dark table tbody tr {
-  border-color: #1e2a45 !important;
-}
-
-html.dark table tbody tr:hover {
-  background-color: #243052 !important;
-}
-
-html.dark table tbody td {
-  color: #ffffff !important;
-  border-color: #1e2a45 !important;
-}
-
 html.dark .text-gray-900,
 html.dark .text-gray-800 {
   color: #ffffff !important;
-}
-
-html.dark .text-gray-700 {
-  color: #cbd5e1 !important;
-}
-
-html.dark .text-gray-600,
-html.dark .text-gray-500 {
-  color: #a0aec0 !important;
-}
-
-html.dark .text-gray-400,
-html.dark .text-gray-300 {
-  color: #cbd5e1 !important;
 }
 
 html.dark a:not(.btn-primary):not(.btn-secondary):not([class*="text-red"]):not([class*="text-amber"]):not([class*="text-green"]):not([class*="text-orange"]) {
@@ -156,10 +120,347 @@ html.dark .shadow-lg {
     0 2px 4px -1px rgba(0, 0, 0, 0.3) !important;
 }
 
-html.dark fieldset {
+/* ============ FIX CONTRASTE DARK MODE BIA (html.dark = class en <html>) ============ */
+
+/* === FIELDSETS Y BORDES === */
+html.dark fieldset,
+html.dark .border,
+html.dark [class*="border"]:not([class*="border-transparent"]):not(.border-transparent),
+html.dark .rounded-lg,
+html.dark .rounded-xl,
+html.dark .card {
+  border-color: #3a4565 !important;
+}
+
+html.dark .border-transparent,
+html.dark [class*="border-transparent"] {
+  border-color: transparent !important;
+}
+
+html.dark fieldset legend,
+html.dark legend {
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+/* === LABELS Y TEXTOS DE FORMULARIO === */
+html.dark label,
+html.dark .text-sm,
+html.dark .font-medium {
+  color: #cbd5e1 !important;
+}
+
+/* === INPUTS, SELECTS, DATE PICKERS === */
+html.dark input,
+html.dark select,
+html.dark textarea,
+html.dark input[type="date"],
+html.dark input[type="text"],
+html.dark input[type="number"],
+html.dark input[type="password"],
+html.dark input[type="email"],
+html.dark input[type="month"] {
+  background-color: #1e2a45 !important;
+  border: 1px solid #3a4565 !important;
+  color: #ffffff !important;
+  border-radius: 0.5rem;
+}
+
+html.dark input:focus,
+html.dark select:focus,
+html.dark textarea:focus {
+  border-color: #00d4aa !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(0, 212, 170, 0.25) !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+html.dark input[type="date"]::-webkit-calendar-picker-indicator,
+html.dark input[type="month"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+/* === BOTONES === */
+html.dark button {
+  color: #ffffff !important;
+}
+
+html.dark button.btn-primary,
+html.dark .btn-primary {
+  background-color: #00d4aa !important;
+  color: #0f1629 !important;
+  font-weight: 600;
+}
+
+html.dark button.btn-primary:hover,
+html.dark .btn-primary:hover {
+  background-color: #00f0c0 !important;
+}
+
+html.dark button:disabled,
+html.dark .btn-primary:disabled {
+  opacity: 0.5 !important;
+}
+
+html.dark button:not(.btn-primary):not([class*="tab"]) {
+  border-color: #3a4565 !important;
+}
+
+html.dark button:not(.btn-primary):not([class*="tab"]):hover {
+  background-color: #243052 !important;
+}
+
+/* === TABS / PESTAÑAS === */
+html.dark [role="tab"],
+html.dark button[class*="border-b"],
+html.dark .flex button[class*="px-3"],
+html.dark .flex button[class*="px-4"] {
+  color: #a0aec0 !important;
+  border-color: transparent !important;
+}
+
+html.dark [role="tab"][aria-selected="true"],
+html.dark button[class*="border-primary"],
+html.dark button[class*="text-primary"],
+html.dark .flex button.border-primary-600,
+html.dark .flex button[class*="border-b-2"][class*="text-primary"] {
+  color: #00d4aa !important;
+  border-color: #00d4aa !important;
+}
+
+html.dark .border-b-2:not(.border-transparent) {
+  border-color: #00d4aa !important;
+}
+
+/* === TABLAS === */
+html.dark table {
   border-color: #2a3555 !important;
 }
 
-html.dark legend {
+html.dark thead,
+html.dark table thead,
+html.dark thead tr {
+  background-color: #162035 !important;
+}
+
+html.dark th,
+html.dark thead th {
+  color: #a0aec0 !important;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  border-color: #2a3555 !important;
+  padding: 0.75rem 1rem;
+}
+
+html.dark td,
+html.dark tbody td {
   color: #ffffff !important;
+  border-color: #1e2a45 !important;
+  padding: 0.75rem 1rem;
+}
+
+html.dark tbody tr {
+  background-color: #1a2340 !important;
+  border-color: #1e2a45 !important;
+}
+
+html.dark tbody tr:hover {
+  background-color: #243052 !important;
+}
+
+html.dark tbody tr:nth-child(even) {
+  background-color: #1e2a45 !important;
+}
+
+/* === SECCIÓN FICHAJE / CARDS === */
+html.dark .bg-blue-50,
+html.dark .bg-gray-50,
+html.dark [class*="bg-blue-50"],
+html.dark [class*="bg-gray-50"] {
+  background-color: #1a2340 !important;
+}
+
+html.dark .text-blue-600,
+html.dark .text-blue-500,
+html.dark [class*="text-blue"] {
+  color: #00d4aa !important;
+}
+
+html.dark .text-gray-500,
+html.dark .text-gray-400 {
+  color: #a0aec0 !important;
+}
+
+html.dark .text-gray-700 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .text-gray-600,
+html.dark .text-gray-300 {
+  color: #cbd5e1 !important;
+}
+
+/* === HISTORIAL (fieldset) === */
+html.dark fieldset {
+  background-color: #1a2340 !important;
+  border: 1px solid #3a4565 !important;
+  border-radius: 0.75rem;
+}
+
+/* === BADGES DE ESTADO === */
+html.dark .bg-green-100 {
+  background-color: rgba(0, 212, 170, 0.15) !important;
+}
+html.dark .text-green-700,
+html.dark .text-green-800 {
+  color: #00d4aa !important;
+}
+
+html.dark .bg-red-100 {
+  background-color: rgba(248, 113, 113, 0.15) !important;
+}
+html.dark .text-red-700,
+html.dark .text-red-800 {
+  color: #f87171 !important;
+}
+
+html.dark .bg-yellow-100 {
+  background-color: rgba(251, 191, 36, 0.15) !important;
+}
+html.dark .text-yellow-700,
+html.dark .text-yellow-800 {
+  color: #fbbf24 !important;
+}
+
+html.dark .bg-blue-100 {
+  background-color: rgba(96, 165, 250, 0.15) !important;
+}
+html.dark .text-blue-700,
+html.dark .text-blue-800 {
+  color: #60a5fa !important;
+}
+
+html.dark .bg-purple-100 {
+  background-color: rgba(129, 140, 248, 0.15) !important;
+}
+html.dark .text-purple-700,
+html.dark .text-purple-800 {
+  color: #818cf8 !important;
+}
+
+html.dark .bg-orange-100 {
+  background-color: rgba(251, 146, 60, 0.15) !important;
+}
+html.dark .text-orange-700,
+html.dark .text-orange-800 {
+  color: #fb923c !important;
+}
+
+/* === SIDEBAR === */
+html.dark nav,
+html.dark aside,
+html.dark [class*="sidebar"] {
+  background-color: #0b1120 !important;
+  border-right-color: #1e2a45 !important;
+}
+
+html.dark nav a,
+html.dark aside a {
+  color: #a0aec0 !important;
+  border-radius: 0.5rem;
+}
+
+html.dark nav a:hover,
+html.dark aside a:hover {
+  color: #ffffff !important;
+  background-color: rgba(0, 212, 170, 0.08) !important;
+}
+
+html.dark nav a.active,
+html.dark nav a[class*="text-primary"],
+html.dark aside a.active,
+html.dark aside a[class*="bg-primary"],
+html.dark aside a[class*="text-primary"] {
+  color: #00d4aa !important;
+  background-color: rgba(0, 212, 170, 0.12) !important;
+  font-weight: 600;
+}
+
+/* === NAVBAR === */
+html.dark header,
+html.dark [class*="navbar"],
+html.dark nav[class*="border-b"] {
+  background-color: #1a2340 !important;
+  border-bottom-color: #1e2a45 !important;
+}
+
+html.dark header span,
+html.dark header p {
+  color: #ffffff !important;
+}
+
+/* === MODALES === */
+html.dark [class*="fixed"][class*="inset"],
+html.dark [class*="modal-overlay"] {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+}
+
+html.dark [class*="modal"],
+html.dark [role="dialog"] > div {
+  background-color: #1a2340 !important;
+  border: 1px solid #2a3555 !important;
+}
+
+/* === TOOLTIPS === */
+html.dark [class*="tooltip"] {
+  background-color: #243052 !important;
+  color: #ffffff !important;
+  border: 1px solid #3a4565 !important;
+}
+
+/* === ENLACES EN TABLAS === */
+html.dark a.underline,
+html.dark a[class*="text-blue"],
+html.dark a[class*="text-orange"] {
+  color: #00d4aa !important;
+}
+
+html.dark a.underline:hover,
+html.dark a[class*="text-blue"]:hover {
+  color: #00f0c0 !important;
+}
+
+/* === DIVIDERS === */
+html.dark hr,
+html.dark .divide-gray-200 > *,
+html.dark [class*="divide"] > * {
+  border-color: #1e2a45 !important;
+}
+
+/* === EMPTY STATES === */
+html.dark .text-center.text-gray-500,
+html.dark p[class*="text-gray"] {
+  color: #64748b !important;
+}
+
+html.dark option {
+  background-color: #1e2a45 !important;
+  color: #ffffff !important;
+}
+
+html.dark td span,
+html.dark td strong,
+html.dark td b {
+  color: #ffffff !important;
+}
+
+html.dark td:empty::after,
+html.dark td span.text-gray-300 {
+  color: #4a5568 !important;
 }
