@@ -156,7 +156,8 @@ export async function POST(req: NextRequest) {
     where: { userId_fecha: { userId: uid, fecha } },
   });
 
-  if (mallaHoy) {console.log("[POST /turnos] Malla encontrada:", mallaHoy.valor, "tipo:", mallaHoy.tipo);
+  if (mallaHoy) {
+    console.log("[POST /turnos] Malla encontrada:", mallaHoy.valor, "tipo:", mallaHoy.tipo);
     const valorMalla = (mallaHoy.valor ?? "").toLowerCase().trim();
     const estadosBloqueantes = [
       "descanso",
@@ -171,7 +172,7 @@ export async function POST(req: NextRequest) {
     ];
 
     const estaBloqueado = estadosBloqueantes.some((estado) => valorMalla.includes(estado));
-console.log("[POST /turnos] estaBloqueado:", estaBloqueado, "valorMalla:", valorMalla);
+    console.log("[POST /turnos] estaBloqueado:", estaBloqueado, "valorMalla:", valorMalla);
 
     if (estaBloqueado) {
       const fechaStr = fecha.toISOString().split("T")[0].split("-").reverse().join("/");

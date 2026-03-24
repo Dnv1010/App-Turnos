@@ -36,7 +36,11 @@ export default function TecnicoDashboard() {
   const { data: session } = useSession();
   const router = useRouter();
   const [turnos, setTurnos] = useState<TurnoRecord[]>([]);
-  const [turnoActivo, setTurnoActivo] = useState<{ id: string; horaEntrada: string } | null>(null);
+  const [turnoActivo, setTurnoActivo] = useState<{
+    id: string;
+    horaEntrada: string;
+    userId: string;
+  } | null>(null);
   const [foraneosResumen, setForaneosResumen] = useState<{ totalKm: number; totalPagar: number }>({ totalKm: 0, totalPagar: 0 });
   const [bloqueoMalla, setBloqueoMalla] = useState<{ estado: string; fecha: string } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -91,7 +95,11 @@ export default function TecnicoDashboard() {
       const list = Array.isArray(data) ? data : [];
       setTurnos(list);
       const abierto = list.find((t) => !t.horaSalida);
-      setTurnoActivo(abierto ? { id: abierto.id, horaEntrada: abierto.horaEntrada } : null);
+      setTurnoActivo(
+        abierto
+          ? { id: abierto.id, horaEntrada: abierto.horaEntrada, userId: session.user.userId }
+          : null
+      );
       const foraneosData = await parseResponseJson<unknown[]>(foraneosRes);
       const listaForaneos = Array.isArray(foraneosData) ? foraneosData : [];
       const miForaneo = listaForaneos.find((f: { userId: string }) => f.userId === session.user.userId);
@@ -134,7 +142,11 @@ export default function TecnicoDashboard() {
       const list = Array.isArray(data) ? data : [];
       setTurnos(list);
       const abierto = list.find((t) => !t.horaSalida);
-      setTurnoActivo(abierto ? { id: abierto.id, horaEntrada: abierto.horaEntrada } : null);
+      setTurnoActivo(
+        abierto
+          ? { id: abierto.id, horaEntrada: abierto.horaEntrada, userId: session.user.userId }
+          : null
+      );
       const foraneosRes = await fetch(`/api/reportes/foraneos?desde=${desde}&hasta=${hasta}&userId=${session.user.userId}`);
       const foraneosData = await parseResponseJson<unknown[]>(foraneosRes);
       const listaForaneos = Array.isArray(foraneosData) ? foraneosData : [];

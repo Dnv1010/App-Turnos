@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   getAlertaJornadaAt,
   etiquetaJornadaEsperada,
@@ -19,7 +19,7 @@ function storageKeyHandled(turnoId: string) {
 }
 
 interface Props {
-  turnoActivo: { id: string; horaEntrada: string } | null;
+  turnoActivo: { id: string; horaEntrada: string; userId: string } | null;
   /** Nombre del operador (sesión) para personalizar toast / modal / Notification local */
   operadorNombre?: string;
   onAfterReport?: () => void;
@@ -29,24 +29,79 @@ const TITULO_ALERTA = "⏰ Jornada por finalizar";
 
 export default function JornadaAlertaFlow({ turnoActivo, operadorNombre = "", onAfterReport }: Props) {
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+
+  const operadorNombreRef = useRef(operadorNombre);
+  operadorNombreRef.current = operadorNombre;
+
+  const userIdRef = useRef<string | undefined>(turnoActivo?.userId);
+  userIdRef.current = turnoActivo?.userId;
+
   const [step, setStep] = useState<Step>("closed");
   const [orden, setOrden] = useState("");
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const alertaFiredRef = useRef(false);
+  const lastTurnoKeyRef = useRef<string | null>(null);
 
-  const fireAlert = useCallback(
-    (turnoId: string) => {
+  const turnoId = turnoActivo?.id;
+  const horaEntrada = turnoActivo?.horaEntrada;
+
+  useEffect(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+
+    setStep("closed");
+    setOrden("");
+    setErr(null);
+
+    if (!turnoId || !horaEntrada) {
+      lastTurnoKeyRef.current = null;
+      alertaFiredRef.current = false;
+      return;
+    }
+
+    const uid = userIdRef.current;
+    if (!uid) return;
+
+    const turnoKey = `${turnoId}:${horaEntrada}`;
+    if (lastTurnoKeyRef.current !== turnoKey) {
+      alertaFiredRef.current = false;
+      lastTurnoKeyRef.current = turnoKey;
+    }
+
+    if (sessionStorage.getItem(storageKeyHandled(turnoId))) {
+      return;
+    }
+
+    const entrada = new Date(horaEntrada);
+    const alertAt = getAlertaJornadaAt(entrada);
+    const delay = alertAt.getTime() - Date.now();
+
+    const disparar = () => {
       if (typeof window === "undefined") return;
+      if (alertaFiredRef.current) return;
       if (sessionStorage.getItem(storageKeyHandled(turnoId))) {
         setStep("closed");
         return;
       }
+      alertaFiredRef.current = true;
+
+      void fetch("/api/push/send-alerta-jornada", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: uid }),
+      }).catch(() => {});
+
       setStep("pregunta");
       setErr(null);
-      const primer = primerNombreOperador(operadorNombre);
+      const primer = primerNombreOperador(operadorNombreRef.current);
       const cuerpoAmigable = mensajeCuerpoOperador15min(primer);
-      toast.info(TITULO_ALERTA, cuerpoAmigable, { duration: 15000 });
+      toastRef.current.info(TITULO_ALERTA, cuerpoAmigable, { duration: 15000 });
       if (Notification.permission === "granted") {
         try {
           new Notification(TITULO_ALERTA, {
@@ -58,42 +113,20 @@ export default function JornadaAlertaFlow({ turnoActivo, operadorNombre = "", on
           /* ignore */
         }
       }
-    },
-    [toast, operadorNombre]
-  );
-
-  useEffect(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    setStep("closed");
-    setOrden("");
-    setErr(null);
-
-    if (!turnoActivo) return;
-
-    const entrada = new Date(turnoActivo.horaEntrada);
-    const alertAt = getAlertaJornadaAt(entrada);
-    const now = Date.now();
-    const delay = alertAt.getTime() - now;
-
-    if (sessionStorage.getItem(storageKeyHandled(turnoActivo.id))) {
-      return;
-    }
+    };
 
     if (delay <= 0) {
-      fireAlert(turnoActivo.id);
+      disparar();
       return;
     }
 
     if (delay > 1000 * 60 * 60 * 24) return;
 
-    timerRef.current = setTimeout(() => fireAlert(turnoActivo.id), delay);
+    timerRef.current = setTimeout(disparar, delay);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [turnoActivo, fireAlert]);
+  }, [turnoId, horaEntrada]);
 
   const enviarOrden = async () => {
     if (!turnoActivo) return;
