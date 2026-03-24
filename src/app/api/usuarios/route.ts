@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import bcrypt from "bcryptjs";
+import { Cargo, Role, Zona } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   try {
@@ -16,11 +17,15 @@ export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     let zona = searchParams.get("zona");
     const role = searchParams.get("role");
+    const cargo = searchParams.get("cargo");
     if (session?.user?.role === "COORDINADOR" && !zona) zona = session.user.zona;
 
     const where: Record<string, unknown> = { isActive: true };
     if (zona && zona !== "ALL") where.zona = zona;
     if (role) where.role = role;
+    if (cargo && cargo !== "ALL" && Object.values(Cargo).includes(cargo as Cargo)) {
+      where.cargo = cargo as Cargo;
+    }
 
     const users = await prisma.user.findMany({
       where,
@@ -31,6 +36,8 @@ export async function GET(req: NextRequest) {
         email: true,
         role: true,
         zona: true,
+        cargo: true,
+        filtroEquipo: true,
         isActive: true,
         createdAt: true,
       },
@@ -49,7 +56,7 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
     const body = await req.json();
-    const { cedula, nombre, email, pin, role: bodyRole, zona: bodyZona } = body;
+    const { cedula, nombre, email, pin, role: bodyRole, zona: bodyZona, cargo: bodyCargo } = body;
 
     if (!cedula || !nombre || !email || !pin) {
       return NextResponse.json({ error: "Campos requeridos: cedula, nombre, email, pin" }, { status: 400 });
@@ -73,20 +80,34 @@ export async function POST(req: NextRequest) {
     if (!pinNormalized) return NextResponse.json({ error: "El PIN es obligatorio" }, { status: 400 });
     const hashedPin = await bcrypt.hash(pinNormalized, 10);
 
+    const cargoCreate =
+      typeof bodyCargo === "string" && Object.values(Cargo).includes(bodyCargo as Cargo)
+        ? (bodyCargo as Cargo)
+        : Cargo.TECNICO;
+
     const user = await prisma.user.create({
       data: {
         cedula,
         nombre,
         email: email.toLowerCase(),
         password: hashedPin,
-        role,
-        zona,
+        role: role as Role,
+        zona: zona as Zona,
+        cargo: cargoCreate,
       },
     });
 
     return NextResponse.json({
       ok: true,
-      user: { id: user.id, cedula: user.cedula, nombre: user.nombre, email: user.email, role: user.role, zona: user.zona },
+      user: {
+        id: user.id,
+        cedula: user.cedula,
+        nombre: user.nombre,
+        email: user.email,
+        role: user.role,
+        zona: user.zona,
+        cargo: user.cargo,
+      },
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

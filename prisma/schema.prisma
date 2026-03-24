@@ -21,6 +21,11 @@ enum Zona {
   INTERIOR
 }
 
+enum Cargo {
+  TECNICO
+  ALMACENISTA
+}
+
 enum EstadoAprobacion {
   PENDIENTE
   APROBADA
@@ -45,6 +50,8 @@ model User {
   password       String
   role           Role            @default(TECNICO)
   zona           Zona            @default(BOGOTA)
+  cargo          Cargo           @default(TECNICO)
+  filtroEquipo   String          @default("TODOS")
   isActive       Boolean         @default(true)
   fotoUrl        String?
   createdAt      DateTime        @default(now())

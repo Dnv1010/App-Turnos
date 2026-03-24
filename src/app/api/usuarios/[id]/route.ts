@@ -3,6 +3,21 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import bcrypt from "bcryptjs";
+import { Cargo } from "@prisma/client";
+
+const FILTROS_EQUIPO = ["TODOS", "TECNICO", "ALMACENISTA"] as const;
+
+const selectUsuario = {
+  id: true,
+  cedula: true,
+  nombre: true,
+  email: true,
+  role: true,
+  zona: true,
+  isActive: true,
+  cargo: true,
+  filtroEquipo: true,
+} as const;
 
 export async function PATCH(
   req: NextRequest,
@@ -15,6 +30,31 @@ export async function PATCH(
   const target = await prisma.user.findUnique({ where: { id } });
   if (!target) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
+  const body = await req.json();
+  const { nombre, email, pin, cargo, filtroEquipo } = body;
+
+  const isCoordSelf =
+    session.user.userId === id &&
+    (session.user.role === "COORDINADOR" || session.user.role === "COORDINADOR_INTERIOR");
+
+  if (isCoordSelf) {
+    if (nombre != null || email != null || pin != null || cargo != null) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+    if (filtroEquipo == null || typeof filtroEquipo !== "string") {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+    if (!FILTROS_EQUIPO.includes(filtroEquipo as (typeof FILTROS_EQUIPO)[number])) {
+      return NextResponse.json({ error: "filtroEquipo inválido" }, { status: 400 });
+    }
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { filtroEquipo },
+      select: selectUsuario,
+    });
+    return NextResponse.json(updated);
+  }
+
   if (session.user.role === "COORDINADOR") {
     if (target.role !== "TECNICO" || target.zona !== session.user.zona) {
       return NextResponse.json({ error: "Solo puedes editar operadores de tu zona" }, { status: 403 });
@@ -23,10 +63,13 @@ export async function PATCH(
     return NextResponse.json({ error: "Sin permisos para editar usuarios" }, { status: 403 });
   }
 
-  const body = await req.json();
-  const { nombre, email, pin } = body;
-
-  const data: { nombre?: string; email?: string; password?: string } = {};
+  const data: {
+    nombre?: string;
+    email?: string;
+    password?: string;
+    cargo?: Cargo;
+    filtroEquipo?: string;
+  } = {};
   if (nombre != null) data.nombre = nombre;
   if (email != null) {
     const lower = (email as string).toLowerCase();
@@ -36,11 +79,23 @@ export async function PATCH(
   }
   if (pin != null && String(pin).trim() !== "")
     data.password = await bcrypt.hash(String(pin).trim(), 10);
+  if (cargo != null) {
+    if (typeof cargo !== "string" || !Object.values(Cargo).includes(cargo as Cargo)) {
+      return NextResponse.json({ error: "cargo inválido" }, { status: 400 });
+    }
+    data.cargo = cargo as Cargo;
+  }
+  if (filtroEquipo != null) {
+    if (typeof filtroEquipo !== "string" || !FILTROS_EQUIPO.includes(filtroEquipo as (typeof FILTROS_EQUIPO)[number])) {
+      return NextResponse.json({ error: "filtroEquipo inválido" }, { status: 400 });
+    }
+    data.filtroEquipo = filtroEquipo;
+  }
 
   const updated = await prisma.user.update({
     where: { id },
     data,
-    select: { id: true, cedula: true, nombre: true, email: true, role: true, zona: true, isActive: true },
+    select: selectUsuario,
   });
 
   return NextResponse.json(updated);

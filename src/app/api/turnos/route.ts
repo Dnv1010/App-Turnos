@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
   let turnos = await prisma.turno.findMany({
     where,
     orderBy: [{ fecha: "desc" }, { horaEntrada: "desc" }],
-    include: { user: { select: { nombre: true, zona: true } } },
+    include: { user: { select: { nombre: true, zona: true, cargo: true } } },
   });
 
   // Filtrar por rango usando fecha Colombia

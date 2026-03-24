@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { Role } from "@prisma/client";
+import { Role, Zona } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ensureWebPushConfigured, webpush } from "@/lib/web-push-config";
 import { getAlertaJornadaAt, mensajeCuerpoOperador15min, primerNombreOperador } from "@/lib/jornada-alerta";
@@ -15,6 +15,8 @@ function authorizeCron(req: NextRequest): boolean {
   const auth = req.headers.get("authorization");
   return auth === `Bearer ${secret}`;
 }
+
+type OperadorAvisado = { nombre: string; cargo: string };
 
 export async function GET(req: NextRequest) {
   if (!authorizeCron(req)) {
@@ -32,14 +34,14 @@ export async function GET(req: NextRequest) {
       id: true,
       userId: true,
       horaEntrada: true,
-      user: { select: { nombre: true, zona: true } },
+      user: { select: { nombre: true, zona: true, cargo: true } },
     },
   });
 
   let sent = 0;
   let errors = 0;
-  /** Zona → nombres completos de operadores a quienes se envió push con éxito (para un solo aviso al líder por zona) */
-  const avisadosPorZona = new Map<string, string[]>();
+  /** Zona → operadores (por userId) a quienes se envió push con éxito */
+  const avisadosPorZona = new Map<string, Map<string, OperadorAvisado>>();
 
   for (const turno of open) {
     const alertAt = getAlertaJornadaAt(turno.horaEntrada);
@@ -96,64 +98,86 @@ export async function GET(req: NextRequest) {
     if (anyOk) {
       sent += 1;
       const zona = turno.user.zona;
-      if (!avisadosPorZona.has(zona)) avisadosPorZona.set(zona, []);
-      avisadosPorZona.get(zona)!.push(turno.user.nombre);
+      if (!avisadosPorZona.has(zona)) avisadosPorZona.set(zona, new Map());
+      avisadosPorZona.get(zona)!.set(turno.userId, {
+        nombre: turno.user.nombre,
+        cargo: turno.user.cargo,
+      });
     }
   }
 
   let enviadosLider = 0;
   let erroresLider = 0;
 
-  for (const [zona, nombresRaw] of avisadosPorZona) {
-    const nombres = [...new Set(nombresRaw)];
-    const lider = await prisma.user.findFirst({
+  for (const [zona, porUserId] of Array.from(avisadosPorZona.entries())) {
+    const lista = Array.from(porUserId.values());
+
+    const lideres = await prisma.user.findMany({
       where: {
-        zona,
+        zona: zona as Zona,
         role: { in: [Role.COORDINADOR, Role.COORDINADOR_INTERIOR] },
         isActive: true,
       },
-      include: { pushSubscriptions: true },
+      select: {
+        id: true,
+        nombre: true,
+        filtroEquipo: true,
+        pushSubscriptions: {
+          select: { id: true, endpoint: true, p256dh: true, auth: true },
+        },
+      },
     });
 
-    if (!lider?.pushSubscriptions.length) continue;
+    for (const lider of lideres) {
+      if (!lider.pushSubscriptions.length) continue;
 
-    const saludoLider = primerNombreOperador(lider.nombre);
-    let bodyLider: string;
-    if (nombres.length === 1) {
-      bodyLider = `Hola ${saludoLider}, te informamos que el operador ${nombres[0]} acaba de recibir su aviso de 15 minutos para el cierre de su jornada. Ya debería estar pausando actividades y organizando su salida.`;
-    } else {
-      bodyLider = `Hola ${saludoLider}, te informamos que los siguientes operadores acaban de recibir su aviso de 15 minutos: ${nombres.join(", ")}. Ya deberían estar pausando actividades y organizando su salida.`;
-    }
+      const filtro = lider.filtroEquipo || "TODOS";
+      const operadoresFiltrados = lista.filter((op) => {
+        if (!filtro || filtro === "TODOS") return true;
+        return op.cargo === filtro;
+      });
+      if (operadoresFiltrados.length === 0) continue;
 
-    const payloadLider = JSON.stringify({
-      title: `📋 Aviso de cierre — ${nombres.length} operador${nombres.length > 1 ? "es" : ""}`,
-      body: bodyLider,
-      url: "/coordinador",
-      tag: `jornada-alerta-lider-${zona}`,
-    });
+      const nombres = Array.from(new Set(operadoresFiltrados.map((o) => o.nombre)));
 
-    let liderOk = false;
-    for (const s of lider.pushSubscriptions) {
-      try {
-        await webpush.sendNotification(
-          {
-            endpoint: s.endpoint,
-            keys: { p256dh: s.p256dh, auth: s.auth },
-          },
-          payloadLider,
-          { TTL: 3600, urgency: "high" }
-        );
-        liderOk = true;
-      } catch (err: unknown) {
-        erroresLider += 1;
-        const status = typeof err === "object" && err && "statusCode" in err ? (err as { statusCode: number }).statusCode : 0;
-        if (status === 404 || status === 410) {
-          await prisma.pushSubscription.delete({ where: { id: s.id } }).catch(() => {});
-        }
-        console.error(`[cron jornada-alerta] push líder ${lider.nombre}:`, err);
+      const saludoLider = primerNombreOperador(lider.nombre);
+      let bodyLider: string;
+      if (nombres.length === 1) {
+        bodyLider = `Hola ${saludoLider}, te informamos que el operador ${nombres[0]} acaba de recibir su aviso de 15 minutos para el cierre de su jornada. Ya debería estar pausando actividades y organizando su salida.`;
+      } else {
+        bodyLider = `Hola ${saludoLider}, te informamos que los siguientes operadores acaban de recibir su aviso de 15 minutos: ${nombres.join(", ")}. Ya deberían estar pausando actividades y organizando su salida.`;
       }
+
+      const payloadLider = JSON.stringify({
+        title: `📋 Aviso de cierre — ${nombres.length} operador${nombres.length > 1 ? "es" : ""}`,
+        body: bodyLider,
+        url: "/coordinador",
+        tag: `jornada-alerta-lider-${zona}`,
+      });
+
+      let liderOk = false;
+      for (const s of lider.pushSubscriptions) {
+        try {
+          await webpush.sendNotification(
+            {
+              endpoint: s.endpoint,
+              keys: { p256dh: s.p256dh, auth: s.auth },
+            },
+            payloadLider,
+            { TTL: 3600, urgency: "high" }
+          );
+          liderOk = true;
+        } catch (err: unknown) {
+          erroresLider += 1;
+          const status = typeof err === "object" && err && "statusCode" in err ? (err as { statusCode: number }).statusCode : 0;
+          if (status === 404 || status === 410) {
+            await prisma.pushSubscription.delete({ where: { id: s.id } }).catch(() => {});
+          }
+          console.error(`[cron jornada-alerta] push líder ${lider.nombre}:`, err);
+        }
+      }
+      if (liderOk) enviadosLider += 1;
     }
-    if (liderOk) enviadosLider += 1;
   }
 
   return NextResponse.json({

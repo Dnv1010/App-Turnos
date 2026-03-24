@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { Role, Zona } from "@prisma/client";
+import { Role, Zona, Cargo } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 async function verificarAdmin() {
@@ -17,7 +17,18 @@ export async function GET() {
 
   const usuarios = await prisma.user.findMany({
     orderBy: { nombre: "asc" },
-    select: { id: true, cedula: true, nombre: true, email: true, role: true, zona: true, isActive: true, createdAt: true },
+    select: {
+      id: true,
+      cedula: true,
+      nombre: true,
+      email: true,
+      role: true,
+      zona: true,
+      cargo: true,
+      filtroEquipo: true,
+      isActive: true,
+      createdAt: true,
+    },
   });
 
   return NextResponse.json(usuarios);
@@ -28,7 +39,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const body = await req.json();
-  const { cedula, nombre, email, pin, role, zona, isActive } = body;
+  const { cedula, nombre, email, pin, role, zona, isActive, cargo: bodyCargo } = body;
 
   if (!cedula || !nombre || !email || !pin) {
     return NextResponse.json({ error: "Campos requeridos: cedula, nombre, email, pin" }, { status: 400 });
@@ -44,6 +55,11 @@ export async function POST(req: NextRequest) {
 
   const activo = typeof isActive === "boolean" ? isActive : true;
 
+  const cargoCreate =
+    typeof bodyCargo === "string" && Object.values(Cargo).includes(bodyCargo as Cargo)
+      ? (bodyCargo as Cargo)
+      : Cargo.TECNICO;
+
   const usuario = await prisma.user.create({
     data: {
       cedula: String(cedula),
@@ -52,12 +68,23 @@ export async function POST(req: NextRequest) {
       password: hashedPin,
       role: (role as Role) || "TECNICO",
       zona: (zona as Zona) || "BOGOTA",
+      cargo: cargoCreate,
       isActive: activo,
     },
   });
 
   return NextResponse.json({
     ok: true,
-    user: { id: usuario.id, cedula: usuario.cedula, nombre: usuario.nombre, email: usuario.email, role: usuario.role, zona: usuario.zona, isActive: usuario.isActive },
+    user: {
+      id: usuario.id,
+      cedula: usuario.cedula,
+      nombre: usuario.nombre,
+      email: usuario.email,
+      role: usuario.role,
+      zona: usuario.zona,
+      cargo: usuario.cargo,
+      filtroEquipo: usuario.filtroEquipo,
+      isActive: usuario.isActive,
+    },
   }, { status: 201 });
 }

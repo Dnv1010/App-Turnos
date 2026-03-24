@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
 
   const tecnico = await prisma.user.findUnique({
     where: { id: userId },
-    select: { nombre: true, zona: true },
+    select: { nombre: true, zona: true, cargo: true },
   });
   if (!tecnico) {
     return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
@@ -106,10 +106,19 @@ export async function POST(req: NextRequest) {
       role: { in: [Role.COORDINADOR, Role.COORDINADOR_INTERIOR] },
       isActive: true,
     },
-    include: { pushSubscriptions: true },
+    select: {
+      id: true,
+      nombre: true,
+      filtroEquipo: true,
+      pushSubscriptions: true,
+    },
   });
 
+  const tecnicoCargo = tecnico.cargo ?? "TECNICO";
+
   for (const l of lideres) {
+    const filtro = l.filtroEquipo || "TODOS";
+    if (filtro !== "TODOS" && filtro !== tecnicoCargo) continue;
     const rL = await sendPayload(l.pushSubscriptions, payloadLider);
     totalEnviados += rL.enviados;
     totalErrores += rL.errores;

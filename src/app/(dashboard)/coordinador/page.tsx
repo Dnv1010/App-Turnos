@@ -35,7 +35,7 @@ interface TurnoRow {
   lngSalida: number | null;
   startPhotoUrl: string | null;
   endPhotoUrl: string | null;
-  user: { nombre: string; zona: string };
+  user: { nombre: string; zona: string; cargo?: string };
 }
 
 interface FotoInfo {
@@ -109,6 +109,8 @@ export default function CoordinadorPage() {
   const [reporteError, setReporteError] = useState<string | null>(null);
   const [syncingSheets, setSyncingSheets] = useState(false);
   const [showCambiarPin, setShowCambiarPin] = useState(false);
+  const [filtroEquipo, setFiltroEquipo] = useState<"TODOS" | "TECNICO" | "ALMACENISTA">("TODOS");
+  const [filtroEquipoListo, setFiltroEquipoListo] = useState(false);
 
   useTurnosStream(
     (data) => {
@@ -187,6 +189,37 @@ export default function CoordinadorPage() {
       })
       .catch(() => {});
   }, [session?.user?.zona]);
+
+  useEffect(() => {
+    if (!session?.user?.userId || !session?.user?.zona) return;
+    setFiltroEquipoListo(false);
+    let cancelled = false;
+    fetch(`/api/usuarios?zona=${encodeURIComponent(session.user.zona)}`)
+      .then((r) => r.json())
+      .then((d: { tecnicos?: { id: string; filtroEquipo?: string }[] }) => {
+        if (cancelled) return;
+        const me = d?.tecnicos?.find((u) => u.id === session.user.userId);
+        if (me?.filtroEquipo && ["TODOS", "TECNICO", "ALMACENISTA"].includes(me.filtroEquipo)) {
+          setFiltroEquipo(me.filtroEquipo as "TODOS" | "TECNICO" | "ALMACENISTA");
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setFiltroEquipoListo(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.userId, session?.user?.zona]);
+
+  useEffect(() => {
+    if (!session?.user?.userId || !filtroEquipoListo) return;
+    fetch(`/api/usuarios/${session.user.userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filtroEquipo }),
+    }).catch(() => {});
+  }, [filtroEquipo, session?.user?.userId, filtroEquipoListo]);
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -289,6 +322,11 @@ export default function CoordinadorPage() {
     { key: "acciones", label: "Acciones", render: (t: TurnoRow) => <button onClick={() => handleEliminarTurno(t.id)} className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs flex items-center gap-1"><HiTrash className="h-3 w-3" />Eliminar</button> },
   ];
 
+  const turnosFiltrados =
+    filtroEquipo === "TODOS"
+      ? turnos
+      : turnos.filter((t) => (t.user?.cargo || "TECNICO") === filtroEquipo);
+
   if (loadingTurnos && tabView === "turnos" && turnos.length === 0) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -377,10 +415,28 @@ export default function CoordinadorPage() {
       {tabView === "turnos" && (
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Turnos del equipo</h3>
+          <div className="flex gap-2 mb-3">
+            {(["TODOS", "TECNICO", "ALMACENISTA"] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFiltroEquipo(f)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                  filtroEquipo === f
+                    ? "bg-primary-600 text-white border-primary-600"
+                    : "border-gray-300 dark:border-[#3A4565] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#243052]"
+                }`}
+              >
+                {f === "TODOS" ? "Todos" : f === "TECNICO" ? "Técnicos" : "Almacenistas"}
+              </button>
+            ))}
+          </div>
           {turnos.length === 0 ? (
             <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay turnos en el período seleccionado</div>
+          ) : turnosFiltrados.length === 0 ? (
+            <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay turnos para el filtro de cargo seleccionado</div>
           ) : (
-            <DataTable columns={columnsTurnos as never} data={turnos as never} searchable searchPlaceholder="Buscar operador..." />
+            <DataTable columns={columnsTurnos as never} data={turnosFiltrados as never} searchable searchPlaceholder="Buscar operador..." />
           )}
         </div>
       )}

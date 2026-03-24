@@ -13,6 +13,7 @@ interface Tecnico {
   email: string;
   role: string;
   zona: string;
+  cargo?: string;
   isActive: boolean;
 }
 
@@ -27,6 +28,8 @@ export default function CoordinadorEquipoPage() {
   const [email, setEmail] = useState("");
   const [pin, setPin] = useState("1234");
   const [showPin, setShowPin] = useState(false);
+  const [cargo, setCargo] = useState<"TECNICO" | "ALMACENISTA">("TECNICO");
+  const [filtroCargo, setFiltroCargo] = useState<"TODOS" | "TECNICO" | "ALMACENISTA">("TODOS");
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,12 +49,14 @@ export default function CoordinadorEquipoPage() {
   const openAdd = () => {
     setCedula(""); setNombre(""); setEmail(""); setPin("1234");
     setShowPin(false);
+    setCargo("TECNICO");
     setEditingId(null); setError(null); setModal("add");
   };
 
   const openEdit = (t: Tecnico) => {
     setEditingId(t.id); setCedula(t.cedula); setNombre(t.nombre); setEmail(t.email); setPin("");
     setShowPin(false);
+    setCargo((t.cargo as "TECNICO" | "ALMACENISTA") || "TECNICO");
     setError(null); setModal("edit");
   };
 
@@ -67,7 +72,13 @@ export default function CoordinadorEquipoPage() {
       const res = await fetch("/api/usuarios", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cedula: cedula.trim(), nombre: nombre.trim(), email: email.trim().toLowerCase(), pin }),
+        body: JSON.stringify({
+          cedula: cedula.trim(),
+          nombre: nombre.trim(),
+          email: email.trim().toLowerCase(),
+          pin,
+          cargo,
+        }),
       });
       const data = await parseResponseJson<{ error?: string }>(res);
       if (!res.ok) throw new Error(data?.error || "Error al crear");
@@ -87,7 +98,12 @@ export default function CoordinadorEquipoPage() {
       const res = await fetch(`/api/usuarios/${editingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre: nombre.trim(), email: email.trim().toLowerCase(), ...(pin ? { pin } : {}) }),
+        body: JSON.stringify({
+          nombre: nombre.trim(),
+          email: email.trim().toLowerCase(),
+          ...(pin ? { pin } : {}),
+          cargo,
+        }),
       });
       const data = await parseResponseJson<{ error?: string }>(res);
       if (!res.ok) throw new Error(data?.error || "Error al actualizar");
@@ -109,6 +125,9 @@ export default function CoordinadorEquipoPage() {
     } catch (e) { alert(e instanceof Error ? e.message : "Error"); }
   };
 
+  const listFiltrada =
+    filtroCargo === "TODOS" ? list : list.filter((t) => (t.cargo || "TECNICO") === filtroCargo);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -125,6 +144,22 @@ export default function CoordinadorEquipoPage() {
         <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
       ) : (
         <div className="card overflow-hidden">
+          <div className="flex gap-2 mb-3 px-4 pt-4">
+            {(["TODOS", "TECNICO", "ALMACENISTA"] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFiltroCargo(f)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                  filtroCargo === f
+                    ? "bg-primary-600 text-white border-primary-600"
+                    : "border-gray-300 dark:border-[#3A4565] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#243052]"
+                }`}
+              >
+                {f === "TODOS" ? "Todos" : f === "TECNICO" ? "Técnicos" : "Almacenistas"}
+              </button>
+            ))}
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200 dark:bg-[#162035] dark:border-[#3A4565]">
@@ -137,10 +172,21 @@ export default function CoordinadorEquipoPage() {
                 </tr>
               </thead>
               <tbody>
-                {list.map((t) => (
+                {listFiltrada.map((t) => (
                   <tr key={t.id} className="border-b border-gray-100 dark:border-[#2A3555] hover:bg-gray-50 dark:hover:bg-[#243052]">
                     <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">{t.cedula}</td>
-                    <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">{t.nombre}</td>
+                    <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">
+                      {t.nombre}
+                      <span
+                        className={`text-xs px-1.5 py-0.5 rounded font-medium ml-1 ${
+                          (t.cargo || "TECNICO") === "ALMACENISTA"
+                            ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+                            : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                        }`}
+                      >
+                        {(t.cargo || "TECNICO") === "ALMACENISTA" ? "Almacenista" : "Técnico"}
+                      </span>
+                    </td>
                     <td className="py-3 px-4 text-sm text-gray-600 dark:text-[#A0AEC0]">{t.email}</td>
                     <td className="py-3 px-4">
                       <span className={t.isActive ? "badge-green" : "badge-blue"}>{t.isActive ? "Activo" : "Inactivo"}</span>
@@ -156,7 +202,11 @@ export default function CoordinadorEquipoPage() {
               </tbody>
             </table>
           </div>
-          {list.length === 0 && <div className="text-center py-12 text-gray-500 dark:text-[#A0AEC0]">No hay operadores en tu zona</div>}
+          {listFiltrada.length === 0 && (
+            <div className="text-center py-12 text-gray-500 dark:text-[#A0AEC0]">
+              {list.length === 0 ? "No hay operadores en tu zona" : "Ningún operador con este filtro"}
+            </div>
+          )}
         </div>
       )}
 
@@ -180,6 +230,17 @@ export default function CoordinadorEquipoPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">Email</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input-field" placeholder="correo@bia.app" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">Cargo</label>
+                <select
+                  value={cargo}
+                  onChange={(e) => setCargo(e.target.value as "TECNICO" | "ALMACENISTA")}
+                  className="input-field w-full"
+                >
+                  <option value="TECNICO">Técnico</option>
+                  <option value="ALMACENISTA">Almacenista</option>
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">PIN {modal === "edit" && "(dejar vacío para no cambiar)"}</label>

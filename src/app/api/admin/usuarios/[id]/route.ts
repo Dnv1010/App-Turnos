@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { Role, Zona } from "@prisma/client";
+import { Role, Zona, Cargo } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 async function verificarAdmin() {
@@ -13,6 +13,7 @@ async function verificarAdmin() {
 
 const ROLES: Role[] = ["ADMIN", "MANAGER", "COORDINADOR", "COORDINADOR_INTERIOR", "TECNICO"];
 const ZONAS: Zona[] = ["BOGOTA", "COSTA", "INTERIOR"];
+const FILTROS_EQUIPO = ["TODOS", "TECNICO", "ALMACENISTA"] as const;
 
 export async function PATCH(
   req: NextRequest,
@@ -31,7 +32,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 });
   }
 
-  const { nombre, email, cedula, pin, role, zona, isActive } = body;
+  const { nombre, email, cedula, pin, role, zona, isActive, cargo, filtroEquipo } = body;
 
   const data: {
     nombre?: string;
@@ -41,6 +42,8 @@ export async function PATCH(
     role?: Role;
     zona?: Zona;
     isActive?: boolean;
+    cargo?: Cargo;
+    filtroEquipo?: string;
   } = {};
 
   if (typeof nombre === "string" && nombre.trim()) data.nombre = nombre.trim();
@@ -56,6 +59,10 @@ export async function PATCH(
   if (typeof role === "string" && ROLES.includes(role as Role)) data.role = role as Role;
   if (typeof zona === "string" && ZONAS.includes(zona as Zona)) data.zona = zona as Zona;
   if (typeof isActive === "boolean") data.isActive = isActive;
+  if (typeof cargo === "string" && Object.values(Cargo).includes(cargo as Cargo)) data.cargo = cargo as Cargo;
+  if (typeof filtroEquipo === "string" && FILTROS_EQUIPO.includes(filtroEquipo as (typeof FILTROS_EQUIPO)[number])) {
+    data.filtroEquipo = filtroEquipo;
+  }
 
   try {
     const usuario = await prisma.user.update({ where: { id }, data });
@@ -68,6 +75,8 @@ export async function PATCH(
         email: usuario.email,
         role: usuario.role,
         zona: usuario.zona,
+        cargo: usuario.cargo,
+        filtroEquipo: usuario.filtroEquipo,
         isActive: usuario.isActive,
       },
     });
