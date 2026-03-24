@@ -11,6 +11,7 @@ import GraficoHoras from "@/components/dashboard/GraficoHoras";
 import DataTable from "@/components/ui/DataTable";
 import { HiDownload, HiSearch, HiPhotograph, HiLocationMarker, HiRefresh, HiTrash } from "react-icons/hi";
 import { getZonaLabel } from "@/lib/roleLabels";
+import CoordinadorPushSetup from "@/components/coordinador/CoordinadorPushSetup";
 
 interface TurnoRow {
   id: string;
@@ -295,6 +296,7 @@ export default function CoordinadorPage() {
 
   return (
     <div className="space-y-6">
+      <CoordinadorPushSetup />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Dashboard Líder de Zona</h2>

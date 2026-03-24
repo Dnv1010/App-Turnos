@@ -1,8 +1,4 @@
 /* eslint-disable no-restricted-globals */
-/**
- * No usar event.data.json(): en Chromium equivale a Response.json() y un push vacío
- * lanza "Failed to execute 'json' on 'Response': Unexpected end of JSON input".
- */
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -13,54 +9,36 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  const defaults = { title: "Turnos BIA", body: "", url: "/tecnico", tag: "turnos-bia" };
   event.waitUntil(
     (async () => {
-      let payload = { ...defaults };
+      let data = {};
       try {
         if (event.data) {
-          const text = await event.data.text();
-          const trimmed = text.trim();
-          if (trimmed) {
-            try {
-              const parsed = JSON.parse(trimmed);
-              if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-                payload = { ...payload, ...parsed };
-              } else {
-                payload.body = String(parsed);
-              }
-            } catch {
-              payload.body = text;
-            }
-          }
+          data = await event.data.json();
         }
       } catch {
-        /* sin payload legible */
+        data = {};
       }
-      await self.registration.showNotification(payload.title || "App Turnos", {
-        body: payload.body != null ? String(payload.body) : "",
-        icon: "/icon-192.png",
-        badge: "/icon-192.png",
-        vibrate: [200, 100, 200],
-        tag: payload.tag || "turnos-bia",
-        renotify: true,
-        data: { url: payload.url || "/tecnico" },
-        requireInteraction: true,
-      });
+      if (!data || typeof data !== "object" || Array.isArray(data)) {
+        data = {};
+      }
+
+      const title = data.title || "Turnos BIA";
+      const options = {
+        body: data.body || "",
+        icon: data.icon || "/icon-192.png",
+        badge: "/icon-72.png",
+        tag: data.tag || "turnos-bia",
+        data: { url: data.url || "/" },
+        requireInteraction: false,
+      };
+      await self.registration.showNotification(title, options);
     })()
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/tecnico";
-  event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      const path = new URL(url, self.location.origin).pathname;
-      for (const client of clientList) {
-        if (client.url.includes(path) && "focus" in client) return client.focus();
-      }
-      if (self.clients.openWindow) return self.clients.openWindow(url);
-    })
-  );
+  const url = event.notification.data?.url || "/";
+  event.waitUntil(self.clients.openWindow(url));
 });

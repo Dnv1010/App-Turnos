@@ -81,11 +81,11 @@ export async function POST(req: NextRequest) {
   });
 
   const payloadLider = JSON.stringify({
-    title: TITULO,
-    body: cuerpo,
+    title: "👥 Alerta jornada equipo",
+    body: `${primerNombreOperador(tecnico.nombre)} está por completar su jornada (faltan 15 min). Zona: ${tecnico.zona}.`,
     icon: "/icon-192.png",
     url: "/coordinador",
-    tag: "jornada-alerta",
+    tag: "jornada-alerta-lider",
   });
 
   const subsTecnico = await prisma.pushSubscription.findMany({ where: { userId } });
