@@ -66,9 +66,13 @@ export async function POST(req: NextRequest) {
 
     let zona = (bodyZona || "BOGOTA") as string;
     let role = (bodyRole || "TECNICO") as string;
-    if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
+    if (session.user.role === "COORDINADOR") {
       if (role !== "TECNICO") return NextResponse.json({ error: "Solo puedes agregar operadores" }, { status: 403 });
       zona = session.user.zona;
+    } else if (session.user.role === "SUPPLY") {
+      if (role !== "TECNICO") return NextResponse.json({ error: "Solo puedes agregar operadores" }, { status: 403 });
+      const z = typeof bodyZona === "string" && Object.values(Zona).includes(bodyZona as Zona) ? bodyZona : "BOGOTA";
+      zona = z;
     }
 
     const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });

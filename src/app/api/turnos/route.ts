@@ -83,9 +83,15 @@ export async function GET(req: NextRequest) {
   if (session.user.role === "TECNICO") {
     where.userId = session.user.userId;
   } else if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
-    const zona = (zonaParam || session.user.zona) as Zona;
+    const useAllZonas = zonaParam === "ALL";
+    const zona =
+      (useAllZonas ? undefined : (zonaParam || session.user.zona)) as Zona | undefined;
     const usersZona = await prisma.user.findMany({
-      where: { zona, role: "TECNICO", isActive: true },
+      where: {
+        ...(zona ? { zona } : {}),
+        role: "TECNICO",
+        isActive: true,
+      },
       select: { id: true },
     });
     where.userId = { in: usersZona.map((u) => u.id) };

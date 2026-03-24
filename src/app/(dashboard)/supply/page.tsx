@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
 import { parseResponseJson } from "@/lib/parseFetchJson";
@@ -108,6 +108,40 @@ export default function SupplyDashboardPage() {
   const [reporteError, setReporteError] = useState<string | null>(null);
   const [syncingSheets, setSyncingSheets] = useState(false);
   const [showCambiarPin, setShowCambiarPin] = useState(false);
+  const [filtroZona, setFiltroZona] = useState<"ALL" | "BOGOTA" | "COSTA" | "INTERIOR">("ALL");
+
+  const detalleFiltrado = useMemo(() => {
+    if (!data?.detalle) return [];
+    if (filtroZona === "ALL") return data.detalle;
+    return data.detalle.filter((d) => d.zona === filtroZona);
+  }, [data?.detalle, filtroZona]);
+
+  const resumenEquipo = useMemo(() => {
+    if (!data) return null;
+    if (filtroZona === "ALL") return data.resumen;
+    const d = detalleFiltrado;
+    return {
+      totalTecnicos: d.length,
+      totalHorasExtra: Math.round(d.reduce((s, x) => s + x.totalHorasExtra, 0) * 100) / 100,
+      totalRecargos: Math.round(d.reduce((s, x) => s + x.totalRecargos, 0) * 100) / 100,
+      totalHorasOrdinarias: Math.max(0, Math.round(d.reduce((s, x) => s + x.horasOrdinarias, 0) * 100) / 100),
+      totalDisponibilidades: d.reduce((s, x) => s + x.totalDisponibilidades, 0),
+      totalKmRecorridos: 0,
+      totalRegistrosForaneo: 0,
+    };
+  }, [data, filtroZona, detalleFiltrado]);
+
+  const turnosFiltradosPorZona = useMemo(() => {
+    if (filtroZona === "ALL") return turnos;
+    return turnos.filter((t) => t.user?.zona === filtroZona);
+  }, [turnos, filtroZona]);
+
+  const alertasFiltradas = useMemo(() => {
+    if (!data?.alertas) return [];
+    if (filtroZona === "ALL") return data.alertas;
+    const names = new Set(detalleFiltrado.map((d) => d.nombre));
+    return data.alertas.filter((a) => names.has(a.nombre));
+  }, [data?.alertas, detalleFiltrado, filtroZona]);
 
   useTurnosStream(
     (data) => {
@@ -123,10 +157,10 @@ export default function SupplyDashboardPage() {
   );
 
   const cargarTurnos = useCallback(async () => {
-    if (!session?.user?.zona) return;
+    if (!session?.user) return;
     setLoadingTurnos(true);
     try {
-      const params = new URLSearchParams({ inicio, fin, zona: session.user.zona });
+      const params = new URLSearchParams({ inicio, fin, zona: "ALL" });
       if (tecnicoFilter !== "ALL") params.set("userId", tecnicoFilter);
       const res = await fetch(`/api/turnos?${params}`);
       const raw = await parseResponseJson<TurnoRow[] | { error?: string }>(res);
@@ -138,13 +172,13 @@ export default function SupplyDashboardPage() {
       setTurnos(list);
     } catch { /* ignore */ }
     finally { setLoadingTurnos(false); }
-  }, [session?.user?.zona, inicio, fin, tecnicoFilter, estadoFilter]);
+  }, [session?.user, inicio, fin, tecnicoFilter, estadoFilter]);
 
   const cargarReportes = useCallback(async () => {
-    if (!session?.user?.zona) return;
+    if (!session?.user) return;
     setLoadingReportes(true);
     setReporteError(null);
-    const z = session.user.zona;
+    const z = "ALL";
     const params = new URLSearchParams({ inicio, fin, zona: z, rol: "TECNICO" });
     if (tecnicoFilter !== "ALL") params.set("userId", tecnicoFilter);
     try {
@@ -183,39 +217,44 @@ export default function SupplyDashboardPage() {
     } finally {
       setLoadingReportes(false);
     }
-  }, [session?.user?.zona, inicio, fin, tecnicoFilter]);
+  }, [session?.user, inicio, fin, tecnicoFilter]);
 
   useEffect(() => { cargarTurnos(); }, [cargarTurnos]);
   useEffect(() => { if (tabView !== "turnos") cargarReportes(); }, [tabView, cargarReportes]);
   useEffect(() => {
-    if (tabView === "disponibilidades" && session?.user?.zona) {
+    if (tabView === "disponibilidades" && session?.user) {
       setLoadingDisp(true);
-      const z = session.user.zona;
       const q = `${tecnicoFilter !== "ALL" ? `&userId=${tecnicoFilter}` : ""}`;
-      fetch(`/api/usuarios?zona=${encodeURIComponent(z)}&role=TECNICO&cargo=ALMACENISTA`)
+      fetch(`/api/usuarios?zona=ALL&role=TECNICO&cargo=ALMACENISTA`)
         .then((r) => r.json())
-        .then((d: { tecnicos?: { cedula?: string }[] }) => {
-          const ced = new Set(
-            (d?.tecnicos ?? []).map((t) => String(t.cedula ?? "")).filter(Boolean)
-          );
+        .then((d: { tecnicos?: { cedula?: string; zona?: string }[] }) => {
+          const tec = d?.tecnicos ?? [];
+          const ced = new Set(tec.map((t) => String(t.cedula ?? "")).filter(Boolean));
+          const cedToZona = new Map(tec.map((t) => [String(t.cedula ?? ""), t.zona || "BOGOTA"]));
           return fetch(`/api/reportes/disponibilidades?desde=${inicio}&hasta=${fin}${q}`)
             .then(async (r) => parseResponseJson<typeof disponibilidadesList>(r))
-            .then((j) => (Array.isArray(j) ? j.filter((row) => ced.has(row.cedula)) : []));
+            .then((j) => {
+              let rows = Array.isArray(j) ? j.filter((row) => ced.has(row.cedula)) : [];
+              if (filtroZona !== "ALL") {
+                rows = rows.filter((row) => cedToZona.get(row.cedula) === filtroZona);
+              }
+              return rows;
+            });
         })
         .then(setDisponibilidadesList)
         .catch(() => setDisponibilidadesList([]))
         .finally(() => setLoadingDisp(false));
     }
-  }, [tabView, inicio, fin, tecnicoFilter, session?.user?.zona]);
+  }, [tabView, inicio, fin, tecnicoFilter, session?.user, filtroZona]);
   useEffect(() => {
-    if (!session?.user?.zona) return;
-    fetch(`/api/usuarios?zona=${session.user.zona}&role=TECNICO&cargo=ALMACENISTA`)
+    if (!session?.user) return;
+    fetch(`/api/usuarios?zona=ALL&role=TECNICO&cargo=ALMACENISTA`)
       .then(async (r) => parseResponseJson<{ tecnicos?: { id: string; nombre: string }[] }>(r))
       .then((d) => {
         if (d?.tecnicos) setTecnicosList(d.tecnicos.map((u) => ({ id: u.id, nombre: u.nombre })));
       })
       .catch(() => {});
-  }, [session?.user?.zona]);
+  }, [session?.user]);
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -234,7 +273,7 @@ export default function SupplyDashboardPage() {
       "Operador", "Zona", "Turnos", "H. Ordinarias", "HE Diurna", "HE Nocturna",
       "Total HE", "Total Recargos", "Malla", "Links Fotos Drive",
     ];
-    const rows = data.detalle.map((d) => [
+    const rows = detalleFiltrado.map((d) => [
       d.nombre, getZonaLabel(d.zona), d.totalTurnos, d.horasOrdinarias, d.heDiurna, d.heNocturna,
       d.totalHorasExtra, d.totalRecargos, mallaResumen(d.turnos),
       d.fotos.filter((f) => f.driveUrl).map((f) => f.driveUrl).join(" | "),
@@ -244,13 +283,13 @@ export default function SupplyDashboardPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `reporte_${session?.user?.zona}_${inicio}_${fin}.csv`;
+    link.download = `reporte_${filtroZona === "ALL" ? "todas_zonas" : filtroZona}_${inicio}_${fin}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
 
   const exportarExcel = async () => {
-    if (!session?.user?.zona) return;
+    if (!session?.user) return;
     const params = new URLSearchParams({ desde: inicio, hasta: fin });
     if (tecnicoFilter !== "ALL") params.set("userId", tecnicoFilter);
     const res = await fetch(`/api/reportes/excel?${params}`);
@@ -259,7 +298,7 @@ export default function SupplyDashboardPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `reporte_${session?.user?.zona}_${inicio}_${fin}.xlsx`;
+    link.download = `reporte_todas_zonas_${inicio}_${fin}.xlsx`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -333,7 +372,7 @@ export default function SupplyDashboardPage() {
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Dashboard Supply</h2>
           <p className="text-sm text-gray-500 dark:text-bia-muted">
-            Zona {session?.user?.zona ? getZonaLabel(session.user.zona) : ""} — Solo Almacenistas
+            Todas las Zonas — Solo Almacenistas
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -403,10 +442,28 @@ export default function SupplyDashboardPage() {
       {tabView === "turnos" && (
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Turnos almacenistas</h3>
+          <div className="flex gap-2 mb-3 flex-wrap">
+            {(["ALL", "BOGOTA", "COSTA", "INTERIOR"] as const).map((z) => (
+              <button
+                key={z}
+                type="button"
+                onClick={() => setFiltroZona(z)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                  filtroZona === z
+                    ? "bg-primary-600 text-white border-primary-600"
+                    : "border-gray-300 dark:border-[#3A4565] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#243052]"
+                }`}
+              >
+                {z === "ALL" ? "Todas" : z === "BOGOTA" ? "Bogotá" : z === "COSTA" ? "Costa" : "Interior"}
+              </button>
+            ))}
+          </div>
           {turnos.length === 0 ? (
             <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay turnos en el período seleccionado</div>
+          ) : turnosFiltradosPorZona.length === 0 ? (
+            <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay turnos para la zona seleccionada</div>
           ) : (
-            <DataTable columns={columnsTurnos as never} data={turnos as never} searchable searchPlaceholder="Buscar operador..." />
+            <DataTable columns={columnsTurnos as never} data={turnosFiltradosPorZona as never} searchable searchPlaceholder="Buscar operador..." />
           )}
         </div>
       )}
@@ -419,16 +476,35 @@ export default function SupplyDashboardPage() {
             <div className="card text-center py-12 text-amber-700 dark:text-amber-300">{reporteError}</div>
           ) : !data?.detalle?.length ? (
             <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay registros para este período</div>
-          ) : data ? (
+          ) : data && resumenEquipo ? (
         <>
-          {data.alertas?.length > 0 && (
+          <div className="flex gap-2 mb-3 flex-wrap">
+            {(["ALL", "BOGOTA", "COSTA", "INTERIOR"] as const).map((z) => (
+              <button
+                key={z}
+                type="button"
+                onClick={() => setFiltroZona(z)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                  filtroZona === z
+                    ? "bg-primary-600 text-white border-primary-600"
+                    : "border-gray-300 dark:border-[#3A4565] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#243052]"
+                }`}
+              >
+                {z === "ALL" ? "Todas" : z === "BOGOTA" ? "Bogotá" : z === "COSTA" ? "Costa" : "Interior"}
+              </button>
+            ))}
+          </div>
+          {alertasFiltradas.length > 0 && (
             <div className="bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
               <h4 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Alertas</h4>
-              <ul className="space-y-1">{data.alertas.map((a, i) => <li key={i} className="text-sm text-yellow-700 dark:text-yellow-300">⚠ {a.mensaje}</li>)}</ul>
+              <ul className="space-y-1">{alertasFiltradas.map((a, i) => <li key={i} className="text-sm text-yellow-700 dark:text-yellow-300">⚠ {a.mensaje}</li>)}</ul>
             </div>
           )}
-          <KPICards data={{ totalTecnicos: data.resumen.totalTecnicos, horasOrdinarias: data.resumen.totalHorasOrdinarias, totalHorasExtra: data.resumen.totalHorasExtra, totalRecargos: data.resumen.totalRecargos, totalDisponibilidades: data.resumen.totalDisponibilidades }} showTeamMetrics />
-          <GraficoHoras datos={data.detalle.map((d) => ({ nombre: d.nombre.split(" ")[0], horasOrdinarias: d.horasOrdinarias, heDiurna: d.heDiurna, heNocturna: d.heNocturna, recargos: d.totalRecargos }))} titulo="Horas por operador" />
+          <KPICards data={{ totalTecnicos: resumenEquipo.totalTecnicos, horasOrdinarias: resumenEquipo.totalHorasOrdinarias, totalHorasExtra: resumenEquipo.totalHorasExtra, totalRecargos: resumenEquipo.totalRecargos, totalDisponibilidades: resumenEquipo.totalDisponibilidades }} showTeamMetrics />
+          <GraficoHoras datos={detalleFiltrado.map((d) => ({ nombre: d.nombre.split(" ")[0], horasOrdinarias: d.horasOrdinarias, heDiurna: d.heDiurna, heNocturna: d.heNocturna, recargos: d.totalRecargos }))} titulo="Horas por operador" />
+          {detalleFiltrado.length === 0 ? (
+            <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay registros para la zona seleccionada</div>
+          ) : (
           <DataTable columns={[
             { key: "nombre", label: "Nombre", sortable: true },
             { key: "cedula", label: "Cedula" },
@@ -444,7 +520,8 @@ export default function SupplyDashboardPage() {
             { key: "recNoctDominical", label: "Rec Dom/Fest Noc" },
             { key: "totalHorasExtra", label: "Total HE" },
             { key: "totalRecargos", label: "Total Recargos" },
-          ] as never} data={data.detalle as never} searchable searchPlaceholder="Buscar operador..." />
+          ] as never} data={detalleFiltrado as never} searchable searchPlaceholder="Buscar operador..." />
+          )}
             </>
           ) : null}
         </>
@@ -452,6 +529,22 @@ export default function SupplyDashboardPage() {
 
       {tabView === "disponibilidades" && (
         <>
+          <div className="flex gap-2 mb-3 flex-wrap">
+            {(["ALL", "BOGOTA", "COSTA", "INTERIOR"] as const).map((z) => (
+              <button
+                key={z}
+                type="button"
+                onClick={() => setFiltroZona(z)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                  filtroZona === z
+                    ? "bg-primary-600 text-white border-primary-600"
+                    : "border-gray-300 dark:border-[#3A4565] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#243052]"
+                }`}
+              >
+                {z === "ALL" ? "Todas" : z === "BOGOTA" ? "Bogotá" : z === "COSTA" ? "Costa" : "Interior"}
+              </button>
+            ))}
+          </div>
           {loadingDisp ? (
             <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
           ) : disponibilidadesList.length === 0 ? (

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import bcrypt from "bcryptjs";
-import { Cargo } from "@prisma/client";
+import { Cargo, Zona } from "@prisma/client";
 
 const FILTROS_EQUIPO = ["TODOS", "TECNICO", "ALMACENISTA"] as const;
 
@@ -31,7 +31,7 @@ export async function PATCH(
   if (!target) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
   const body = await req.json();
-  const { nombre, email, pin, cargo, filtroEquipo } = body;
+  const { nombre, email, pin, cargo, filtroEquipo, zona: bodyZona } = body;
 
   const isCoordSelf =
     session.user.userId === id &&
@@ -57,11 +57,12 @@ export async function PATCH(
     return NextResponse.json(updated);
   }
 
-  if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
+  if (session.user.role === "COORDINADOR") {
     if (target.role !== "TECNICO" || target.zona !== session.user.zona) {
       return NextResponse.json({ error: "Solo puedes editar operadores de tu zona" }, { status: 403 });
     }
-    if (session.user.role === "SUPPLY" && target.cargo !== "ALMACENISTA") {
+  } else if (session.user.role === "SUPPLY") {
+    if (target.role !== "TECNICO" || target.cargo !== "ALMACENISTA") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
   } else if (session.user.role !== "ADMIN" && session.user.role !== "MANAGER") {
@@ -74,6 +75,7 @@ export async function PATCH(
     password?: string;
     cargo?: Cargo;
     filtroEquipo?: string;
+    zona?: Zona;
   } = {};
   if (nombre != null) data.nombre = nombre;
   if (email != null) {
@@ -98,6 +100,12 @@ export async function PATCH(
       return NextResponse.json({ error: "filtroEquipo inválido" }, { status: 400 });
     }
     data.filtroEquipo = filtroEquipo;
+  }
+  if (bodyZona != null && session.user.role === "SUPPLY") {
+    if (typeof bodyZona !== "string" || !Object.values(Zona).includes(bodyZona as Zona)) {
+      return NextResponse.json({ error: "zona inválida" }, { status: 400 });
+    }
+    data.zona = bodyZona as Zona;
   }
 
   const updated = await prisma.user.update({
@@ -124,11 +132,12 @@ export async function DELETE(
     return NextResponse.json({ error: "No se puede desactivar coordinadores, managers ni administradores" }, { status: 400 });
   }
 
-  if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
+  if (session.user.role === "COORDINADOR") {
     if (target.zona !== session.user.zona) {
       return NextResponse.json({ error: "Solo puedes desactivar operadores de tu zona" }, { status: 403 });
     }
-    if (session.user.role === "SUPPLY" && target.cargo !== "ALMACENISTA") {
+  } else if (session.user.role === "SUPPLY") {
+    if (target.cargo !== "ALMACENISTA") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
   } else if (session.user.role !== "ADMIN") {

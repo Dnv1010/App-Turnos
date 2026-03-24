@@ -1,11 +1,12 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useState, useEffect, useCallback, useRef, type CSSProperties } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, type CSSProperties } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay } from "date-fns";
 import { HiChevronDown } from "react-icons/hi";
 import { parseResponseJson } from "@/lib/parseFetchJson";
 import { useTheme } from "@/hooks/useTheme";
+import { getZonaLabel } from "@/lib/roleLabels";
 
 const OPCIONES_TURNO = ["8-17", "6-14", "14-22", "22-6", "8-14"];
 const OPCIONES_NOVEDAD = ["Disponible", "Descanso", "Vacaciones", "Día de la familia", "Semana Santa", "Medio día cumpleaños", "Keynote"];
@@ -26,6 +27,7 @@ interface Tecnico {
   nombre: string;
   email?: string;
   cargo?: string;
+  zona?: string;
 }
 
 export default function SupplyMallaPage() {
@@ -49,17 +51,23 @@ export default function SupplyMallaPage() {
   const [selectedTecnicos, setSelectedTecnicos] = useState<Set<string>>(new Set());
   const [showTecnicoDropdown, setShowTecnicoDropdown] = useState(false);
   const [festivosSet, setFestivosSet] = useState<Set<string>>(new Set());
+  const [filtroZona, setFiltroZona] = useState<"ALL" | "BOGOTA" | "COSTA" | "INTERIOR">("ALL");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const primaryTecnico = selectedTecnicos.size > 0 ? Array.from(selectedTecnicos)[0] : null;
 
   const cargarTecnicos = useCallback(async () => {
-    if (!session?.user?.zona) return;
-    const res = await fetch(`/api/usuarios?zona=${session.user.zona}&role=TECNICO`);
+    if (!session?.user) return;
+    const res = await fetch(`/api/usuarios?zona=ALL&role=TECNICO`);
     const data = await parseResponseJson<{ tecnicos?: Tecnico[] }>(res);
     const raw = data?.tecnicos || [];
     setTecnicos(raw.filter((t) => (t.cargo || "TECNICO") === "ALMACENISTA"));
-  }, [session?.user?.zona]);
+  }, [session?.user]);
+
+  const tecnicosFiltrados = useMemo(() => {
+    if (filtroZona === "ALL") return tecnicos;
+    return tecnicos.filter((t) => t.zona === filtroZona);
+  }, [tecnicos, filtroZona]);
 
   const cargarMalla = useCallback(async (userId: string, autoPrecarga = true) => {
     if (!userId || !mes) return;
@@ -119,7 +127,7 @@ export default function SupplyMallaPage() {
       return next;
     });
   };
-  const selectAllTecnicos = () => setSelectedTecnicos(new Set(tecnicos.map((t) => t.id)));
+  const selectAllTecnicos = () => setSelectedTecnicos(new Set(tecnicosFiltrados.map((t) => t.id)));
   const deselectAllTecnicos = () => setSelectedTecnicos(new Set());
 
   const [year, month] = mes.split("-").map(Number);
@@ -282,7 +290,24 @@ export default function SupplyMallaPage() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Malla Almacenistas</h2>
-      <p className="text-gray-500 dark:text-bia-muted">Zona {session?.user?.zona}</p>
+      <p className="text-gray-500 dark:text-bia-muted">Todas las zonas — almacenistas</p>
+
+      <div className="flex gap-2 mb-2 flex-wrap">
+        {(["ALL", "BOGOTA", "COSTA", "INTERIOR"] as const).map((z) => (
+          <button
+            key={z}
+            type="button"
+            onClick={() => setFiltroZona(z)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+              filtroZona === z
+                ? "bg-primary-600 text-white border-primary-600"
+                : "border-gray-300 dark:border-[#3A4565] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#243052]"
+            }`}
+          >
+            {z === "ALL" ? "Todas" : z === "BOGOTA" ? "Bogotá" : z === "COSTA" ? "Costa" : "Interior"}
+          </button>
+        ))}
+      </div>
 
       <div className="card flex flex-wrap gap-4 items-end">
         <div className="relative min-w-[220px]" ref={dropdownRef}>
@@ -295,7 +320,7 @@ export default function SupplyMallaPage() {
             <span>
               {selectedTecnicos.size === 0
                 ? "Seleccionar operadores..."
-                : selectedTecnicos.size === tecnicos.length
+                : selectedTecnicos.size === tecnicosFiltrados.length && tecnicosFiltrados.length > 0
                   ? "Todos los operadores"
                   : `${selectedTecnicos.size} operador${selectedTecnicos.size > 1 ? "es" : ""} seleccionado${selectedTecnicos.size > 1 ? "s" : ""}`
               }
@@ -309,11 +334,14 @@ export default function SupplyMallaPage() {
                 <span className="text-gray-300 dark:text-bia-navy-400">|</span>
                 <button type="button" onClick={deselectAllTecnicos} className="text-xs text-gray-500 dark:text-bia-muted font-medium hover:underline">Ninguno</button>
               </div>
-              {tecnicos.map((t) => (
+              {tecnicosFiltrados.map((t) => (
                 <label key={t.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-[#243052] cursor-pointer">
                   <input type="checkbox" checked={selectedTecnicos.has(t.id)} onChange={() => toggleTecnico(t.id)} className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-[#3A4565] dark:bg-[#1E2A45]" />
                   <div className="min-w-0">
                     <span className="text-sm font-medium text-gray-900 dark:text-white">{t.nombre}</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded font-medium ml-1 bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300">
+                      {getZonaLabel(t.zona || "BOGOTA")}
+                    </span>
                     {t.email && <span className="text-xs text-gray-400 dark:text-bia-placeholder ml-2">{t.email}</span>}
                   </div>
                 </label>

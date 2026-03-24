@@ -28,32 +28,39 @@ export default function SupplyEquipoPage() {
   const [email, setEmail] = useState("");
   const [pin, setPin] = useState("1234");
   const [showPin, setShowPin] = useState(false);
+  const [zonaSeleccionada, setZonaSeleccionada] = useState<"BOGOTA" | "COSTA" | "INTERIOR">("BOGOTA");
+  const [filtroZona, setFiltroZona] = useState<"ALL" | "BOGOTA" | "COSTA" | "INTERIOR">("ALL");
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
-    if (!session?.user?.zona) return;
+    if (!session?.user) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/usuarios?zona=${session.user.zona}&role=TECNICO`);
+      const res = await fetch(`/api/usuarios?zona=ALL&role=TECNICO`);
       const data = await parseResponseJson<{ tecnicos?: Tecnico[] }>(res);
       const raw = data?.tecnicos || [];
       setList(raw.filter((t) => (t.cargo || "TECNICO") === "ALMACENISTA"));
     } catch { setList([]); }
     finally { setLoading(false); }
-  }, [session?.user?.zona]);
+  }, [session?.user]);
+
+  const listFiltrada =
+    filtroZona === "ALL" ? list : list.filter((t) => t.zona === filtroZona);
 
   useEffect(() => { cargar(); }, [cargar]);
 
   const openAdd = () => {
     setCedula(""); setNombre(""); setEmail(""); setPin("1234");
     setShowPin(false);
+    setZonaSeleccionada("BOGOTA");
     setEditingId(null); setError(null); setModal("add");
   };
 
   const openEdit = (t: Tecnico) => {
     setEditingId(t.id); setCedula(t.cedula); setNombre(t.nombre); setEmail(t.email); setPin("");
     setShowPin(false);
+    setZonaSeleccionada((t.zona as "BOGOTA" | "COSTA" | "INTERIOR") || "BOGOTA");
     setError(null); setModal("edit");
   };
 
@@ -75,6 +82,7 @@ export default function SupplyEquipoPage() {
           email: email.trim().toLowerCase(),
           pin,
           cargo: "ALMACENISTA",
+          zona: zonaSeleccionada,
         }),
       });
       const data = await parseResponseJson<{ error?: string }>(res);
@@ -100,6 +108,7 @@ export default function SupplyEquipoPage() {
           email: email.trim().toLowerCase(),
           ...(pin ? { pin } : {}),
           cargo: "ALMACENISTA",
+          zona: zonaSeleccionada,
         }),
       });
       const data = await parseResponseJson<{ error?: string }>(res);
@@ -126,9 +135,7 @@ export default function SupplyEquipoPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Mi Equipo — Almacenistas</h2>
-        <p className="text-gray-500 dark:text-[#A0AEC0]">
-          Zona {session?.user?.zona ? getZonaLabel(session.user.zona) : ""}
-        </p>
+        <p className="text-gray-500 dark:text-[#A0AEC0]">Todas las Zonas</p>
         <button onClick={openAdd} className="btn-primary flex items-center gap-2">
           <HiUserAdd className="h-5 w-5" />Agregar operador
         </button>
@@ -138,6 +145,22 @@ export default function SupplyEquipoPage() {
         <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
       ) : (
         <div className="card overflow-hidden">
+          <div className="flex gap-2 mb-3 flex-wrap px-4 pt-4">
+            {(["ALL", "BOGOTA", "COSTA", "INTERIOR"] as const).map((z) => (
+              <button
+                key={z}
+                type="button"
+                onClick={() => setFiltroZona(z)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                  filtroZona === z
+                    ? "bg-primary-600 text-white border-primary-600"
+                    : "border-gray-300 dark:border-[#3A4565] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#243052]"
+                }`}
+              >
+                {z === "ALL" ? "Todas" : z === "BOGOTA" ? "Bogotá" : z === "COSTA" ? "Costa" : "Interior"}
+              </button>
+            ))}
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200 dark:bg-[#162035] dark:border-[#3A4565]">
@@ -150,11 +173,14 @@ export default function SupplyEquipoPage() {
                 </tr>
               </thead>
               <tbody>
-                {list.map((t) => (
+                {listFiltrada.map((t) => (
                   <tr key={t.id} className="border-b border-gray-100 dark:border-[#2A3555] hover:bg-gray-50 dark:hover:bg-[#243052]">
                     <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">{t.cedula}</td>
                     <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">
                       {t.nombre}
+                      <span className="text-xs px-1.5 py-0.5 rounded font-medium ml-1 bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300">
+                        {getZonaLabel(t.zona)}
+                      </span>
                       <span
                         className={`text-xs px-1.5 py-0.5 rounded font-medium ml-1 ${
                           (t.cargo || "TECNICO") === "ALMACENISTA"
@@ -180,8 +206,10 @@ export default function SupplyEquipoPage() {
               </tbody>
             </table>
           </div>
-          {list.length === 0 && (
-            <div className="text-center py-12 text-gray-500 dark:text-[#A0AEC0]">No hay almacenistas en tu zona</div>
+          {listFiltrada.length === 0 && (
+            <div className="text-center py-12 text-gray-500 dark:text-[#A0AEC0]">
+              {list.length === 0 ? "No hay almacenistas" : "Ningún almacenista en esta zona"}
+            </div>
           )}
         </div>
       )}
@@ -208,6 +236,18 @@ export default function SupplyEquipoPage() {
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input-field" placeholder="correo@bia.app" />
               </div>
               <p className="text-sm text-gray-600 dark:text-[#A0AEC0]">Cargo: <strong>Almacenista</strong> (fijo)</p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">Zona</label>
+                <select
+                  value={zonaSeleccionada}
+                  onChange={(e) => setZonaSeleccionada(e.target.value as "BOGOTA" | "COSTA" | "INTERIOR")}
+                  className="input-field w-full"
+                >
+                  <option value="BOGOTA">Bogotá</option>
+                  <option value="COSTA">Costa</option>
+                  <option value="INTERIOR">Interior</option>
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">PIN {modal === "edit" && "(dejar vacío para no cambiar)"}</label>
                 <div className="relative">

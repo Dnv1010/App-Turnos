@@ -30,11 +30,14 @@ export async function GET(req: NextRequest) {
     const whereUser: Record<string, unknown> = { isActive: true };
     if (userId) whereUser.id = userId;
     if (rol && rol !== "ALL") whereUser.role = rol;
-    if (zona && zona !== "ALL") whereUser.zona = zona;
-    if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
-      whereUser.zona = session.user.zona;
-    } else if (session.user.role === "TECNICO") {
+    if (session.user.role === "TECNICO") {
       whereUser.id = session.user.userId;
+    } else if (session.user.role === "COORDINADOR") {
+      whereUser.zona = session.user.zona;
+    } else if (session.user.role === "SUPPLY") {
+      if (zona && zona !== "ALL") whereUser.zona = zona;
+    } else if (zona && zona !== "ALL") {
+      whereUser.zona = zona;
     }
 
     const usuarios = await prisma.user.findMany({

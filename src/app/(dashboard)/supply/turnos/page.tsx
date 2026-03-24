@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { format } from "date-fns";
 import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
 import { parseResponseJson } from "@/lib/parseFetchJson";
@@ -37,6 +37,7 @@ interface TurnoRow {
 interface TecnicoOption {
   id: string;
   nombre: string;
+  zona?: string;
 }
 
 function calcPreviewHours(startDate: string, startTime: string, endDate: string, endTime: string): string {
@@ -83,6 +84,7 @@ export default function SupplyTurnosPage() {
   const [editingTurno, setEditingTurno] = useState<TurnoRow | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; nombre: string } | null>(null);
+  const [filtroZona, setFiltroZona] = useState<"ALL" | "BOGOTA" | "COSTA" | "INTERIOR">("ALL");
   const [editForm, setEditForm] = useState({
     startDate: "",
     startTime: "",
@@ -92,10 +94,10 @@ export default function SupplyTurnosPage() {
   });
 
   const loadTurnos = useCallback(async () => {
-    if (!session?.user?.zona) return;
+    if (!session?.user) return;
     setLoading(true);
     try {
-      const params = new URLSearchParams({ inicio, fin, zona: session.user.zona });
+      const params = new URLSearchParams({ inicio, fin, zona: "ALL" });
       if (tecnicoFilter !== "ALL") params.set("userId", tecnicoFilter);
       const res = await fetch(`/api/turnos?${params}`);
       const raw = await parseResponseJson<TurnoRow[]>(res);
@@ -114,21 +116,26 @@ export default function SupplyTurnosPage() {
       setTurnos(list);
     } catch { setTurnos([]); }
     finally { setLoading(false); }
-  }, [session?.user?.zona, inicio, fin, tecnicoFilter, estadoFilter]);
+  }, [session?.user, inicio, fin, tecnicoFilter, estadoFilter]);
 
   useEffect(() => {
     loadTurnos();
   }, [loadTurnos]);
 
   useEffect(() => {
-    if (!session?.user?.zona) return;
-    fetch(`/api/usuarios?zona=${session.user.zona}&role=TECNICO&cargo=ALMACENISTA`)
+    if (!session?.user) return;
+    fetch(`/api/usuarios?zona=ALL&role=TECNICO&cargo=ALMACENISTA`)
       .then(async (r) => parseResponseJson<{ tecnicos?: (TecnicoOption & { cargo?: string })[] }>(r))
       .then((d) => {
         if (d?.tecnicos) setTecnicos(d.tecnicos);
       })
       .catch(() => {});
-  }, [session?.user?.zona]);
+  }, [session?.user]);
+
+  const turnosFiltradosPorZona = useMemo(() => {
+    if (filtroZona === "ALL") return turnos;
+    return turnos.filter((t) => t.user?.zona === filtroZona);
+  }, [turnos, filtroZona]);
 
   function openEditModal(t: TurnoRow) {
     setEditingTurno(t);
@@ -201,6 +208,15 @@ export default function SupplyTurnosPage() {
   const columns = [
     { key: "user", label: "Operador", render: (t: TurnoRow) => t.user?.nombre ?? "—" },
     {
+      key: "zona",
+      label: "Zona",
+      render: (t: TurnoRow) => (
+        <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300">
+          {getZonaLabel(t.user?.zona || "BOGOTA")}
+        </span>
+      ),
+    },
+    {
       key: "estadoTurno",
       label: "Estado",
       render: (t: TurnoRow) =>
@@ -243,9 +259,7 @@ export default function SupplyTurnosPage() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Turnos Almacenistas</h2>
-      <p className="text-gray-500 dark:text-[#A0AEC0]">
-        Zona {session?.user?.zona ? getZonaLabel(session.user.zona) : ""} — Solo almacenistas.
-      </p>
+      <p className="text-gray-500 dark:text-[#A0AEC0]">Todas las zonas — Solo almacenistas.</p>
 
       <div className="card">
         <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
@@ -280,12 +294,31 @@ export default function SupplyTurnosPage() {
         </div>
       </div>
 
+      <div className="flex gap-2 mb-3 flex-wrap">
+        {(["ALL", "BOGOTA", "COSTA", "INTERIOR"] as const).map((z) => (
+          <button
+            key={z}
+            type="button"
+            onClick={() => setFiltroZona(z)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+              filtroZona === z
+                ? "bg-primary-600 text-white border-primary-600"
+                : "border-gray-300 dark:border-[#3A4565] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#243052]"
+            }`}
+          >
+            {z === "ALL" ? "Todas" : z === "BOGOTA" ? "Bogotá" : z === "COSTA" ? "Costa" : "Interior"}
+          </button>
+        ))}
+      </div>
+
       {loading && turnos.length === 0 ? (
         <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
       ) : turnos.length === 0 ? (
         <div className="card text-center py-12 text-gray-500 dark:text-[#A0AEC0]">No hay turnos en el período seleccionado</div>
+      ) : turnosFiltradosPorZona.length === 0 ? (
+        <div className="card text-center py-12 text-gray-500 dark:text-[#A0AEC0]">No hay turnos para la zona seleccionada</div>
       ) : (
-        <DataTable columns={columns as never} data={turnos as never} searchable searchPlaceholder="Buscar operador..." />
+        <DataTable columns={columns as never} data={turnosFiltradosPorZona as never} searchable searchPlaceholder="Buscar operador..." />
       )}
 
       {/* Modal Editar Turno */}

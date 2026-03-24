@@ -28,16 +28,19 @@ export async function GET(req: NextRequest) {
   }
 
   const whereUser: Record<string, unknown> = { isActive: true };
-  if (zona && zona !== "ALL") whereUser.zona = zona;
   if (userId) whereUser.id = userId;
   if (rol && rol !== "ALL") whereUser.role = rol;
   if (session.user.role === "COORDINADOR" || session.user.role === "MANAGER" || session.user.role === "SUPPLY") {
     whereUser.role = "TECNICO";
   }
-  if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
+  if (session.user.role === "COORDINADOR") {
     whereUser.zona = session.user.zona;
+  } else if (session.user.role === "SUPPLY") {
+    if (zona && zona !== "ALL") whereUser.zona = zona;
   } else if (session.user.role === "TECNICO") {
     whereUser.id = session.user.userId;
+  } else if (zona && zona !== "ALL") {
+    whereUser.zona = zona;
   }
 
   const [yi, mi, di] = inicio.split("-").map(Number);
