@@ -29,13 +29,18 @@ export async function GET(req: NextRequest) {
         where: { id: userId },
         select: { zona: true, role: true, cargo: true },
       });
-      const ok =
-        target &&
-        target.role === "TECNICO" &&
-        target.zona === session.user.zona &&
-        (session.user.role === "COORDINADOR" || target.cargo === "ALMACENISTA");
-      if (!ok) {
-        return NextResponse.json({ error: "Solo puedes ver la malla de operadores de tu zona" }, { status: 403 });
+      if (session.user.role === "SUPPLY") {
+        // Supply puede ver/editar almacenistas de cualquier zona
+        const ok = target && target.role === "TECNICO" && target.cargo === "ALMACENISTA";
+        if (!ok) {
+          return NextResponse.json({ error: "Solo puedes gestionar la malla de almacenistas" }, { status: 403 });
+        }
+      } else {
+        // COORDINADOR solo ve su zona
+        const ok = target && target.role === "TECNICO" && target.zona === session.user.zona;
+        if (!ok) {
+          return NextResponse.json({ error: "Solo puedes ver la malla de operadores de tu zona" }, { status: 403 });
+        }
       }
     }
 
@@ -103,13 +108,18 @@ export async function POST(req: NextRequest) {
         where: { id: userId },
         select: { zona: true, role: true, cargo: true },
       });
-      const ok =
-        target &&
-        target.role === "TECNICO" &&
-        target.zona === session.user.zona &&
-        (session.user.role === "COORDINADOR" || target.cargo === "ALMACENISTA");
-      if (!ok) {
-        return NextResponse.json({ error: "Solo puedes editar la malla de operadores de tu zona" }, { status: 403 });
+      if (session.user.role === "SUPPLY") {
+        // Supply puede ver/editar almacenistas de cualquier zona
+        const ok = target && target.role === "TECNICO" && target.cargo === "ALMACENISTA";
+        if (!ok) {
+          return NextResponse.json({ error: "Solo puedes gestionar la malla de almacenistas" }, { status: 403 });
+        }
+      } else {
+        // COORDINADOR solo ve su zona
+        const ok = target && target.role === "TECNICO" && target.zona === session.user.zona;
+        if (!ok) {
+          return NextResponse.json({ error: "Solo puedes editar la malla de operadores de tu zona" }, { status: 403 });
+        }
       }
     }
 
