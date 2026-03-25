@@ -167,6 +167,7 @@ export function getOrdinaryMinutes(
 export function checkMallaAlerts(
   turnoId: string,
   correo: string,
+  nombre: string,
   fecha: Date,
   mallaVal: string | null,
   isFestivo: boolean,
@@ -181,7 +182,7 @@ export function checkMallaAlerts(
       id: turnoId,
       correo,
       fecha: fechaStr,
-      detalle: "Técnico sin malla asignada para este día.",
+      detalle: `${nombre} (${fechaStr}) — sin malla asignada para este día.`,
     });
     return alerts;
   }
@@ -194,7 +195,7 @@ export function checkMallaAlerts(
       id: turnoId,
       correo,
       fecha: fechaStr,
-      detalle: `Trabajó ${totalHoras.toFixed(2)}h en día marcado como DESCANSO.`,
+      detalle: `${nombre} (${fechaStr}) — trabajó ${totalHoras.toFixed(2)}h en día marcado como DESCANSO.`,
       malla: mallaVal,
     });
   }

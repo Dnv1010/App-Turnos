@@ -139,7 +139,7 @@ export async function GET(req: NextRequest) {
         mallaVal,
         holidaySet
       );
-      const alerts = checkMallaAlerts(t.id, user.email ?? "", t.fecha, mallaVal, holidaySet.has(dateKeyColombia(t.fecha)), totalHoras);
+      const alerts = checkMallaAlerts(t.id, user.email ?? "", user.nombre, t.fecha, mallaVal, holidaySet.has(dateKeyColombia(t.fecha)), totalHoras);
       alerts.forEach((a) => alertasMalla.push({ userId: user.id, nombre: user.nombre, mensaje: a.detalle, tipo: a.tipo }));
 
       return {
