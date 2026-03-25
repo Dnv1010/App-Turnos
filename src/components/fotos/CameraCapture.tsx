@@ -4,7 +4,6 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import Webcam from "react-webcam";
 
 const NOT_READY_TIMEOUT_MS = 3000;
-const FALLBACK_TIMEOUT_MS = 5000;
 
 interface CameraCaptureProps {
   onCapture: (base64: string, previewUrl: string) => void;
@@ -17,21 +16,17 @@ export default function CameraCapture({ onCapture, onCancel, disabled }: CameraC
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [showNotReadyMessage, setShowNotReadyMessage] = useState(false);
-  const [showFallbackInput, setShowFallbackInput] = useState(false);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!cameraOpen || cameraReady) {
       setShowNotReadyMessage(false);
-      setShowFallbackInput(false);
       return;
     }
     const t3 = setTimeout(() => setShowNotReadyMessage(true), NOT_READY_TIMEOUT_MS);
-    const t5 = setTimeout(() => setShowFallbackInput(true), FALLBACK_TIMEOUT_MS);
     return () => {
       clearTimeout(t3);
-      clearTimeout(t5);
     };
   }, [cameraOpen, cameraReady]);
 
@@ -44,25 +39,6 @@ export default function CameraCapture({ onCapture, onCancel, disabled }: CameraC
     }
   }, [onCapture]);
 
-  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      alert("Imagen muy grande. Máximo 10MB.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      onCapture(dataUrl.split(",")[1], dataUrl);
-      setCameraOpen(false);
-      setShowNotReadyMessage(false);
-      setShowFallbackInput(false);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  }
-
   function closeCamera() {
     setCameraOpen(false);
     setCameraReady(false);
@@ -73,7 +49,6 @@ export default function CameraCapture({ onCapture, onCancel, disabled }: CameraC
     setError(null);
     setCameraReady(false);
     setShowNotReadyMessage(false);
-    setShowFallbackInput(false);
     setCameraOpen(true);
   }
 
@@ -89,21 +64,9 @@ export default function CameraCapture({ onCapture, onCancel, disabled }: CameraC
               </p>
               <p className="text-xs text-white/80 mt-1">
                 {showNotReadyMessage
-                  ? "Comprueba que hayas dado permiso de cámara. O usa el botón de abajo para subir una foto."
+                  ? "Comprueba que hayas dado permiso de cámara o cierra y vuelve a intentar."
                   : "Permite el acceso a la cámara si el navegador lo solicita"}
               </p>
-              {showFallbackInput && (
-                <label className="mt-4 px-4 py-2 bg-white dark:bg-[#1A2340] text-gray-800 dark:text-white rounded-xl font-medium text-sm cursor-pointer border border-gray-200 dark:border-[#3A4565]">
-                  Subir foto desde galería
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                </label>
-              )}
             </div>
           )}
           <Webcam
@@ -169,7 +132,7 @@ export default function CameraCapture({ onCapture, onCancel, disabled }: CameraC
           </button>
         </div>
       )}
-      <div className="flex flex-wrap gap-3 justify-center">
+      <div className="flex justify-center">
         <button
           type="button"
           onClick={openCamera}
@@ -178,10 +141,6 @@ export default function CameraCapture({ onCapture, onCancel, disabled }: CameraC
         >
           Tomar foto
         </button>
-        <label className="inline-flex items-center gap-2 px-6 py-3 bg-gray-100 dark:bg-[#1E2A45] text-gray-700 dark:text-[#CBD5E1] font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-[#243052] cursor-pointer transition-colors border border-gray-200 dark:border-[#3A4565]">
-          Subir desde galería
-          <input type="file" accept="image/*" capture="environment" onChange={handleFileUpload} className="hidden" />
-        </label>
       </div>
     </div>
   );
