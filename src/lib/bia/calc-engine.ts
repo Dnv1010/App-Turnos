@@ -58,6 +58,11 @@ function getDayOfWeekColombia(d: Date): number {
 }
 
 export function dateKeyColombia(d: Date): string {
+  // Si es medianoche exacta UTC, es campo @db.Date — no restar horas
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0) {
+    return d.toISOString().split("T")[0];
+  }
+  // Si tiene hora, convertir a Colombia UTC-5
   const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
   return colombia.toISOString().split("T")[0];
 }
