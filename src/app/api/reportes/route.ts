@@ -30,7 +30,13 @@ export async function GET(req: NextRequest) {
   const whereUser: Record<string, unknown> = { isActive: true };
   if (userId) whereUser.id = userId;
   if (rol && rol !== "ALL") whereUser.role = rol;
-  if (session.user.role === "COORDINADOR" || session.user.role === "MANAGER" || session.user.role === "SUPPLY") {
+  // ADMIN igual que MANAGER: solo técnicos (evita cargar todo el staff y reventar tiempo/memoria en el dashboard global).
+  if (
+    session.user.role === "COORDINADOR" ||
+    session.user.role === "MANAGER" ||
+    session.user.role === "ADMIN" ||
+    session.user.role === "SUPPLY"
+  ) {
     whereUser.role = "TECNICO";
   }
   if (session.user.role === "COORDINADOR") {
