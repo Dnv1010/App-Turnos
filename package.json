@@ -16,7 +16,8 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "pwa:icons": "node scripts/generate-icons.mjs",
-    "user:alejandro-interior": "tsx scripts/set-alejandro-zona-interior.ts"
+    "user:alejandro-interior": "tsx scripts/set-alejandro-zona-interior.ts",
+    "import:sheet": "tsx scripts/importar-desde-sheet.mjs"
   },
   "keywords": [],
   "author": "",
@@ -49,6 +50,7 @@
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",
+    "dotenv": "^16.6.1",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.1.6",
     "sharp": "^0.34.5",
