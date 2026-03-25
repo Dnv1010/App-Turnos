@@ -17,7 +17,7 @@
     "db:studio": "prisma studio",
     "pwa:icons": "node scripts/generate-icons.mjs",
     "user:alejandro-interior": "tsx scripts/set-alejandro-zona-interior.ts",
-    "import:sheet": "tsx scripts/importar-desde-sheet.mjs"
+    "import:sheet": "tsx scripts/importar-desde-sheet.ts"
   },
   "keywords": [],
   "author": "",
