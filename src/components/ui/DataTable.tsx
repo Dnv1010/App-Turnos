@@ -3,6 +3,46 @@
 import { useState, useMemo } from "react";
 import { HiChevronUp, HiChevronDown, HiSearch } from "react-icons/hi";
 
+/** Claves que no deben inflar la búsqueda (ids/cuid, GPS, URLs largas). */
+const BUSQUEDA_IGNORAR_CLAVES = new Set([
+  "id",
+  "userId",
+  "latEntrada",
+  "lngEntrada",
+  "latSalida",
+  "lngSalida",
+  "startPhotoUrl",
+  "endPhotoUrl",
+]);
+
+function textoBusquedaDesdeValor(val: unknown, clave: string | undefined, profundidad: number): string[] {
+  if (profundidad > 14) return [];
+  if (clave && BUSQUEDA_IGNORAR_CLAVES.has(clave)) return [];
+  if (val == null) return [];
+  if (typeof val === "string" || typeof val === "number" || typeof val === "bigint") {
+    return [String(val)];
+  }
+  if (typeof val === "boolean") return [val ? "true" : "false"];
+  if (Array.isArray(val)) {
+    return val.flatMap((v) => textoBusquedaDesdeValor(v, undefined, profundidad + 1));
+  }
+  if (typeof val === "object") {
+    if (val instanceof Date) return [val.toISOString()];
+    const p = Object.getPrototypeOf(val);
+    if (p !== null && p !== Object.prototype) return [];
+    return Object.entries(val as Record<string, unknown>).flatMap(([k, v]) =>
+      textoBusquedaDesdeValor(v, k, profundidad + 1)
+    );
+  }
+  return [];
+}
+
+function filaCoincideBusqueda(item: Record<string, unknown>, termino: string): boolean {
+  const t = termino.toLowerCase();
+  const textos = textoBusquedaDesdeValor(item, undefined, 0);
+  return textos.some((s) => s.toLowerCase().includes(t));
+}
+
 interface Column<T> {
   key: string;
   label: string;
@@ -30,11 +70,9 @@ export default function DataTable<T extends Record<string, unknown>>({
 
   const filteredData = useMemo(() => {
     let result = [...data];
-    if (search) {
-      const term = search.toLowerCase();
-      result = result.filter((item) =>
-        Object.values(item).some((val) => String(val).toLowerCase().includes(term))
-      );
+    if (search.trim()) {
+      const term = search.trim();
+      result = result.filter((item) => filaCoincideBusqueda(item, term));
     }
     if (sortKey) {
       result.sort((a, b) => {
