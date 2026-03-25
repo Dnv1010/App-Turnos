@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
 import { parseResponseJson } from "@/lib/parseFetchJson";
@@ -108,6 +108,12 @@ export default function CoordinadorPage() {
   const [syncingSheets, setSyncingSheets] = useState(false);
   const [filtroEquipo, setFiltroEquipo] = useState<"TODOS" | "TECNICO" | "ALMACENISTA">("TODOS");
   const [filtroEquipoListo, setFiltroEquipoListo] = useState(false);
+  /** Evita que la respuesta tardía del servidor pise Técnicos/Almacenistas tras hacer clic. */
+  const usuarioEligioFiltroEquipoRef = useRef(false);
+
+  useEffect(() => {
+    usuarioEligioFiltroEquipoRef.current = false;
+  }, [session?.user?.userId, session?.user?.zona]);
 
   useTurnosStream(
     (data) => {
@@ -189,12 +195,12 @@ export default function CoordinadorPage() {
 
   useEffect(() => {
     if (!session?.user?.userId || !session?.user?.zona) return;
-    setFiltroEquipoListo(false);
     let cancelled = false;
     fetch(`/api/usuarios?zona=${encodeURIComponent(session.user.zona)}`)
       .then((r) => r.json())
       .then((d: { tecnicos?: { id: string; filtroEquipo?: string }[] }) => {
         if (cancelled) return;
+        if (usuarioEligioFiltroEquipoRef.current) return;
         const me = d?.tecnicos?.find((u) => u.id === session.user.userId);
         if (me?.filtroEquipo && ["TODOS", "TECNICO", "ALMACENISTA"].includes(me.filtroEquipo)) {
           setFiltroEquipo(me.filtroEquipo as "TODOS" | "TECNICO" | "ALMACENISTA");
@@ -408,7 +414,10 @@ export default function CoordinadorPage() {
               <button
                 key={f}
                 type="button"
-                onClick={() => setFiltroEquipo(f)}
+                onClick={() => {
+                  usuarioEligioFiltroEquipoRef.current = true;
+                  setFiltroEquipo(f);
+                }}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
                   filtroEquipo === f
                     ? "bg-primary-600 text-white border-primary-600"
