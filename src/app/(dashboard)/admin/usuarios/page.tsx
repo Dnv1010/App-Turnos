@@ -73,6 +73,26 @@ function FilaSolicitudPendiente({
     }
   };
 
+  const rechazar = async () => {
+    if (!confirm(`¿Rechazar y eliminar la solicitud de ${u.nombre}?`)) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/usuarios/${u.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        onApproved();
+      } else {
+        const err = await parseResponseJson<{ error?: string }>(res);
+        alert(err?.error ?? "Error al rechazar");
+      }
+    } catch {
+      alert("Error al rechazar");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 p-4 space-y-3">
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
@@ -122,7 +142,15 @@ function FilaSolicitudPendiente({
             required
           />
         </div>
-        <div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void rechazar()}
+            disabled={busy}
+            className="btn-secondary w-full sm:w-auto text-sm border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30"
+          >
+            Rechazar
+          </button>
           <button type="button" onClick={() => void aprobar()} disabled={busy} className="btn-primary w-full sm:w-auto text-sm">
             {busy ? "Aprobando…" : "Aprobar"}
           </button>
