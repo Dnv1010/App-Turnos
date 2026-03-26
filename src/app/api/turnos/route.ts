@@ -40,7 +40,7 @@ function getMinutesOfDayColombia(d: Date): number {
 /** Entrada en horario nocturno Colombia (fuera de 06:00–19:00) */
 function isNocturnalEntradaColombia(horaEntrada: Date): boolean {
   const mins = getMinutesOfDayColombia(horaEntrada);
-  const DIURNA_START = 6 * 60;
+  const DIURNA_START = 5 * 60; // 5am Colombia
   const DIURNA_END = 19 * 60;
   return mins < DIURNA_START || mins >= DIURNA_END;
 }
