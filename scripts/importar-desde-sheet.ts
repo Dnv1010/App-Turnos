@@ -79,7 +79,7 @@ function parsearCoordenada(valor: string): [number, number] | null {
   return p.length === 2 && !isNaN(p[0]) && !isNaN(p[1]) ? [p[0], p[1]] : null;
 }
 
-/** Claves de festivo: ISO del día guardado + dateKeyColombia, para alinear con el motor y la malla. */
+/** Claves de festivo: ISO del d?a guardado + dateKeyColombia, para alinear con el motor y la malla. */
 function agregarClavesFestivo(fechaFestivo: Date, destino: Set<string>) {
   destino.add(fechaFestivo.toISOString().split("T")[0]);
   destino.add(dateKeyColombia(fechaFestivo));
@@ -118,7 +118,7 @@ function mallaDiaParaTurno(
 }
 
 async function importarMalla() {
-  console.log("\n📋 Leyendo Importacion_Malla...");
+  console.log("\n???? Leyendo Importacion_Malla...");
   const filas = await leerHoja("Importacion_Malla");
   console.log(`   ${filas.length} filas encontradas`);
   let ok = 0,
@@ -136,7 +136,7 @@ async function importarMalla() {
   };
 
   for (const f of filas) {
-    const cedula = f["Cedula"] || f["Cédula"] || "";
+    const cedula = f["Cedula"] || f["C?dula"] || "";
     const fechaRaw = f["Fecha"] || "";
     const valor = f["Valor"] || "";
     const tipo = (f["Tipo"] || "TRABAJO").toUpperCase();
@@ -156,7 +156,7 @@ async function importarMalla() {
       }
       const user = await prisma.user.findUnique({ where: { cedula } });
       if (!user) {
-        console.warn(`   ⚠️  Cédula no encontrada: ${cedula}`);
+        console.warn(`   ????  C?dula no encontrada: ${cedula}`);
         skip++;
         continue;
       }
@@ -182,7 +182,7 @@ async function importarMalla() {
       ok++;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      console.error(`   ❌ ${cedula} ${fechaRaw}:`, msg);
+      console.error(`   ?? ${cedula} ${fechaRaw}:`, msg);
       err++;
     }
   }
@@ -190,7 +190,7 @@ async function importarMalla() {
 }
 
 async function importarTurnos() {
-  console.log("\n📋 Leyendo Importacion_Turnos...");
+  console.log("\n???? Leyendo Importacion_Turnos...");
   const filas = await leerHoja("Importacion_Turnos");
   console.log(`   ${filas.length} filas encontradas`);
 
@@ -208,7 +208,7 @@ async function importarTurnos() {
   const candidatos: Cand[] = [];
 
   for (const f of filas) {
-    const cedula = f["Cedula"] || f["Cédula"] || "";
+    const cedula = f["Cedula"] || f["C?dula"] || "";
     const fechaRaw = f["Fecha"] || "";
     const entradaStr = f["HoraEntrada"] || "";
     const salidaStr = f["HoraSalida"] || "";
@@ -261,7 +261,7 @@ async function importarTurnos() {
     });
 
   if (resolved.length === 0) {
-    console.log("   Sin filas válidas para importar.");
+    console.log("   Sin filas v?lidas para importar.");
     return;
   }
 
@@ -295,7 +295,7 @@ async function importarTurnos() {
     });
   }
 
-  /** Acumulado Lun–Sáb de la importación actual (misma semana BIA que getInicioSemana). */
+  /** Acumulado Lun???S?b de la importaci?n actual (misma semana BIA que getInicioSemana). */
   const batchOrdByWeek = new Map<string, { fecha: Date; horasOrdinarias: number }[]>();
 
   let ok = 0,
@@ -310,7 +310,7 @@ async function importarTurnos() {
         where: { userId: user.id, fecha: fechaDate },
       });
       if (existe) {
-        console.log(`   ⏩ Ya existe: ${user.nombre} ${fechaNorm}`);
+        console.log(`   ? Ya existe: ${user.nombre} ${fechaNorm}`);
         skip++;
         continue;
       }
@@ -371,11 +371,11 @@ async function importarTurnos() {
         batchOrdByWeek.set(weekKey, next);
       }
 
-      console.log(`   ✅ ${user.nombre} — ${fechaNorm}`);
+      console.log(`   ??? ${user.nombre} ??? ${fechaNorm}`);
       ok++;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      console.error(`   ❌ ${row.cedula} ${fechaNorm}:`, msg);
+      console.error(`   ?? ${row.cedula} ${fechaNorm}:`, msg);
       err++;
     }
   }
@@ -383,12 +383,66 @@ async function importarTurnos() {
   console.log(`   Turnos: ${ok} ok, ${skip} saltados, ${err} errores`);
 }
 
+async function importarForaneos() {
+  console.log("\n📋 Leyendo Importacion_Foraneos...");
+  const filas = await leerHoja("Importacion_Foraneos");
+  console.log(`   ${filas.length} filas encontradas`);
+  let ok = 0, skip = 0, err = 0;
+
+  for (const f of filas) {
+    const cedula = (f["Cedula"] || f["Cédula"] || "").trim();
+    const fechaRaw = (f["Fecha"] || "").trim();
+    const kmInicialStr = (f["KmInicial"] || "").trim();
+    const kmFinalStr = (f["KmFinal"] || "").trim();
+    const observaciones = (f["Observaciones"] || "").trim() || null;
+
+    if (!cedula || !fechaRaw || !kmInicialStr || !kmFinalStr) { skip++; continue; }
+
+    try {
+      const fechaNorm = normalizarFecha(fechaRaw);
+      const user = await prisma.user.findUnique({ where: { cedula } });
+      if (!user) { console.warn(`   ⚠️  Cédula no encontrada: ${cedula}`); skip++; continue; }
+
+      const kmInicial = parseFloat(kmInicialStr);
+      const kmFinal = parseFloat(kmFinalStr);
+      if (isNaN(kmInicial) || isNaN(kmFinal)) {
+        console.warn(`   ⚠️  KM inválidos: ${cedula} ${fechaRaw}`);
+        skip++; continue;
+      }
+
+      const createdAt = new Date(`${fechaNorm}T12:00:00.000Z`);
+
+      await prisma.fotoRegistro.create({
+        data: {
+          userId: user.id,
+          tipo: "FORANEO",
+          kmInicial,
+          kmFinal,
+          latInicial: 0,
+          lngInicial: 0,
+          observaciones,
+          estadoAprobacion: "APROBADA",
+          createdAt,
+        }
+      });
+
+      console.log(`   ✅ ${user.nombre} — ${fechaNorm} (km ${kmInicial} → ${kmFinal})`);
+      ok++;
+    } catch(e: unknown) {
+      console.error(`   ❌ ${cedula} ${fechaRaw}:`, e instanceof Error ? e.message : e);
+      err++;
+    }
+  }
+  console.log(`   Foráneos: ${ok} ok, ${skip} saltados, ${err} errores`);
+}
+
 async function main() {
-  console.log("🚀 Iniciando importación...");
+  console.log("?? Iniciando importaci?n...");
   await importarMalla();
+  await importarForaneos();
   await importarTurnos();
   await prisma.$disconnect();
-  console.log("\n✅ Listo. Opcional: admin → recalcular turnos si mezclas datos antiguos.");
+  console.log("\n? Listo. Opcional: admin ? recalcular turnos si mezclas datos antiguos.");
 }
 
 main().catch((e) => {
