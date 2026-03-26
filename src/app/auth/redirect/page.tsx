@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { getPostLoginPath } from "@/lib/postLoginPath";
@@ -16,6 +16,10 @@ export default function AuthRedirectPage() {
     if (status === "loading") return;
     if (!session?.user) {
       router.replace("/login");
+      return;
+    }
+    if (session.user.role === "PENDIENTE") {
+      void signOut({ callbackUrl: "/login?pendiente=true" });
       return;
     }
     router.replace(getPostLoginPath(session.user.role));

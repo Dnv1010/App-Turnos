@@ -12,6 +12,8 @@ export function getPostLoginPath(role: string): string {
     case "MANAGER":
     case "ADMIN":
       return "/manager";
+    case "PENDIENTE":
+      return "/login?pendiente=true";
     default:
       return "/tecnico";
   }

@@ -1,7 +1,9 @@
 "use client";
 
 /* Fechas de turnos en tablas: usar formatFechaTurnoDdMmmYyyy desde @/lib/formatFechaTurno (evita desfase UTC). */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { parseResponseJson } from "@/lib/parseFetchJson";
 import DataTable from "@/components/ui/DataTable";
 import { HiPlus, HiPencil, HiTrash, HiX, HiRefresh } from "react-icons/hi";
@@ -15,6 +17,119 @@ interface Usuario {
   role: string;
   zona: string;
   isActive: boolean;
+  createdAt?: string;
+}
+
+type RolAprobacion = "TECNICO" | "COORDINADOR" | "COORDINADOR_INTERIOR" | "MANAGER" | "SUPPLY";
+
+function FilaSolicitudPendiente({
+  u,
+  onApproved,
+}: {
+  u: Usuario;
+  onApproved: () => void;
+}) {
+  const [role, setRole] = useState<RolAprobacion>("TECNICO");
+  const [zona, setZona] = useState(u.zona || "BOGOTA");
+  const [cedula, setCedula] = useState(u.cedula);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setCedula(u.cedula);
+    setZona(u.zona || "BOGOTA");
+    setRole("TECNICO");
+  }, [u.id, u.cedula, u.zona]);
+
+  const fechaReg = u.createdAt
+    ? format(new Date(u.createdAt), "d MMM yyyy HH:mm", { locale: es })
+    : "—";
+
+  const aprobar = async () => {
+    if (!cedula.trim()) {
+      alert("La cédula es obligatoria.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/usuarios/${u.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role,
+          zona,
+          cedula: cedula.trim(),
+          isActive: true,
+        }),
+      });
+      if (res.ok) onApproved();
+      else {
+        const err = await parseResponseJson<{ error?: string }>(res);
+        alert(err?.error ?? "Error al aprobar");
+      }
+    } catch {
+      alert("Error al aprobar");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 p-4 space-y-3">
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+        <div>
+          <span className="text-gray-500 dark:text-[#A0AEC0]">Nombre: </span>
+          <span className="font-medium text-gray-900 dark:text-white">{u.nombre}</span>
+        </div>
+        <div>
+          <span className="text-gray-500 dark:text-[#A0AEC0]">Email: </span>
+          <span className="font-medium text-gray-900 dark:text-white">{u.email}</span>
+        </div>
+        <div>
+          <span className="text-gray-500 dark:text-[#A0AEC0]">Registro: </span>
+          <span className="font-medium text-gray-900 dark:text-white">{fechaReg}</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-[#CBD5E1] mb-1">Rol</label>
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value as RolAprobacion)}
+            className="input-field w-full text-sm"
+          >
+            <option value="TECNICO">Operador</option>
+            <option value="COORDINADOR">Líder de Zona</option>
+            <option value="COORDINADOR_INTERIOR">Líder de Zona (Interior)</option>
+            <option value="MANAGER">Manager</option>
+            <option value="SUPPLY">Supply</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-[#CBD5E1] mb-1">Zona</label>
+          <select value={zona} onChange={(e) => setZona(e.target.value)} className="input-field w-full text-sm">
+            <option value="BOGOTA">Bogotá</option>
+            <option value="COSTA">Costa</option>
+            <option value="INTERIOR">Interior</option>
+          </select>
+        </div>
+        <div className="sm:col-span-2 lg:col-span-1">
+          <label className="block text-xs font-medium text-gray-600 dark:text-[#CBD5E1] mb-1">Cédula (requerida)</label>
+          <input
+            type="text"
+            value={cedula}
+            onChange={(e) => setCedula(e.target.value)}
+            className="input-field w-full text-sm"
+            required
+          />
+        </div>
+        <div>
+          <button type="button" onClick={() => void aprobar()} disabled={busy} className="btn-primary w-full sm:w-auto text-sm">
+            {busy ? "Aprobando…" : "Aprobar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function UsuariosPage() {
@@ -34,6 +149,9 @@ export default function UsuariosPage() {
   const [saving, setSaving] = useState(false);
   const [syncingSheets, setSyncingSheets] = useState(false);
   const [recalculando, setRecalculando] = useState(false);
+
+  const pendientes = useMemo(() => usuarios.filter((u) => u.role === "PENDIENTE"), [usuarios]);
+  const usuariosActivos = useMemo(() => usuarios.filter((u) => u.role !== "PENDIENTE"), [usuarios]);
 
   const cargarUsuarios = useCallback(async () => {
     try {
@@ -279,9 +397,23 @@ export default function UsuariosPage() {
         </div>
       </div>
 
+      {pendientes.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Solicitudes pendientes</h3>
+          <p className="text-sm text-gray-500 dark:text-[#A0AEC0]">
+            Usuarios que iniciaron sesión con Google y esperan asignación de rol y cédula.
+          </p>
+          <div className="space-y-4">
+            {pendientes.map((u) => (
+              <FilaSolicitudPendiente key={u.id} u={u} onApproved={cargarUsuarios} />
+            ))}
+          </div>
+        </div>
+      )}
+
       <DataTable
         columns={columns as never}
-        data={usuarios as never}
+        data={usuariosActivos as never}
         searchable
         searchPlaceholder="Buscar usuario..."
       />

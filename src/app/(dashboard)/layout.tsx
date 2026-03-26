@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Navbar from "@/components/layout/Navbar";
@@ -16,6 +16,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (status !== "authenticated" || !session?.user) return;
     const role = session.user.role;
+    if (role === "PENDIENTE") {
+      void signOut({ callbackUrl: "/login?pendiente=true" });
+      return;
+    }
     if (role === "COORDINADOR_INTERIOR" && !pathname.startsWith("/coordinador-interior")) {
       router.replace("/coordinador-interior");
       return;
@@ -46,6 +50,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   const role = session.user.role;
+  if (role === "PENDIENTE") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-bia-navy-800">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
+      </div>
+    );
+  }
   if (role === "COORDINADOR_INTERIOR" && !pathname.startsWith("/coordinador-interior")) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-bia-navy-800">

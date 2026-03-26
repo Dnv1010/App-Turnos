@@ -10,6 +10,7 @@ export function getRoleLabel(role: string): string {
     MANAGER: "Manager",
     ADMIN: "Administrador",
     SUPPLY: "Supply",
+    PENDIENTE: "Pendiente de aprobación",
   };
   return labels[role] || role;
 }
