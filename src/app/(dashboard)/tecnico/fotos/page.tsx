@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { HiPhotograph, HiUpload, HiTruck, HiCamera, HiClipboardList, HiX, HiPencil, HiTrash } from "react-icons/hi";
 import { parseResponseJson } from "@/lib/parseFetchJson";
+import FotoInput from "@/components/fotos/FotoInput";
 
 const CameraCapture = dynamic(() => import("@/components/fotos/CameraCapture"), {
   ssr: false,
@@ -358,7 +359,11 @@ export default function FotosPage() {
                 </div>
               )}
               {showCameraFinal && !pasoFinalFotoBase64 && (
-                <CameraCapture onCapture={handleCaptureFinal} onCancel={() => setShowCameraFinal(false)} />
+                <FotoInput
+                  onCapture={(b, p) => { setPasoFinalFotoBase64(b); setPasoFinalFotoPreview(p); }}
+                  disabled={loadingFinalizar}
+                  label="Foto final del foráneo"
+                />
               )}
               {pasoFinalFotoBase64 && pasoFinalFotoPreview && (
                 <div className="max-w-lg space-y-4">
@@ -431,7 +436,15 @@ export default function FotosPage() {
               </button>
             </div>
           ) : showCamera && !fotoBase64 ? (
-            <CameraCapture onCapture={handleCapture} onCancel={() => setShowCamera(false)} />
+            tipo === "FORANEO" ? (
+              <FotoInput
+                onCapture={handleCapture}
+                disabled={loading}
+                label="Foto inicial del foráneo"
+              />
+            ) : (
+              <CameraCapture onCapture={handleCapture} onCancel={() => setShowCamera(false)} />
+            )
           ) : fotoBase64 && fotoPreview ? (
             <div className="max-w-lg mx-auto space-y-4">
               <div className="card p-0 overflow-hidden relative">
