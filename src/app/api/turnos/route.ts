@@ -12,6 +12,14 @@ import { appendRow } from "@/lib/google-sheets";
 
 /** Convierte Date a fecha Colombia (UTC-5) como string YYYY-MM-DD */
 function dateKeyColombia(d: Date): string {
+  if (
+    d.getUTCHours() === 0 &&
+    d.getUTCMinutes() === 0 &&
+    d.getUTCSeconds() === 0 &&
+    d.getUTCMilliseconds() === 0
+  ) {
+    return d.toISOString().split("T")[0];
+  }
   const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
   return colombia.toISOString().split("T")[0];
 }
