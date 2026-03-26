@@ -97,13 +97,22 @@ export async function DELETE(
   if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 });
 
   try {
-    await prisma.user.update({
-      where: { id },
-      data: { isActive: false },
-    });
+    const target = await prisma.user.findUnique({ where: { id } });
+    if (!target) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+
+    if (target.role === "PENDIENTE") {
+      // Eliminar completamente usuarios pendientes
+      await prisma.user.delete({ where: { id } });
+    } else {
+      // Solo desactivar usuarios con rol asignado
+      await prisma.user.update({
+        where: { id },
+        data: { isActive: false },
+      });
+    }
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[admin usuarios DELETE]", e);
-    return NextResponse.json({ error: "Error al desactivar usuario" }, { status: 500 });
+    return NextResponse.json({ error: "Error al eliminar usuario" }, { status: 500 });
   }
 }
