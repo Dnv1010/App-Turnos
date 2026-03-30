@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /** Por debajo del límite de Vercel (p. ej. 300s Pro); el stream se cierra solo antes en código. */
-export const maxDuration = 280;
+export const maxDuration = 30;
 
 export async function GET(req: NextRequest) {
   const stream = new ReadableStream({
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
         } catch {
           clearInterval(heartbeat);
         }
-      }, 25_000);
+      }, 20_000);
 
       const cleanup = () => {
         clearInterval(heartbeat);
