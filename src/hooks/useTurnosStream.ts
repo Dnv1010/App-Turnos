@@ -46,7 +46,7 @@ export function useTurnosStream(
     fetchUpdates();
 
     // Polling cada 30 segundos
-    const interval = setInterval(fetchUpdates, 30_000);
+    const interval = setInterval(fetchUpdates, 90_000);
 
     return () => clearInterval(interval);
   }, [onTurnoEliminado, onTurnoEditado, onTurnoCreado]);
