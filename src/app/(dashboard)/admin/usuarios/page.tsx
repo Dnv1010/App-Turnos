@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { parseResponseJson } from "@/lib/parseFetchJson";
 import DataTable from "@/components/ui/DataTable";
-import { HiPlus, HiPencil, HiTrash, HiX, HiRefresh } from "react-icons/hi";
+import { HiPlus, HiPencil, HiTrash, HiX, HiRefresh, HiClock } from "react-icons/hi";
 import { getRoleLabel, getZonaLabel } from "@/lib/roleLabels";
 
 interface Usuario {
@@ -18,6 +18,22 @@ interface Usuario {
   zona: string;
   isActive: boolean;
   createdAt?: string;
+}
+
+interface TurnoRow {
+  id: string;
+  fecha: string;
+  horaEntrada: string;
+  horaSalida: string | null;
+  horasOrdinarias: number;
+  heDiurna: number;
+  heNocturna: number;
+  heDominical: number;
+  heNoctDominical: number;
+  recNocturno: number;
+  recDominical: number;
+  recNoctDominical: number;
+  observaciones: string | null;
 }
 
 type RolAprobacion = "TECNICO" | "COORDINADOR" | "COORDINADOR_INTERIOR" | "MANAGER" | "SUPPLY";
@@ -177,6 +193,9 @@ export default function UsuariosPage() {
   const [saving, setSaving] = useState(false);
   const [syncingSheets, setSyncingSheets] = useState(false);
   const [recalculando, setRecalculando] = useState(false);
+  const [verTurnosUsuario, setVerTurnosUsuario] = useState<Usuario | null>(null);
+  const [turnosUsuario, setTurnosUsuario] = useState<TurnoRow[]>([]);
+  const [loadingTurnos, setLoadingTurnos] = useState(false);
 
   const pendientes = useMemo(() => usuarios.filter((u) => u.role === "PENDIENTE"), [usuarios]);
   const usuariosActivos = useMemo(() => usuarios.filter((u) => u.role !== "PENDIENTE"), [usuarios]);
@@ -307,6 +326,21 @@ export default function UsuariosPage() {
     }
   };
 
+  const verTurnos = async (u: Usuario) => {
+    setVerTurnosUsuario(u);
+    setLoadingTurnos(true);
+    setTurnosUsuario([]);
+    try {
+      const res = await fetch(`/api/turnos?userId=${u.id}&limit=100`);
+      const data = await parseResponseJson<TurnoRow[]>(res);
+      setTurnosUsuario(Array.isArray(data) ? data : []);
+    } catch {
+      setTurnosUsuario([]);
+    } finally {
+      setLoadingTurnos(false);
+    }
+  };
+
   const columns = [
     { key: "cedula", label: "Cédula", sortable: true },
     { key: "nombre", label: "Nombre", sortable: true },
@@ -368,6 +402,17 @@ export default function UsuariosPage() {
             title="Editar"
           >
             <HiPencil className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              void verTurnos(u);
+            }}
+            className="p-1.5 rounded text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/30"
+            title="Ver turnos"
+          >
+            <HiClock className="h-4 w-4" />
           </button>
           <button
             onClick={(e) => {
@@ -596,6 +641,117 @@ export default function UsuariosPage() {
                   ? "Actualizar"
                   : "Crear"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {verTurnosUsuario && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white dark:bg-[#1A2340] rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-[#3A4565]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-[#3A4565]">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white text-lg">
+                  Turnos de {verTurnosUsuario.nombre}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-[#A0AEC0]">
+                  {getRoleLabel(verTurnosUsuario.role)} — {getZonaLabel(verTurnosUsuario.zona)} — {verTurnosUsuario.cedula}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVerTurnosUsuario(null)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-[#243052] rounded-lg text-gray-600 dark:text-[#A0AEC0]"
+              >
+                <HiX className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto max-h-[calc(90vh-80px)] p-6">
+              {loadingTurnos ? (
+                <div className="flex justify-center py-12">
+                  <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+                </div>
+              ) : turnosUsuario.length === 0 ? (
+                <p className="text-center text-gray-500 dark:text-[#A0AEC0] py-12">
+                  No hay turnos registrados para este usuario.
+                </p>
+              ) : (
+                <DataTable
+                  columns={
+                    [
+                      {
+                        key: "fecha",
+                        label: "Fecha",
+                        render: (t: TurnoRow) =>
+                          new Date(t.fecha).toLocaleDateString("es-CO", {
+                            timeZone: "UTC",
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          }),
+                      },
+                      {
+                        key: "horaEntrada",
+                        label: "Entrada",
+                        render: (t: TurnoRow) =>
+                          new Date(t.horaEntrada).toLocaleTimeString("es-CO", {
+                            timeZone: "America/Bogota",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }),
+                      },
+                      {
+                        key: "horaSalida",
+                        label: "Salida",
+                        render: (t: TurnoRow) =>
+                          t.horaSalida
+                            ? new Date(t.horaSalida).toLocaleTimeString("es-CO", {
+                                timeZone: "America/Bogota",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "—",
+                      },
+                      {
+                        key: "horasOrdinarias",
+                        label: "Ord.",
+                        render: (t: TurnoRow) => t.horasOrdinarias ?? "—",
+                      },
+                      {
+                        key: "heDiurna",
+                        label: "HE Día",
+                        render: (t: TurnoRow) => t.heDiurna || "—",
+                      },
+                      {
+                        key: "heNocturna",
+                        label: "HE Noc",
+                        render: (t: TurnoRow) => t.heNocturna || "—",
+                      },
+                      {
+                        key: "heDominical",
+                        label: "HE Dom",
+                        render: (t: TurnoRow) => t.heDominical || "—",
+                      },
+                      {
+                        key: "recNocturno",
+                        label: "Rec Noc",
+                        render: (t: TurnoRow) => t.recNocturno || "—",
+                      },
+                      {
+                        key: "recDominical",
+                        label: "Rec Dom",
+                        render: (t: TurnoRow) => t.recDominical || "—",
+                      },
+                      {
+                        key: "observaciones",
+                        label: "Obs.",
+                        render: (t: TurnoRow) => t.observaciones || "—",
+                      },
+                    ] as never
+                  }
+                  data={turnosUsuario as never}
+                />
+              )}
             </div>
           </div>
         </div>
