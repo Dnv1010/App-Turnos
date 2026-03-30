@@ -1,11 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 interface TurnoEliminadoEvent {
   id: string;
-  usuarioTecnico: string;
-  fecha: string;
-  zona: string;
-  timestamp: string;
+  usuarioTecnico?: string;
+  fecha?: string;
+  zona?: string;
+  timestamp?: string;
 }
 
 type EventHandler = (data: any) => void;
@@ -15,86 +15,39 @@ export function useTurnosStream(
   onTurnoEditado?: EventHandler,
   onTurnoCreado?: EventHandler
 ) {
+  const lastCheckRef = useRef<string>(new Date().toISOString());
+
   useEffect(() => {
-    let eventSource: EventSource | null = null;
-    let reconnectAttempts = 0;
-    const maxReconnectAttempts = 80;
-    const reconnectDelay = 3000;
-    let closed = false;
-
-    const connect = () => {
-      if (closed) return;
+    const fetchUpdates = async () => {
       try {
-        eventSource = new EventSource("/api/turnos/stream-sse");
+        const res = await fetch(
+          `/api/turnos/sync?since=${encodeURIComponent(lastCheckRef.current)}`
+        );
+        if (!res.ok) return;
 
-        function parseSseData(raw: unknown): unknown {
-          if (raw == null || raw === "") return null;
-          const s = String(raw).trim();
-          if (!s) return null;
-          try {
-            return JSON.parse(s);
-          } catch {
-            return null;
-          }
+        const data = await res.json();
+        lastCheckRef.current = new Date().toISOString();
+
+        if (data.creados?.length && onTurnoCreado) {
+          data.creados.forEach((t: any) => onTurnoCreado(t));
         }
-
-        eventSource.addEventListener("turno-eliminado", (event: Event) => {
-          const customEvent = event as MessageEvent;
-          const data = parseSseData(customEvent.data) as TurnoEliminadoEvent | null;
-          if (!data) return;
-          console.log("Turno eliminado en tiempo real:", data);
-          onTurnoEliminado?.(data);
-          reconnectAttempts = 0;
-        });
-
-        eventSource.addEventListener("turno-editado", (event: Event) => {
-          const customEvent = event as MessageEvent;
-          const data = parseSseData(customEvent.data);
-          if (!data) return;
-          console.log("Turno editado en tiempo real:", data);
-          onTurnoEditado?.(data);
-          reconnectAttempts = 0;
-        });
-
-        eventSource.addEventListener("turno-creado", (event: Event) => {
-          const customEvent = event as MessageEvent;
-          const data = parseSseData(customEvent.data);
-          if (!data) return;
-          console.log("Turno creado en tiempo real:", data);
-          onTurnoCreado?.(data);
-          reconnectAttempts = 0;
-        });
-
-        eventSource.onopen = () => {
-          reconnectAttempts = 0;
-        };
-
-        eventSource.onerror = () => {
-          console.warn("Error en SSE, intentando reconectar...");
-          eventSource?.close();
-          eventSource = null;
-
-          if (closed || reconnectAttempts >= maxReconnectAttempts) return;
-          reconnectAttempts++;
-          const delay = Math.min(reconnectDelay * Math.min(reconnectAttempts, 10), 30_000);
-          console.log(`Reconectando SSE en ${delay}ms (intento ${reconnectAttempts})`);
-          setTimeout(connect, delay);
-        };
-
-        console.log("Conectado a SSE de turnos");
-      } catch (error) {
-        console.error("Error al conectar SSE:", error);
+        if (data.editados?.length && onTurnoEditado) {
+          data.editados.forEach((t: any) => onTurnoEditado(t));
+        }
+        if (data.eliminados?.length && onTurnoEliminado) {
+          data.eliminados.forEach((t: TurnoEliminadoEvent) => onTurnoEliminado(t));
+        }
+      } catch {
+        // silencioso — no interrumpir la UI
       }
     };
 
-    connect();
+    // Primera llamada inmediata
+    fetchUpdates();
 
-    return () => {
-      closed = true;
-      if (eventSource) {
-        eventSource.close();
-        console.log("SSE desconectado");
-      }
-    };
+    // Polling cada 30 segundos
+    const interval = setInterval(fetchUpdates, 30_000);
+
+    return () => clearInterval(interval);
   }, [onTurnoEliminado, onTurnoEditado, onTurnoCreado]);
 }

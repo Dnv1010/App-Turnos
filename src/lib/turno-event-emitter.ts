@@ -25,4 +25,4 @@ export const turnoEventEmitter = {
 };
 
 /** Cierra el stream SSE de forma ordenada antes del timeout de Vercel (evita "Task timed out"). */
-export const SSE_STREAM_MAX_MS = 25_000;
+export const SSE_STREAM_MAX_MS = 1_000;
