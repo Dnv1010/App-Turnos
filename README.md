@@ -56,3 +56,4 @@ En **Vercel**: Settings → Cron Jobs usa el mismo `CRON_SECRET` en variables de
 ---
 
 **BIA Colombia — Sistema de Gestión de Turnos v1.0**
+ 
