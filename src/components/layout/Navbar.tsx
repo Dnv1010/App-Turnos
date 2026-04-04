@@ -1,4 +1,5 @@
-"use client";
+﻿"use client";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { HiMenu, HiLogout, HiUser, HiSun, HiMoon, HiKey } from "react-icons/hi";
@@ -52,6 +53,7 @@ const rolBadgeClasses: Record<string, string> = {
 
 export default function Navbar({ nombre, role, zona, onMenuClick }: NavbarProps) {
   const { theme, toggleTheme } = useTheme();
+  const router = useRouter();
   const [showCambiarPin, setShowCambiarPin] = useState(false);
 
   return (
@@ -73,6 +75,16 @@ export default function Navbar({ nombre, role, zona, onMenuClick }: NavbarProps)
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#001035] hover:bg-[#001a4d] border border-[#08DDBC]/30 hover:border-[#08DDBC] transition-colors"
+            title="Cambiar modulo"
+          >
+            <span className="text-xs font-bold text-white">Ops</span>
+            <span className="text-xs font-bold text-[#08DDBC]">BIA</span>
+            <span className="text-xs text-[#525A72]">↗</span>
+          </button>
           <button
             type="button"
             onClick={() => setShowCambiarPin(true)}
@@ -107,7 +119,7 @@ export default function Navbar({ nombre, role, zona, onMenuClick }: NavbarProps)
               <HiUser className="h-5 w-5 text-primary-600 dark:text-bia-teal" />
             </div>
           </div>
-          <button onClick={() => signOut({ callbackUrl: "/login" })}
+          <button onClick={() => signOut({ callbackUrl: "/" })}
             className="p-2 rounded-lg text-gray-500 dark:text-bia-muted hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:hover:text-[#F87171] transition-colors" title="Cerrar sesión">
             <HiLogout className="h-5 w-5" />
           </button>

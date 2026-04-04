@@ -1,20 +1,13 @@
-/** Ruta inicial tras login según rol (JWT ya actualizado). */
+﻿/** Ruta inicial tras login según rol (JWT ya actualizado). */
 export function getPostLoginPath(role: string): string {
   switch (role) {
-    case "TECNICO":
-      return "/tecnico";
-    case "COORDINADOR":
-      return "/coordinador";
-    case "COORDINADOR_INTERIOR":
-      return "/coordinador-interior";
-    case "SUPPLY":
-      return "/supply";
-    case "MANAGER":
-    case "ADMIN":
-      return "/manager";
+    case "TECNICO": return "/";
+    case "COORDINADOR": return "/";
+    case "COORDINADOR_INTERIOR": return "/";
+    case "SUPPLY": return "/";
+    case "MANAGER": return "/"; case "MANAGER2": case "ADMIN": return "/";
     case "PENDIENTE":
       return "/login?pendiente=true";
-    default:
-      return "/tecnico";
+    default: return "/";
   }
 }

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Suspense, useState } from "react";
 import { signIn, getSession } from "next-auth/react";
@@ -26,7 +26,7 @@ function LoginForm() {
         email: email.trim().toLowerCase(),
         pin: pin.trim(),
         redirect: false,
-        callbackUrl: "/tecnico",
+        callbackUrl: "/",
       });
       if (result?.error) {
         setError("Email o PIN incorrectos");
@@ -58,18 +58,17 @@ function LoginForm() {
 
   return (
     <div className="w-full max-w-md">
-      {/* Logo BIA Energy */}
+            {/* Logo Ops BIA */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center gap-1 mb-4">
-          <svg width="40" height="48" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M24 0L0 28H16L12 48L40 18H22L24 0Z" fill="#00D4AA" />
-          </svg>
-          <span className="text-white font-black text-5xl tracking-tight" style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>
-            Bia
-          </span>
+        <div className="flex items-center justify-center gap-2 mb-3">
+          <span className="text-5xl font-black text-white tracking-tight">Ops</span>
+          <span className="text-5xl font-black text-[#08DDBC] tracking-tight">BIA</span>
         </div>
-        <h1 className="text-2xl font-bold text-white">App Turnos</h1>
-        <p className="text-primary-200 mt-2">Gestión de turnos y Foráneos</p>
+        <p className="text-[#8892A4] text-xs tracking-widest uppercase">BIA Energy SAS ESP - Plataforma Operacional</p>
+        <div className="flex gap-2 justify-center mt-3">
+          <span className="text-xs bg-[#001035] border border-[#08DDBC]/30 text-[#08DDBC] px-2 py-0.5 rounded-full">App Turnos</span>
+          <span className="text-xs bg-[#001035] border border-[#525A72]/30 text-[#8892A4] px-2 py-0.5 rounded-full">MiCaja</span>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-[#1A2340] rounded-2xl shadow-2xl dark:shadow-black/40 p-8 border border-gray-200 dark:border-[#3A4565] dark:text-white">
@@ -145,14 +144,14 @@ function LoginForm() {
         </button>
       </div>
 
-      <p className="text-center text-primary-200 text-xs mt-6">Bia Energy — Sistema de Gestión de Turnos v1.0</p>
+      <p className="text-center text-primary-200 text-xs mt-6">Bia Energy "” Sistema de Gestión de Turnos v1.0</p>
     </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900 px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#000B1E] px-4 py-12">
       <Suspense
         fallback={
           <div className="w-full max-w-md flex justify-center py-16">

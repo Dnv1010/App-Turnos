@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
@@ -17,7 +17,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (status !== "authenticated" || !session?.user) return;
     const role = session.user.role;
     if (role === "PENDIENTE") {
-      void signOut({ callbackUrl: "/login?pendiente=true" });
+      void signOut({ callbackUrl: "/" });
       return;
     }
     if (role === "COORDINADOR_INTERIOR" && !pathname.startsWith("/coordinador-interior")) {

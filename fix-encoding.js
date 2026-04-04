@@ -1,0 +1,16 @@
+﻿const fs = require('fs');
+const f = 'src/app/(dashboard)/tecnico/page.tsx';
+let c = fs.readFileSync(f, 'utf8');
+c = c.replace(/â€"/g, '—');
+c = c.replace(/Ã³/g, 'ó');
+c = c.replace(/Ã¡/g, 'á');
+c = c.replace(/Ã­/g, 'í');
+c = c.replace(/Ãº/g, 'ú');
+c = c.replace(/Ã±/g, 'ñ');
+c = c.replace(/Ã©/g, 'é');
+c = c.replace(/DÃa/g, 'Día');
+c = c.replace(/SegÃºn/g, 'Según');
+c = c.replace(/dÃa/g, 'día');
+c = c.replace(/Â·/g, '·');
+fs.writeFileSync(f, c, 'utf8');
+console.log('Listo');

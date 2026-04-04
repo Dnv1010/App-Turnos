@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import StatCard from "@/components/ui/StatCard";
 import { HiClock, HiUsers, HiTrendingUp, HiCurrencyDollar, HiMoon, HiTruck } from "react-icons/hi";
