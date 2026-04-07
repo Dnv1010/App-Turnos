@@ -39,6 +39,11 @@ interface TecnicoOption {
   nombre: string;
 }
 
+function diaSemana(fechaStr: string): string {
+  const [y, m, d] = fechaStr.split("T")[0].split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("es-CO", { weekday: "long" });
+}
+
 function calcPreviewHours(startDate: string, startTime: string, endDate: string, endTime: string): string {
   if (!startTime || !endTime) return "—";
   const startMin = new Date(`${startDate}T${startTime}:00`).getTime();
@@ -48,23 +53,15 @@ function calcPreviewHours(startDate: string, startTime: string, endDate: string,
   return diff.toFixed(2);
 }
 
-/** Fecha y hora locales Colombia para inputs type=date / type=time (misma lógica que la API +5h). */
 function formatForEditInputsColombia(d: Date): { date: string; time: string } {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Bogota",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
   }).formatToParts(d);
   const g = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? "";
-  const y = g("year");
-  const m = g("month");
-  const day = g("day");
-  let hh = g("hour");
-  let mm = g("minute");
+  const y = g("year"), m = g("month"), day = g("day");
+  let hh = g("hour"), mm = g("minute");
   if (hh.length === 1) hh = `0${hh}`;
   if (mm.length === 1) mm = `0${mm}`;
   return { date: `${y}-${m}-${day}`, time: `${hh}:${mm}` };
@@ -83,13 +80,7 @@ export default function CoordinadorTurnosPage() {
   const [editingTurno, setEditingTurno] = useState<TurnoRow | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; nombre: string } | null>(null);
-  const [editForm, setEditForm] = useState({
-    startDate: "",
-    startTime: "",
-    endDate: "",
-    endTime: "",
-    notes: "",
-  });
+  const [editForm, setEditForm] = useState({ startDate: "", startTime: "", endDate: "", endTime: "", notes: "" });
 
   const loadTurnos = useCallback(async () => {
     if (!session?.user?.zona) return;
@@ -115,17 +106,13 @@ export default function CoordinadorTurnosPage() {
     finally { setLoading(false); }
   }, [session?.user?.zona, inicio, fin, tecnicoFilter, estadoFilter]);
 
-  useEffect(() => {
-    loadTurnos();
-  }, [loadTurnos]);
+  useEffect(() => { loadTurnos(); }, [loadTurnos]);
 
   useEffect(() => {
     if (!session?.user?.zona) return;
     fetch(`/api/usuarios?zona=${session.user.zona}&role=TECNICO`)
       .then(async (r) => parseResponseJson<{ tecnicos?: TecnicoOption[] }>(r))
-      .then((d) => {
-        if (d?.tecnicos) setTecnicos(d.tecnicos);
-      })
+      .then((d) => { if (d?.tecnicos) setTecnicos(d.tecnicos); })
       .catch(() => {});
   }, [session?.user?.zona]);
 
@@ -136,10 +123,8 @@ export default function CoordinadorTurnosPage() {
     const startParts = formatForEditInputsColombia(start);
     const endParts = end ? formatForEditInputsColombia(end) : null;
     setEditForm({
-      startDate: startParts.date,
-      startTime: startParts.time,
-      endDate: endParts?.date ?? startParts.date,
-      endTime: endParts?.time ?? "",
+      startDate: startParts.date, startTime: startParts.time,
+      endDate: endParts?.date ?? startParts.date, endTime: endParts?.time ?? "",
       notes: t.observaciones?.replace(/\s*\[Editado.*\]$/, "") || "",
     });
   }
@@ -153,11 +138,7 @@ export default function CoordinadorTurnosPage() {
       const res = await fetch(`/api/turnos/${editingTurno.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          horaEntrada: startISO,
-          horaSalida: endISO,
-          observaciones: editForm.notes || undefined,
-        }),
+        body: JSON.stringify({ horaEntrada: startISO, horaSalida: endISO, observaciones: editForm.notes || undefined }),
       });
       const data = await parseResponseJson<{ ok?: boolean; error?: string; turno?: TurnoRow }>(res);
       if (res.ok && data?.ok) {
@@ -191,8 +172,7 @@ export default function CoordinadorTurnosPage() {
 
   const totalHoras = (t: TurnoRow) => {
     if (!t.horaSalida) return null;
-    const h = (new Date(t.horaSalida).getTime() - new Date(t.horaEntrada).getTime()) / (1000 * 60 * 60);
-    return h.toFixed(2);
+    return ((new Date(t.horaSalida).getTime() - new Date(t.horaEntrada).getTime()) / (1000 * 60 * 60)).toFixed(2);
   };
   const totalHE = (t: TurnoRow) => (t.heDiurna + t.heNocturna + t.heDominical + t.heNoctDominical).toFixed(2);
   const totalRec = (t: TurnoRow) => (t.recNocturno + t.recDominical + t.recNoctDominical).toFixed(2);
@@ -200,16 +180,13 @@ export default function CoordinadorTurnosPage() {
   const columns = [
     { key: "user", label: "Operador", render: (t: TurnoRow) => t.user?.nombre ?? "—" },
     {
-      key: "estadoTurno",
-      label: "Estado",
-      render: (t: TurnoRow) =>
-        t.horaSalida ? (
-          <span className="text-xs font-medium text-gray-600 dark:text-[#A0AEC0] bg-gray-100 dark:bg-[#1E2A45] px-2 py-0.5 rounded-full">Finalizado</span>
-        ) : (
-          <span className="text-xs font-semibold text-green-800 bg-green-100 px-2 py-0.5 rounded-full">En curso</span>
-        ),
+      key: "estadoTurno", label: "Estado",
+      render: (t: TurnoRow) => t.horaSalida
+        ? <span className="text-xs font-medium text-gray-600 dark:text-[#A0AEC0] bg-gray-100 dark:bg-[#1E2A45] px-2 py-0.5 rounded-full">Finalizado</span>
+        : <span className="text-xs font-semibold text-green-800 bg-green-100 px-2 py-0.5 rounded-full">En curso</span>,
     },
     { key: "fecha", label: "Fecha", render: (t: TurnoRow) => formatFechaTurnoDdMmmYyyy(t.fecha) },
+    { key: "dia", label: "Día", render: (t: TurnoRow) => diaSemana(t.fecha) },
     { key: "horaEntrada", label: "Entrada", render: (t: TurnoRow) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
     { key: "horaSalida", label: "Salida", render: (t: TurnoRow) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
     { key: "totalHoras", label: "Total h", render: (t: TurnoRow) => totalHoras(t) ?? "—" },
@@ -228,8 +205,7 @@ export default function CoordinadorTurnosPage() {
     { key: "startPhotoUrl", label: "Foto inicio", render: (t: TurnoRow) => t.startPhotoUrl ? <a href={t.startPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline text-xs flex items-center gap-1"><HiPhotograph className="h-3.5 w-3.5" />Ver</a> : "—" },
     { key: "endPhotoUrl", label: "Foto fin", render: (t: TurnoRow) => t.endPhotoUrl ? <a href={t.endPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline text-xs flex items-center gap-1"><HiPhotograph className="h-3.5 w-3.5" />Ver</a> : "—" },
     {
-      key: "acciones",
-      label: "Acciones",
+      key: "acciones", label: "Acciones",
       render: (t: TurnoRow) => (
         <div className="flex gap-2">
           <button type="button" onClick={() => openEditModal(t)} className="text-blue-600 hover:text-blue-800 p-1" title="Editar"><HiPencil className="h-4 w-4" /></button>
@@ -301,7 +277,9 @@ export default function CoordinadorTurnosPage() {
             <div className="p-5 space-y-4">
               <div className="bg-gray-50 dark:bg-[#0F1629] rounded-lg p-3 text-sm border border-gray-100 dark:border-[#2A3555]">
                 <p className="text-gray-500 dark:text-[#A0AEC0]">Turno actual:</p>
-                <p className="font-medium text-gray-900 dark:text-white">{new Date(editingTurno.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })} → {editingTurno.horaSalida ? new Date(editingTurno.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "En curso"}</p>
+                <p className="font-medium text-gray-900 dark:text-white">
+                  {new Date(editingTurno.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })} → {editingTurno.horaSalida ? new Date(editingTurno.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "En curso"}
+                </p>
                 <p className="text-gray-500 dark:text-[#A0AEC0] mt-1">Total: {totalHoras(editingTurno)}h | HE: {totalHE(editingTurno)}h</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -316,8 +294,7 @@ export default function CoordinadorTurnosPage() {
               </div>
               {!editingTurno.horaSalida && (
                 <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  <strong>Turno en curso:</strong> puedes corregir la hora de entrada abajo. Deja <strong>hora de salida vacía</strong> hasta
-                  que el operador cierre el turno; si rellenas salida, el turno quedará cerrado.
+                  <strong>Turno en curso:</strong> puedes corregir la hora de entrada abajo. Deja <strong>hora de salida vacía</strong> hasta que el operador cierre el turno; si rellenas salida, el turno quedará cerrado.
                 </p>
               )}
               <div className="grid grid-cols-2 gap-3">
@@ -340,12 +317,8 @@ export default function CoordinadorTurnosPage() {
                 <textarea value={editForm.notes} onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Ej: Corregido hora de salida por olvido de fichaje" rows={2} className="input-field w-full resize-none" />
               </div>
               <div className="flex gap-3 flex-wrap">
-                {editingTurno.latEntrada != null && (
-                  <a href={`https://www.google.com/maps?q=${editingTurno.latEntrada},${editingTurno.lngEntrada}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-blue-600 hover:underline"><HiLocationMarker className="w-3 h-3" /> Ubicación inicio</a>
-                )}
-                {editingTurno.latSalida != null && (
-                  <a href={`https://www.google.com/maps?q=${editingTurno.latSalida},${editingTurno.lngSalida}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-blue-600 hover:underline"><HiLocationMarker className="w-3 h-3" /> Ubicación fin</a>
-                )}
+                {editingTurno.latEntrada != null && <a href={`https://www.google.com/maps?q=${editingTurno.latEntrada},${editingTurno.lngEntrada}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-blue-600 hover:underline"><HiLocationMarker className="w-3 h-3" /> Ubicación inicio</a>}
+                {editingTurno.latSalida != null && <a href={`https://www.google.com/maps?q=${editingTurno.latSalida},${editingTurno.lngSalida}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-blue-600 hover:underline"><HiLocationMarker className="w-3 h-3" /> Ubicación fin</a>}
                 {editingTurno.startPhotoUrl && <a href={editingTurno.startPhotoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-blue-600 hover:underline"><HiPhotograph className="w-3 h-3" /> Foto inicio</a>}
                 {editingTurno.endPhotoUrl && <a href={editingTurno.endPhotoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-blue-600 hover:underline"><HiPhotograph className="w-3 h-3" /> Foto fin</a>}
               </div>
@@ -374,18 +347,8 @@ export default function CoordinadorTurnosPage() {
                 Vas a cancelar el turno de <strong>{confirmDelete.nombre}</strong>. Esta acción quedará registrada.
               </p>
               <div className="flex gap-3">
-                <button
-                  onClick={() => setConfirmDelete(null)}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-[#CBD5E1] bg-gray-100 dark:bg-[#1E2A45] rounded-lg hover:bg-gray-200 dark:hover:bg-[#2A3555]"
-                >
-                  No, volver
-                </button>
-                <button
-                  onClick={() => deleteTurno(confirmDelete.id)}
-                  className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700"
-                >
-                  Sí, cancelar
-                </button>
+                <button onClick={() => setConfirmDelete(null)} className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-[#CBD5E1] bg-gray-100 dark:bg-[#1E2A45] rounded-lg hover:bg-gray-200 dark:hover:bg-[#2A3555]">No, volver</button>
+                <button onClick={() => deleteTurno(confirmDelete.id)} className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700">Sí, cancelar</button>
               </div>
             </div>
           </div>

@@ -21,6 +21,13 @@ function timeColombia(d: Date): string {
   });
 }
 
+function diaSemana(d: Date): string {
+  return new Date(d).toLocaleDateString("es-CO", {
+    timeZone: "America/Bogota",
+    weekday: "long",
+  });
+}
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -167,7 +174,7 @@ export async function GET(req: NextRequest) {
       "Total Recargos": Math.round(r["Total Recargos"] * 100) / 100,
     }));
 
-    // Hoja Turnos — detalle de cada turno
+    // Hoja Turnos — detalle con columna Día
     const dataTurnos = turnos.map((t) => {
       const totalHoras = t.horaSalida
         ? Math.round(((t.horaSalida.getTime() - t.horaEntrada.getTime()) / (1000 * 60 * 60)) * 100) / 100
@@ -176,6 +183,7 @@ export async function GET(req: NextRequest) {
         Nombre: t.user.nombre,
         Cedula: t.user.cedula,
         Fecha: dateKey(t.fecha),
+        Día: diaSemana(t.fecha),
         Entrada: timeColombia(t.horaEntrada),
         Salida: t.horaSalida ? timeColombia(t.horaSalida) : "",
         "Total Horas": totalHoras,

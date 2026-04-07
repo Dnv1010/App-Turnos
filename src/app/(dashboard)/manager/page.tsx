@@ -28,12 +28,11 @@ export default function ManagerPage() {
   const [data, setData] = useState<ReporteData | null>(null);
   const [zonaFilter, setZonaFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
-  /** Invalida datos cuando SSE notifica cambios (antes se re-disparaba el effect vía `loading` en deps). */
   const [refreshKey, setRefreshKey] = useState(0);
 
   const ahora = new Date();
-  const inicio = format(startOfMonth(ahora), "yyyy-MM-dd");
-  const fin = format(endOfMonth(ahora), "yyyy-MM-dd");
+  const [fechaInicio, setFechaInicio] = useState(format(startOfMonth(ahora), "yyyy-MM-dd"));
+  const [fechaFin, setFechaFin] = useState(format(endOfMonth(ahora), "yyyy-MM-dd"));
 
   useTurnosStream(
     () => {
@@ -51,7 +50,7 @@ export default function ManagerPage() {
     (async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/reportes?inicio=${inicio}&fin=${fin}&zona=${zonaFilter}`);
+        const res = await fetch(`/api/reportes?inicio=${fechaInicio}&fin=${fechaFin}&zona=${zonaFilter}`);
         const d = await parseResponseJson<ReporteData>(res);
         if (cancelled) return;
         if (res.ok && d && Array.isArray(d.detalle) && d.resumen) setData(d);
@@ -62,28 +61,34 @@ export default function ManagerPage() {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [inicio, fin, zonaFilter, refreshKey]);
+    return () => { cancelled = true; };
+  }, [fechaInicio, fechaFin, zonaFilter, refreshKey]);
 
   useEffect(() => {
     const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        setRefreshKey((k) => k + 1);
-      }
+      if (document.visibilityState === "visible") setRefreshKey((k) => k + 1);
     };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
-  if (loading) return <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>;
+  if (loading) return (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+    </div>
+  );
   if (!data) return null;
 
   const bogota = data.detalle.filter((d) => d.zona === "BOGOTA");
   const costa = data.detalle.filter((d) => d.zona === "COSTA");
   const interior = data.detalle.filter((d) => d.zona === "INTERIOR");
-  const datosGrafico = data.detalle.map((d) => ({ nombre: d.nombre.split(" ")[0], horasOrdinarias: d.horasOrdinarias, heDiurna: d.heDiurna, heNocturna: d.heNocturna, recargos: d.totalRecargos }));
+  const datosGrafico = data.detalle.map((d) => ({
+    nombre: d.nombre.split(" ")[0],
+    horasOrdinarias: d.horasOrdinarias,
+    heDiurna: d.heDiurna,
+    heNocturna: d.heNocturna,
+    recargos: d.totalRecargos,
+  }));
 
   const columns = [
     { key: "nombre", label: "Operador", sortable: true },
@@ -91,15 +96,7 @@ export default function ManagerPage() {
       key: "zona",
       label: "Zona",
       render: (d: DetalleUsuario) => (
-        <span
-          className={
-            d.zona === "BOGOTA"
-              ? "badge-blue"
-              : d.zona === "INTERIOR"
-                ? "badge-zona-interior"
-                : "badge-green"
-          }
-        >
+        <span className={d.zona === "BOGOTA" ? "badge-blue" : d.zona === "INTERIOR" ? "badge-zona-interior" : "badge-green"}>
           {getZonaLabel(d.zona)}
         </span>
       ),
@@ -108,15 +105,23 @@ export default function ManagerPage() {
     { key: "horasOrdinarias", label: "Ordinarias", sortable: true },
     { key: "totalHorasExtra", label: "HE Total", sortable: true },
     { key: "totalRecargos", label: "Recargos", sortable: true },
-    { key: "totalDisponibilidades", label: "Disponib.",
-      render: (d: DetalleUsuario) => d.totalDisponibilidades > 0 ? new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(d.totalDisponibilidades) : "—" },
+    {
+      key: "totalDisponibilidades", label: "Disponib.",
+      render: (d: DetalleUsuario) => d.totalDisponibilidades > 0
+        ? new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(d.totalDisponibilidades)
+        : "—"
+    },
   ];
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div><h2 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard Global</h2>
-          <p className="text-gray-500 dark:text-[#A0AEC0]">{format(ahora, "MMMM yyyy", { locale: es })}</p></div>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard Global</h2>
+          <p className="text-gray-500 dark:text-[#A0AEC0]">{format(ahora, "MMMM yyyy", { locale: es })}</p>
+        </div>
+        {/* Filtros zona */}
         <div className="flex gap-2 flex-wrap items-center">
           {(["ALL", "BOGOTA", "COSTA", "INTERIOR"] as const).map((z) => (
             <button key={z} onClick={() => { setZonaFilter(z); setLoading(true); }}
@@ -126,13 +131,47 @@ export default function ManagerPage() {
           ))}
         </div>
       </div>
+
+      {/* Filtro de fechas */}
+      <div className="bg-white dark:bg-[#1A2340] border border-gray-200 dark:border-[#3A4565] rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-end">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-gray-500 dark:text-[#A0AEC0]">Desde</label>
+          <input
+            type="date"
+            value={fechaInicio}
+            onChange={(e) => setFechaInicio(e.target.value)}
+            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-[#3A4565] bg-white dark:bg-[#243052] text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-gray-500 dark:text-[#A0AEC0]">Hasta</label>
+          <input
+            type="date"
+            value={fechaFin}
+            onChange={(e) => setFechaFin(e.target.value)}
+            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-[#3A4565] bg-white dark:bg-[#243052] text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
+        <button
+          onClick={() => { setFechaInicio(format(startOfMonth(ahora), "yyyy-MM-dd")); setFechaFin(format(endOfMonth(ahora), "yyyy-MM-dd")); }}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-white dark:bg-[#1A2340] text-gray-600 dark:text-[#A0AEC0] border border-gray-300 dark:border-[#3A4565] hover:bg-gray-50 dark:hover:bg-[#243052] transition-colors"
+        >
+          Mes actual
+        </button>
+      </div>
+
+      {/* Alertas */}
       {data.alertas.length > 0 && (
         <div className="bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
           <h4 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Alertas ({data.alertas.length})</h4>
-          <ul className="space-y-1">{data.alertas.map((a, i) => <li key={i} className="text-sm text-yellow-700 dark:text-yellow-300">⚠ {a.mensaje}</li>)}</ul>
+          <ul className="space-y-1">
+            {data.alertas.map((a, i) => <li key={i} className="text-sm text-yellow-700 dark:text-yellow-300">⚠ {a.mensaje}</li>)}
+          </ul>
         </div>
       )}
+
       <KPICards data={{ totalTecnicos: data.resumen.totalTecnicos, horasOrdinarias: data.resumen.totalHorasOrdinarias, totalHorasExtra: data.resumen.totalHorasExtra, totalRecargos: data.resumen.totalRecargos, totalDisponibilidades: data.resumen.totalDisponibilidades }} showTeamMetrics />
+
       {zonaFilter === "ALL" && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StatCard titulo="Zona Bogotá" valor={`${bogota.length} operadores`}
@@ -143,9 +182,13 @@ export default function ManagerPage() {
             subtitulo={`${Math.round(interior.reduce((s, d) => s + d.totalHorasExtra, 0) * 100) / 100}h extras`} icono={HiGlobeAlt} color="indigo" />
         </div>
       )}
+
       <GraficoHoras datos={datosGrafico} titulo="Consolidado de Horas" />
-      <div><h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Detalle por operador</h3>
-        <DataTable columns={columns as never} data={data.detalle as never} searchable searchPlaceholder="Buscar operador..." /></div>
+
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Detalle por operador</h3>
+        <DataTable columns={columns as never} data={data.detalle as never} searchable searchPlaceholder="Buscar operador..." />
+      </div>
     </div>
   );
 }

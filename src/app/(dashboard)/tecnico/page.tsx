@@ -32,10 +32,15 @@ interface TurnoRecord {
   lngEntrada: number | null;
 }
 
+function diaSemana(fechaStr: string): string {
+  const [y, m, d] = fechaStr.split("T")[0].split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("es-CO", { weekday: "long" });
+}
+
 export default function TecnicoDashboard() {
   const { data: session } = useSession();
   const router = useRouter();
-  const [modalTurno, setModalTurno] = useState(null);
+  const [modalTurno, setModalTurno] = useState<{ hora: string; nombre: string; tipo: string } | null>(null);
   const [turnos, setTurnos] = useState<TurnoRecord[]>([]);
   const [turnoActivo, setTurnoActivo] = useState<{
     id: string;
@@ -55,15 +60,9 @@ export default function TecnicoDashboard() {
   const [loadingForaneosLista, setLoadingForaneosLista] = useState(false);
 
   useTurnosStream(
-    (data) => {
-      setTurnos((prev) => prev.filter((t) => t.id !== data.id));
-    },
-    (data) => {
-      cargarDatos();
-    },
-    (data) => {
-      cargarDatos();
-    }
+    (data) => { setTurnos((prev) => prev.filter((t) => t.id !== data.id)); },
+    () => { cargarDatos(); },
+    () => { cargarDatos(); }
   );
 
   const cargarForaneosLista = useCallback(async () => {
@@ -96,30 +95,19 @@ export default function TecnicoDashboard() {
       const list = Array.isArray(data) ? data : [];
       setTurnos(list);
       const abierto = list.find((t) => !t.horaSalida);
-      setTurnoActivo(
-        abierto
-          ? { id: abierto.id, horaEntrada: abierto.horaEntrada, userId: session.user.userId }
-          : null
-      );
-      const foraneosData = await parseResponseJson<unknown[]>(foraneosRes);
+      setTurnoActivo(abierto ? { id: abierto.id, horaEntrada: abierto.horaEntrada, userId: session.user.userId } : null);
+      const foraneosData = await parseResponseJson<{ userId: string; totalKm?: number; totalPagar?: number }[]>(foraneosRes);
       const listaForaneos = Array.isArray(foraneosData) ? foraneosData : [];
-      const miForaneo = listaForaneos.find((f: { userId: string }) => f.userId === session.user.userId);
+      const miForaneo = listaForaneos.find((f) => f.userId === session.user.userId);
       setForaneosResumen(miForaneo ? { totalKm: miForaneo.totalKm ?? 0, totalPagar: miForaneo.totalPagar ?? 0 } : { totalKm: 0, totalPagar: 0 });
-
-      // Verificar si hoy está bloqueado por malla
       try {
         const mallaRes = await fetch("/api/malla/verificar-hoy");
         if (mallaRes.ok) {
           const mallaData = await parseResponseJson<{ bloqueado: boolean; estado?: string; fecha?: string }>(mallaRes);
-          if (mallaData?.bloqueado) {
-            setBloqueoMalla({ estado: mallaData.estado ?? "", fecha: mallaData.fecha ?? "" });
-          } else {
-            setBloqueoMalla(null);
-          }
+          if (mallaData?.bloqueado) setBloqueoMalla({ estado: mallaData.estado ?? "", fecha: mallaData.fecha ?? "" });
+          else setBloqueoMalla(null);
         }
-      } catch {
-        /* ignorar si falla */
-      }
+      } catch { /* ignorar */ }
     } catch {
       setTurnos([]);
       setForaneosResumen({ totalKm: 0, totalPagar: 0 });
@@ -143,15 +131,11 @@ export default function TecnicoDashboard() {
       const list = Array.isArray(data) ? data : [];
       setTurnos(list);
       const abierto = list.find((t) => !t.horaSalida);
-      setTurnoActivo(
-        abierto
-          ? { id: abierto.id, horaEntrada: abierto.horaEntrada, userId: session.user.userId }
-          : null
-      );
+      setTurnoActivo(abierto ? { id: abierto.id, horaEntrada: abierto.horaEntrada, userId: session.user.userId } : null);
       const foraneosRes = await fetch(`/api/reportes/foraneos?desde=${desde}&hasta=${hasta}&userId=${session.user.userId}`);
-      const foraneosData = await parseResponseJson<unknown[]>(foraneosRes);
+      const foraneosData = await parseResponseJson<{ userId: string; totalKm?: number; totalPagar?: number }[]>(foraneosRes);
       const listaForaneos = Array.isArray(foraneosData) ? foraneosData : [];
-      const miForaneo = listaForaneos.find((f: { userId: string }) => f.userId === session.user.userId);
+      const miForaneo = listaForaneos.find((f) => f.userId === session.user.userId);
       setForaneosResumen(miForaneo ? { totalKm: miForaneo.totalKm ?? 0, totalPagar: miForaneo.totalPagar ?? 0 } : { totalKm: 0, totalPagar: 0 });
     } catch {
       setTurnos([]);
@@ -174,9 +158,7 @@ export default function TecnicoDashboard() {
 
   useEffect(() => {
     const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        cargarDatos();
-      }
+      if (document.visibilityState === "visible") cargarDatos();
     };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
@@ -187,7 +169,18 @@ export default function TecnicoDashboard() {
   const totalOrdinarias = turnos.reduce((s, t) => s + Math.max(0, t.horasOrdinarias), 0);
 
   const columns = [
-    { key: "fecha", label: "Fecha", sortable: true, render: (t: TurnoRecord) => { const fechaStr = t.fecha.split("T")[0]; const [y, m, d] = fechaStr.split("-").map(Number); return format(new Date(y, m - 1, d), "EEE dd MMM", { locale: es }); } },
+    {
+      key: "fecha", label: "Fecha", sortable: true,
+      render: (t: TurnoRecord) => {
+        const fechaStr = t.fecha.split("T")[0];
+        const [y, m, d] = fechaStr.split("-").map(Number);
+        return format(new Date(y, m - 1, d), "dd MMM", { locale: es });
+      }
+    },
+    {
+      key: "dia", label: "Día",
+      render: (t: TurnoRecord) => diaSemana(t.fecha),
+    },
     { key: "horaEntrada", label: "Entrada", render: (t: TurnoRecord) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
     { key: "horaSalida", label: "Salida", render: (t: TurnoRecord) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
     { key: "horasOrdinarias", label: "Ord.", sortable: true, render: (t: TurnoRecord) => Math.max(0, t.horasOrdinarias) },
@@ -265,7 +258,14 @@ export default function TecnicoDashboard() {
           <BotonFichaje
             userId={session?.user?.userId || ""}
             turnoActivo={turnoActivo}
-            onFichaje={() => { const h=new Date().toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",hour12:true}); const n=session?.user?.nombre||session?.user?.name||"Operador"; const eraInicio=!turnoActivo; if(eraInicio){setModalTurno({hora:h,nombre:n,tipo:"inicio"});} else{setModalTurno({hora:h,nombre:n,tipo:"cierre"});} cargarDatos(); }}
+            onFichaje={() => {
+              const h = new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true });
+              const n = session?.user?.nombre || "Operador";
+              const eraInicio = !turnoActivo;
+              if (eraInicio) setModalTurno({ hora: h, nombre: n, tipo: "inicio" });
+              else setModalTurno({ hora: h, nombre: n, tipo: "cierre" });
+              cargarDatos();
+            }}
             onTurnoFinalizado={cargarDatos}
             mallaBloqueaInicio={!!bloqueoMalla}
           />
@@ -291,23 +291,14 @@ export default function TecnicoDashboard() {
         <div className="flex flex-wrap gap-3 items-end">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-[#CBD5E1] mb-1">Estado</label>
-            <select
-              value={estadoFiltroForaneo}
-              onChange={(e) => setEstadoFiltroForaneo(e.target.value)}
-              className="input-field"
-            >
+            <select value={estadoFiltroForaneo} onChange={(e) => setEstadoFiltroForaneo(e.target.value)} className="input-field">
               <option value="PENDIENTE">Pendientes por autorizar</option>
               <option value="APROBADA">Aprobados</option>
               <option value="NO_APROBADA">No aprobados</option>
               <option value="TODOS">Todos</option>
             </select>
           </div>
-          <button
-            type="button"
-            onClick={() => void cargarForaneosLista()}
-            disabled={loadingForaneosLista}
-            className="btn-secondary text-sm"
-          >
+          <button type="button" onClick={() => void cargarForaneosLista()} disabled={loadingForaneosLista} className="btn-secondary text-sm">
             {loadingForaneosLista ? "Cargando…" : "Actualizar lista"}
           </button>
         </div>
@@ -324,53 +315,22 @@ export default function TecnicoDashboard() {
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-[#1E2A45] bg-white dark:bg-[#1A2340]">
                 {loadingForaneosLista && foraneosRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-[#A0AEC0]">
-                      <div className="inline-block w-6 h-6 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
-                    </td>
-                  </tr>
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-[#A0AEC0]">
+                    <div className="inline-block w-6 h-6 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+                  </td></tr>
                 ) : foraneosRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-[#A0AEC0]">
-                      No hay registros con este filtro
-                    </td>
-                  </tr>
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-[#A0AEC0]">No hay registros con este filtro</td></tr>
                 ) : (
                   foraneosRows.map((f) => (
                     <tr key={f.id} className="hover:bg-gray-50 dark:hover:bg-[#243052]">
-                      <td className="px-4 py-3 text-sm text-gray-800 dark:text-white whitespace-nowrap">
-                        {f.fecha.split("T")[0]}
-                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-800 dark:text-white whitespace-nowrap">{f.fecha.split("T")[0]}</td>
                       <td className="px-4 py-3 text-sm">
-                        {f.estadoAprobacion === "APROBADA" && (
-                          <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200">
-                            Aprobada
-                          </span>
-                        )}
-                        {f.estadoAprobacion === "PENDIENTE" && (
-                          <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
-                            Pendiente por autorizar
-                          </span>
-                        )}
-                        {f.estadoAprobacion === "NO_APROBADA" && (
-                          <span
-                            className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200"
-                            title={f.notaAprobacion ?? undefined}
-                          >
-                            No aprobada
-                          </span>
-                        )}
+                        {f.estadoAprobacion === "APROBADA" && <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200">Aprobada</span>}
+                        {f.estadoAprobacion === "PENDIENTE" && <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">Pendiente por autorizar</span>}
+                        {f.estadoAprobacion === "NO_APROBADA" && <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200" title={f.notaAprobacion ?? undefined}>No aprobada</span>}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-700 dark:text-white whitespace-nowrap">
-                        {f.kmRecorridos != null ? `${Number(f.kmRecorridos).toFixed(1)} km` : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-[#CBD5E1] max-w-xs">
-                        {f.notaAprobacion ? (
-                          <span title={f.notaAprobacion}>{f.notaAprobacion}</span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700 dark:text-white whitespace-nowrap">{f.kmRecorridos != null ? `${Number(f.kmRecorridos).toFixed(1)} km` : "—"}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-[#CBD5E1] max-w-xs">{f.notaAprobacion ? <span title={f.notaAprobacion}>{f.notaAprobacion}</span> : "—"}</td>
                     </tr>
                   ))
                 )}
@@ -379,15 +339,15 @@ export default function TecnicoDashboard() {
           </div>
         </div>
       </div>
-    
+
       {modalTurno && (
-        <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",background:"rgba(0,0,0,0.75)"}}>
-          <div style={{background:"#001035",border:"1px solid rgba(8,221,188,0.3)",borderRadius:"16px",padding:"32px",maxWidth:"360px",width:"100%",textAlign:"center"}}>
-            <div style={{fontSize:"48px",marginBottom:"16px"}}>{modalTurno.tipo==="inicio" ? "⚡" : "✅"}</div>
-            <h2 style={{color:"white",fontWeight:"bold",fontSize:"20px",marginBottom:"8px"}}>{modalTurno.tipo==="inicio" ? "Bienvenido, " : "Buen trabajo, "}{modalTurno.nombre.split(" ")[0]}!</h2>
-            <p style={{color:"#08DDBC",fontSize:"16px",fontWeight:"600",marginBottom:"12px"}}>{modalTurno.tipo==="inicio" ? "Turno iniciado a las " : "Turno cerrado a las "}{modalTurno.hora}</p>
-            <p style={{color:"#8892A4",fontSize:"13px",marginBottom:"20px"}}>{modalTurno.tipo==="inicio" ? "El equipo cuenta contigo hoy!" : "Descansa bien!"}</p>
-            <button onClick={()=>setModalTurno(null)} style={{width:"100%",background:"#08DDBC",color:"#001035",fontWeight:"bold",padding:"12px",borderRadius:"12px",border:"none",cursor:"pointer",fontSize:"15px"}}>{modalTurno.tipo==="inicio" ? "Vamos! 🚀" : "Entendido ✅"}</button>
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", background: "rgba(0,0,0,0.75)" }}>
+          <div style={{ background: "#001035", border: "1px solid rgba(8,221,188,0.3)", borderRadius: "16px", padding: "32px", maxWidth: "360px", width: "100%", textAlign: "center" }}>
+            <div style={{ fontSize: "48px", marginBottom: "16px" }}>{modalTurno.tipo === "inicio" ? "⚡" : "✅"}</div>
+            <h2 style={{ color: "white", fontWeight: "bold", fontSize: "20px", marginBottom: "8px" }}>{modalTurno.tipo === "inicio" ? "Bienvenido, " : "Buen trabajo, "}{modalTurno.nombre.split(" ")[0]}!</h2>
+            <p style={{ color: "#08DDBC", fontSize: "16px", fontWeight: "600", marginBottom: "12px" }}>{modalTurno.tipo === "inicio" ? "Turno iniciado a las " : "Turno cerrado a las "}{modalTurno.hora}</p>
+            <p style={{ color: "#8892A4", fontSize: "13px", marginBottom: "20px" }}>{modalTurno.tipo === "inicio" ? "El equipo cuenta contigo hoy!" : "Descansa bien!"}</p>
+            <button onClick={() => setModalTurno(null)} style={{ width: "100%", background: "#08DDBC", color: "#001035", fontWeight: "bold", padding: "12px", borderRadius: "12px", border: "none", cursor: "pointer", fontSize: "15px" }}>{modalTurno.tipo === "inicio" ? "Vamos! 🚀" : "Entendido ✅"}</button>
           </div>
         </div>
       )}

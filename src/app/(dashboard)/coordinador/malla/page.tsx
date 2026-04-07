@@ -149,8 +149,6 @@ export default function CoordinadorMallaPage() {
     return d ? { backgroundColor: "#4b5563", color: "#d1d5db" } : { backgroundColor: "#f3f4f6", color: "#6b7280" };
   };
 
-  const fechaStrFromDay = (d: Date) => dateKey(d);
-
   const allDaysInMonth = days.map((d) => dateKey(d));
 
   const toggleDay = (dateKeyStr: string) => {
@@ -240,14 +238,8 @@ export default function CoordinadorMallaPage() {
   };
 
   const assignMallaToSelected = async (valor: string) => {
-    if (selectedTecnicos.size === 0) {
-      alert("Selecciona al menos un operador");
-      return;
-    }
-    if (selectedDays.size === 0) {
-      alert("Selecciona al menos un día");
-      return;
-    }
+    if (selectedTecnicos.size === 0) { alert("Selecciona al menos un operador"); return; }
+    if (selectedDays.size === 0) { alert("Selecciona al menos un día"); return; }
     setSaving(true);
     try {
       const res = await fetch("/api/malla/batch", {
@@ -368,8 +360,9 @@ export default function CoordinadorMallaPage() {
               const isSelected = selectedDays.has(keyStr);
               const isEdit = editDay && isSameDay(editDay, day);
               const esDomingo = day.getDay() === 0;
+              const esSabado = day.getDay() === 6;
               const esFestivo = festivosSet.has(keyStr);
-              const esRojo = esDomingo || esFestivo;
+              const esRojo = esDomingo || esSabado || esFestivo;
               return (
                 <div key={day.toISOString()} className="min-h-[80px] border border-gray-200 dark:border-[#3A4565] rounded-lg p-2 relative bg-white dark:bg-[#1A2340] text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-[#243052] transition-colors">
                   <div className="text-xs mb-1">
@@ -456,18 +449,10 @@ export default function CoordinadorMallaPage() {
 
       {selectedDays.size > 0 && (
         <div className="sticky bottom-4 flex flex-wrap justify-center gap-3 z-10">
-          <button
-            type="button"
-            onClick={() => setMallaModalOpen(true)}
-            className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl shadow-lg hover:bg-blue-700"
-          >
+          <button type="button" onClick={() => setMallaModalOpen(true)} className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl shadow-lg hover:bg-blue-700">
             Asignar malla a {selectedDays.size} día{selectedDays.size > 1 ? "s" : ""}
           </button>
-          <button
-            type="button"
-            onClick={() => setSelectedDays(new Set())}
-            className="px-4 py-3 bg-gray-200 text-gray-700 dark:bg-[#1E2A45] dark:text-white font-medium rounded-xl hover:bg-gray-300 dark:hover:bg-[#243052]"
-          >
+          <button type="button" onClick={() => setSelectedDays(new Set())} className="px-4 py-3 bg-gray-200 text-gray-700 dark:bg-[#1E2A45] dark:text-white font-medium rounded-xl hover:bg-gray-300 dark:hover:bg-[#243052]">
             Limpiar
           </button>
         </div>

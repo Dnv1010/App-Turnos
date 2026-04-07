@@ -13,6 +13,7 @@ import { HiDownload, HiSearch, HiPhotograph, HiLocationMarker, HiRefresh, HiTras
 import { getZonaLabel } from "@/lib/roleLabels";
 import CoordinadorPushSetup from "@/components/coordinador/CoordinadorPushSetup";
 import JornadaAlertaLider from "@/components/coordinador/JornadaAlertaLider";
+
 interface TurnoRow {
   id: string;
   userId: string;
@@ -64,17 +65,17 @@ interface DetalleUsuario {
   turnos?: (TurnoConMalla & { fecha: string; horaEntrada: string; horaSalida?: string | null; horasOrdinarias?: number; heDiurna?: number; heNocturna?: number; recNocturno?: number; recDominical?: number; recNoctDominical?: number })[];
 }
 
-function isBlockMalla(val: string): boolean {
-  if (!val) return false;
-  const v = val.toLowerCase();
-  return v.includes("descanso") || v.includes("vacacion") || v.includes("dia de la familia") || v.includes("semana santa") || v.includes("keynote");
-}
-
 function mallaResumen(turnos: TurnoConMalla[] | undefined): string {
   if (!turnos?.length) return "";
   const counts: Record<string, number> = {};
   turnos.forEach((t) => { const m = t.malla || "Sin malla"; counts[m] = (counts[m] || 0) + 1; });
   return Object.entries(counts).map(([k, n]) => `${k} (${n})`).join("; ");
+}
+
+function diaSemana(fechaStr: string): string {
+  const [y, m, d] = fechaStr.split("T")[0].split("-").map(Number);
+  const fecha = new Date(y, m - 1, d);
+  return fecha.toLocaleDateString("es-CO", { weekday: "long" });
 }
 
 interface ReporteData {
@@ -108,7 +109,6 @@ export default function CoordinadorPage() {
   const [syncingSheets, setSyncingSheets] = useState(false);
   const [filtroEquipo, setFiltroEquipo] = useState<"TODOS" | "TECNICO" | "ALMACENISTA">("TODOS");
   const [filtroEquipoListo, setFiltroEquipoListo] = useState(false);
-  /** Evita que la respuesta tardía del servidor pise Técnicos/Almacenistas tras hacer clic. */
   const usuarioEligioFiltroEquipoRef = useRef(false);
 
   useEffect(() => {
@@ -183,6 +183,7 @@ export default function CoordinadorPage() {
         .finally(() => setLoadingDisp(false));
     }
   }, [tabView, inicio, fin, tecnicoFilter, session?.user?.zona]);
+
   useEffect(() => {
     if (!session?.user?.zona) return;
     fetch(`/api/usuarios?zona=${session.user.zona}&role=TECNICO`)
@@ -207,12 +208,8 @@ export default function CoordinadorPage() {
         }
       })
       .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setFiltroEquipoListo(true);
-      });
-    return () => {
-      cancelled = true;
-    };
+      .finally(() => { if (!cancelled) setFiltroEquipoListo(true); });
+    return () => { cancelled = true; };
   }, [session?.user?.userId, session?.user?.zona]);
 
   useEffect(() => {
@@ -307,6 +304,7 @@ export default function CoordinadorPage() {
   const columnsTurnos = [
     { key: "user", label: "Operador", render: (t: TurnoRow) => t.user?.nombre ?? "—" },
     { key: "fecha", label: "Fecha", render: (t: TurnoRow) => formatFechaTurnoDdMmmYyyy(t.fecha) },
+    { key: "dia", label: "Día", render: (t: TurnoRow) => diaSemana(t.fecha) },
     { key: "horaEntrada", label: "Entrada", render: (t: TurnoRow) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
     { key: "horaSalida", label: "Salida", render: (t: TurnoRow) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
     { key: "horasOrdinarias", label: "Ord.", render: (t: TurnoRow) => Math.max(0, t.horasOrdinarias ?? 0) },
@@ -343,167 +341,160 @@ export default function CoordinadorPage() {
       <CoordinadorPushSetup />
       <JornadaAlertaLider />
       <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Dashboard Líder de Zona</h2>
-          <p className="text-sm text-gray-500 dark:text-bia-muted">
-            Zona {session?.user?.zona ? getZonaLabel(session.user.zona) : ""} — {session?.user?.nombre}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {data && (
-            <>
-              <button onClick={exportarCSV} className="btn-secondary flex items-center gap-2 py-2 px-3 sm:py-2.5 sm:px-5 text-sm"><HiDownload className="h-4 w-4 sm:h-5 sm:w-5" />Exportar CSV</button>
-              <button onClick={() => void exportarExcel()} className="btn-secondary flex items-center gap-2 py-2 px-3 sm:py-2.5 sm:px-5 text-sm"><HiDownload className="h-4 w-4 sm:h-5 sm:w-5" />Exportar Excel</button>
-              <button onClick={() => void sincronizarSheets()} disabled={syncingSheets} className="btn-secondary flex items-center gap-2 py-2 px-3 sm:py-2.5 sm:px-5 text-sm"><HiRefresh className="h-4 w-4 sm:h-5 sm:w-5" />{syncingSheets ? "Sincronizando…" : "Sincronizar Sheets"}</button>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="card p-4 sm:p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 sm:gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Desde</label>
-            <input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} className="input-field" />
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Dashboard Líder de Zona</h2>
+            <p className="text-sm text-gray-500 dark:text-bia-muted">
+              Zona {session?.user?.zona ? getZonaLabel(session.user.zona) : ""} — {session?.user?.nombre}
+            </p>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Hasta</label>
-            <input type="date" value={fin} onChange={(e) => setFin(e.target.value)} className="input-field" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Operador</label>
-            <select value={tecnicoFilter} onChange={(e) => setTecnicoFilter(e.target.value)} className="input-field">
-              <option value="ALL">Todos</option>
-              {tecnicosList.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Estado</label>
-            <select value={estadoFilter} onChange={(e) => setEstadoFilter(e.target.value as "ALL" | "ACTIVO" | "FINALIZADO")} className="input-field">
-              <option value="ALL">Todos</option>
-              <option value="ACTIVO">Activo</option>
-              <option value="FINALIZADO">Finalizado</option>
-            </select>
-          </div>
-          <div className="flex items-end">
-            <button onClick={cargarTurnos} disabled={loadingTurnos} className="btn-primary w-full flex items-center justify-center gap-2">
-              {loadingTurnos ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><HiSearch className="h-5 w-5" />Filtrar</>}
-            </button>
+          <div className="flex flex-wrap gap-2">
+            {data && (
+              <>
+                <button onClick={exportarCSV} className="btn-secondary flex items-center gap-2 py-2 px-3 sm:py-2.5 sm:px-5 text-sm"><HiDownload className="h-4 w-4 sm:h-5 sm:w-5" />Exportar CSV</button>
+                <button onClick={() => void exportarExcel()} className="btn-secondary flex items-center gap-2 py-2 px-3 sm:py-2.5 sm:px-5 text-sm"><HiDownload className="h-4 w-4 sm:h-5 sm:w-5" />Exportar Excel</button>
+                <button onClick={() => void sincronizarSheets()} disabled={syncingSheets} className="btn-secondary flex items-center gap-2 py-2 px-3 sm:py-2.5 sm:px-5 text-sm"><HiRefresh className="h-4 w-4 sm:h-5 sm:w-5" />{syncingSheets ? "Sincronizando…" : "Sincronizar Sheets"}</button>
+              </>
+            )}
           </div>
         </div>
-      </div>
 
-      <div className="flex gap-2 border-b border-gray-200 dark:border-[#3A4565] overflow-x-auto pb-0 scrollbar-hide min-w-0">
-        <button onClick={() => setTabView("turnos")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${tabView === "turnos" ? "border-primary-600 text-primary-700 dark:border-bia-teal dark:text-bia-teal" : "border-transparent text-gray-500 dark:text-bia-muted"}`}>
-          Turnos
-        </button>
-        <button onClick={() => setTabView("equipo")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 flex items-center gap-1.5 whitespace-nowrap ${tabView === "equipo" ? "border-primary-600 text-primary-700 dark:border-bia-teal dark:text-bia-teal" : "border-transparent text-gray-500 dark:text-bia-muted"}`}>
-          <HiPhotograph className="h-3.5 w-3.5 sm:h-4 sm:w-4" />Reporte Equipo
-        </button>
-        <button onClick={() => setTabView("disponibilidades")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${tabView === "disponibilidades" ? "border-primary-600 text-primary-700 dark:border-bia-teal dark:text-bia-teal" : "border-transparent text-gray-500 dark:text-bia-muted"}`}>
-          Disponibilidades
-        </button>
-      </div>
-
-      {tabView === "turnos" && (
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Turnos del equipo</h3>
-          <div className="flex gap-2 mb-3">
-            {(["TODOS", "TECNICO", "ALMACENISTA"] as const).map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => {
-                  usuarioEligioFiltroEquipoRef.current = true;
-                  setFiltroEquipo(f);
-                }}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                  filtroEquipo === f
-                    ? "bg-primary-600 text-white border-primary-600"
-                    : "border-gray-300 dark:border-[#3A4565] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#243052]"
-                }`}
-              >
-                {f === "TODOS" ? "Todos" : f === "TECNICO" ? "Técnicos" : "Almacenistas"}
-              </button>
-            ))}
-          </div>
-          {turnos.length === 0 ? (
-            <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay turnos en el período seleccionado</div>
-          ) : turnosFiltrados.length === 0 ? (
-            <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay turnos para el filtro de cargo seleccionado</div>
-          ) : (
-            <DataTable columns={columnsTurnos as never} data={turnosFiltrados as never} searchable searchPlaceholder="Buscar operador..." />
-          )}
-        </div>
-      )}
-
-      {tabView === "equipo" && (
-        <>
-          {loadingReportes && !data ? (
-            <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
-          ) : reporteError && !data ? (
-            <div className="card text-center py-12 text-amber-700 dark:text-amber-300">{reporteError}</div>
-          ) : !data?.detalle?.length ? (
-            <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay registros para este período</div>
-          ) : data ? (
-        <>
-          {data.alertas?.length > 0 && (
-            <div className="bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Alertas</h4>
-              <ul className="space-y-1">{data.alertas.map((a, i) => <li key={i} className="text-sm text-yellow-700 dark:text-yellow-300">⚠ {a.mensaje}</li>)}</ul>
+        <div className="card p-4 sm:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 sm:gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Desde</label>
+              <input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} className="input-field" />
             </div>
-          )}
-          <KPICards data={{ totalTecnicos: data.resumen.totalTecnicos, horasOrdinarias: data.resumen.totalHorasOrdinarias, totalHorasExtra: data.resumen.totalHorasExtra, totalRecargos: data.resumen.totalRecargos, totalDisponibilidades: data.resumen.totalDisponibilidades }} showTeamMetrics />
-          <GraficoHoras datos={data.detalle.map((d) => ({ nombre: d.nombre.split(" ")[0], horasOrdinarias: d.horasOrdinarias, heDiurna: d.heDiurna, heNocturna: d.heNocturna, recargos: d.totalRecargos }))} titulo="Horas por operador" />
-          <DataTable columns={[
-            { key: "nombre", label: "Nombre", sortable: true },
-            { key: "cedula", label: "Cedula" },
-            { key: "zona", label: "Zona", render: (d: DetalleUsuario) => getZonaLabel(d.zona) },
-            { key: "totalTurnos", label: "Turnos" },
-            { key: "horasOrdinarias", label: "Ordinarias" },
-            { key: "heDiurna", label: "HE Dia" },
-            { key: "heNocturna", label: "HE Noc" },
-            { key: "heDominical", label: "HE Dom/Fest Dia" },
-            { key: "heNoctDominical", label: "HE Dom/Fest Noc" },
-            { key: "recNocturno", label: "Rec Nocturno" },
-            { key: "recDominical", label: "Rec Dom/Fest Dia" },
-            { key: "recNoctDominical", label: "Rec Dom/Fest Noc" },
-            { key: "totalHorasExtra", label: "Total HE" },
-            { key: "totalRecargos", label: "Total Recargos" },
-            { key: "totalKmRecorridos", label: "Km", render: (d: DetalleUsuario) => d.totalKmRecorridos > 0 ? `${d.totalKmRecorridos} km` : "—" },
-          ] as never} data={data.detalle as never} searchable searchPlaceholder="Buscar operador..." />
-            </>
-          ) : null}
-        </>
-      )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Hasta</label>
+              <input type="date" value={fin} onChange={(e) => setFin(e.target.value)} className="input-field" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Operador</label>
+              <select value={tecnicoFilter} onChange={(e) => setTecnicoFilter(e.target.value)} className="input-field">
+                <option value="ALL">Todos</option>
+                {tecnicosList.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Estado</label>
+              <select value={estadoFilter} onChange={(e) => setEstadoFilter(e.target.value as "ALL" | "ACTIVO" | "FINALIZADO")} className="input-field">
+                <option value="ALL">Todos</option>
+                <option value="ACTIVO">Activo</option>
+                <option value="FINALIZADO">Finalizado</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button onClick={cargarTurnos} disabled={loadingTurnos} className="btn-primary w-full flex items-center justify-center gap-2">
+                {loadingTurnos ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><HiSearch className="h-5 w-5" />Filtrar</>}
+              </button>
+            </div>
+          </div>
+        </div>
 
-      {tabView === "disponibilidades" && (
-        <>
-          {loadingDisp ? (
-            <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
-          ) : disponibilidadesList.length === 0 ? (
-            <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay disponibilidades en este período (días con tipo DISPONIBLE en la malla)</div>
-          ) : (
-            <DataTable
-              columns={[
-                { key: "nombre", label: "Nombre", sortable: true },
-                { key: "cedula", label: "Cédula" },
-                { key: "fecha", label: "Fecha" },
-                { key: "valor", label: "Valor ($80.000/día)", render: (r: { valor: number }) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(r.valor) },
-              ] as never}
-              data={disponibilidadesList as never}
-              searchable
-              searchPlaceholder="Buscar nombre..."
-            />
-          )}
-        </>
-      )}
+        <div className="flex gap-2 border-b border-gray-200 dark:border-[#3A4565] overflow-x-auto pb-0 scrollbar-hide min-w-0">
+          <button onClick={() => setTabView("turnos")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${tabView === "turnos" ? "border-primary-600 text-primary-700 dark:border-bia-teal dark:text-bia-teal" : "border-transparent text-gray-500 dark:text-bia-muted"}`}>
+            Turnos
+          </button>
+          <button onClick={() => setTabView("equipo")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 flex items-center gap-1.5 whitespace-nowrap ${tabView === "equipo" ? "border-primary-600 text-primary-700 dark:border-bia-teal dark:text-bia-teal" : "border-transparent text-gray-500 dark:text-bia-muted"}`}>
+            <HiPhotograph className="h-3.5 w-3.5 sm:h-4 sm:w-4" />Reporte Equipo
+          </button>
+          <button onClick={() => setTabView("disponibilidades")} className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${tabView === "disponibilidades" ? "border-primary-600 text-primary-700 dark:border-bia-teal dark:text-bia-teal" : "border-transparent text-gray-500 dark:text-bia-muted"}`}>
+            Disponibilidades
+          </button>
+        </div>
 
-      {tabView === "equipo" && loadingReportes && !data && (
-        <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
-      )}
-    </div>
+        {tabView === "turnos" && (
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Turnos del equipo</h3>
+            <div className="flex gap-2 mb-3">
+              {(["TODOS", "TECNICO", "ALMACENISTA"] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => { usuarioEligioFiltroEquipoRef.current = true; setFiltroEquipo(f); }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${filtroEquipo === f ? "bg-primary-600 text-white border-primary-600" : "border-gray-300 dark:border-[#3A4565] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#243052]"}`}
+                >
+                  {f === "TODOS" ? "Todos" : f === "TECNICO" ? "Técnicos" : "Almacenistas"}
+                </button>
+              ))}
+            </div>
+            {turnos.length === 0 ? (
+              <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay turnos en el período seleccionado</div>
+            ) : turnosFiltrados.length === 0 ? (
+              <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay turnos para el filtro de cargo seleccionado</div>
+            ) : (
+              <DataTable columns={columnsTurnos as never} data={turnosFiltrados as never} searchable searchPlaceholder="Buscar operador..." />
+            )}
+          </div>
+        )}
+
+        {tabView === "equipo" && (
+          <>
+            {loadingReportes && !data ? (
+              <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
+            ) : reporteError && !data ? (
+              <div className="card text-center py-12 text-amber-700 dark:text-amber-300">{reporteError}</div>
+            ) : !data?.detalle?.length ? (
+              <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay registros para este período</div>
+            ) : data ? (
+              <>
+                {data.alertas?.length > 0 && (
+                  <div className="bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Alertas</h4>
+                    <ul className="space-y-1">{data.alertas.map((a, i) => <li key={i} className="text-sm text-yellow-700 dark:text-yellow-300">⚠ {a.mensaje}</li>)}</ul>
+                  </div>
+                )}
+                <KPICards data={{ totalTecnicos: data.resumen.totalTecnicos, horasOrdinarias: data.resumen.totalHorasOrdinarias, totalHorasExtra: data.resumen.totalHorasExtra, totalRecargos: data.resumen.totalRecargos, totalDisponibilidades: data.resumen.totalDisponibilidades }} showTeamMetrics />
+                <GraficoHoras datos={data.detalle.map((d) => ({ nombre: d.nombre.split(" ")[0], horasOrdinarias: d.horasOrdinarias, heDiurna: d.heDiurna, heNocturna: d.heNocturna, recargos: d.totalRecargos }))} titulo="Horas por operador" />
+                <DataTable columns={[
+                  { key: "nombre", label: "Nombre", sortable: true },
+                  { key: "cedula", label: "Cedula" },
+                  { key: "zona", label: "Zona", render: (d: DetalleUsuario) => getZonaLabel(d.zona) },
+                  { key: "totalTurnos", label: "Turnos" },
+                  { key: "horasOrdinarias", label: "Ordinarias" },
+                  { key: "heDiurna", label: "HE Dia" },
+                  { key: "heNocturna", label: "HE Noc" },
+                  { key: "heDominical", label: "HE Dom/Fest Dia" },
+                  { key: "heNoctDominical", label: "HE Dom/Fest Noc" },
+                  { key: "recNocturno", label: "Rec Nocturno" },
+                  { key: "recDominical", label: "Rec Dom/Fest Dia" },
+                  { key: "recNoctDominical", label: "Rec Dom/Fest Noc" },
+                  { key: "totalHorasExtra", label: "Total HE" },
+                  { key: "totalRecargos", label: "Total Recargos" },
+                  { key: "totalKmRecorridos", label: "Km", render: (d: DetalleUsuario) => d.totalKmRecorridos > 0 ? `${d.totalKmRecorridos} km` : "—" },
+                ] as never} data={data.detalle as never} searchable searchPlaceholder="Buscar operador..." />
+              </>
+            ) : null}
+          </>
+        )}
+
+        {tabView === "disponibilidades" && (
+          <>
+            {loadingDisp ? (
+              <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
+            ) : disponibilidadesList.length === 0 ? (
+              <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay disponibilidades en este período (días con tipo DISPONIBLE en la malla)</div>
+            ) : (
+              <DataTable
+                columns={[
+                  { key: "nombre", label: "Nombre", sortable: true },
+                  { key: "cedula", label: "Cédula" },
+                  { key: "fecha", label: "Fecha" },
+                  { key: "valor", label: "Valor ($80.000/día)", render: (r: { valor: number }) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(r.valor) },
+                ] as never}
+                data={disponibilidadesList as never}
+                searchable
+                searchPlaceholder="Buscar nombre..."
+              />
+            )}
+          </>
+        )}
+
+        {tabView === "equipo" && loadingReportes && !data && (
+          <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" /></div>
+        )}
+      </div>
     </>
   );
 }
