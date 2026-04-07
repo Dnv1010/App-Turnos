@@ -12,10 +12,12 @@ import {
 
 const ROLES_OK = new Set<string>(["MANAGER", "ADMIN"]);
 
+// FIX: guardar a 00:00 UTC (medianoche) igual que todos los @db.Date de la app
+// Antes era 12:00 UTC lo que causaba que date-fns en el browser mostrara el día anterior
 function parseYmdToUtcDate(ymd: string): Date | null {
   const [y, m, d] = ymd.split("-").map(Number);
   if (!y || !m || !d) return null;
-  return new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
 }
 
 export async function GET(req: NextRequest) {
@@ -37,14 +39,17 @@ export async function GET(req: NextRequest) {
   const ff = parseYmdToUtcDate(hasta);
   if (!fi || !ff) return NextResponse.json({ error: "Fechas inválidas" }, { status: 400 });
 
+  // Para el rango fin, cubrir todo el día
+  const ffEnd = new Date(ff.getTime() + 23 * 60 * 60 * 1000 + 59 * 60 * 1000 + 59 * 1000);
+
   const role = session.user.role;
 
   if (role === "COORDINADOR" || role === "COORDINADOR_INTERIOR") {
     const disponibilidades = await prisma.mallaTurno.findMany({
       where: {
         userId: session.user.userId,
-        fecha: { gte: fi, lte: ff },
-        valor: { contains: "disponible", mode: "insensitive" },
+        fecha: { gte: fi, lte: ffEnd },
+        tipo: "DISPONIBLE",
       },
       include: {
         user: { select: { nombre: true, cedula: true, zona: true, role: true } },
@@ -74,8 +79,8 @@ export async function GET(req: NextRequest) {
     }),
     prisma.mallaTurno.findMany({
       where: {
-        fecha: { gte: fi, lte: ff },
-        valor: { contains: "disponible", mode: "insensitive" },
+        fecha: { gte: fi, lte: ffEnd },
+        tipo: "DISPONIBLE",
         user: whereUser,
       },
       include: {
@@ -181,7 +186,7 @@ export async function DELETE(req: NextRequest) {
       where: {
         userId,
         fecha: fechaDate,
-        valor: { contains: "disponible", mode: "insensitive" },
+        tipo: "DISPONIBLE",
       },
     });
 

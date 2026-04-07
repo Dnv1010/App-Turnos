@@ -45,7 +45,7 @@ export function whereForaneosDisponiblesParaReporte(
   };
 }
 
-/** Días de malla con "disponible" en el valor, técnico, no incluidos ya en un reporte guardado */
+/** Días de malla con tipo=DISPONIBLE, técnico, no incluidos ya en un reporte guardado */
 export function whereDisponibilidadesMallaParaReporte(
   fechaInicio: Date,
   fechaFin: Date,
@@ -54,7 +54,9 @@ export function whereDisponibilidadesMallaParaReporte(
   return {
     userId: { in: userIds },
     fecha: { gte: fechaInicio, lte: fechaFin },
-    valor: { contains: "disponible", mode: "insensitive" },
+    // FIX: usar tipo:"DISPONIBLE" en lugar de valor contains "disponible"
+    // El campo tipo es el que determina si es disponibilidad, no el valor
+    tipo: "DISPONIBLE",
     reportes: { none: {} },
     user: {
       role: "TECNICO",
@@ -63,7 +65,7 @@ export function whereDisponibilidadesMallaParaReporte(
   };
 }
 
-/** Disponibilidades de coordinadores (misma malla, valor disponible). */
+/** Disponibilidades de coordinadores (misma malla, tipo DISPONIBLE). */
 export function whereDisponibilidadesCoordinadoresParaReporte(
   fechaInicio: Date,
   fechaFin: Date,
@@ -72,7 +74,8 @@ export function whereDisponibilidadesCoordinadoresParaReporte(
   return {
     userId: { in: coordUserIds },
     fecha: { gte: fechaInicio, lte: fechaFin },
-    valor: { contains: "disponible", mode: "insensitive" },
+    // FIX: usar tipo:"DISPONIBLE" en lugar de valor contains "disponible"
+    tipo: "DISPONIBLE",
     reportes: { none: {} },
     user: {
       role: { in: ["COORDINADOR", "COORDINADOR_INTERIOR"] },
@@ -83,6 +86,7 @@ export function whereDisponibilidadesCoordinadoresParaReporte(
 
 /**
  * Disponibilidades (malla) de técnicos y coordinadores para reportes / validación POST.
+ * FIX: filtrar por tipo:"DISPONIBLE" en lugar de valor contains "disponible"
  */
 export function whereDisponibilidadesMallaCombinadaParaReporte(
   fechaInicio: Date,
@@ -90,9 +94,10 @@ export function whereDisponibilidadesMallaCombinadaParaReporte(
   userIdsTecnicos: string[],
   coordUserIds: string[]
 ): Prisma.MallaTurnoWhereInput {
+  // FIX: la base ahora usa tipo:"DISPONIBLE" — correcto y consistente con el schema
   const base = {
     fecha: { gte: fechaInicio, lte: fechaFin },
-    valor: { contains: "disponible", mode: "insensitive" as const },
+    tipo: "DISPONIBLE" as const,
     reportes: { none: {} },
   };
 

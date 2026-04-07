@@ -3,8 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-
-const VALOR_POR_DIA = 80000;
+import { valorDisponibilidadMallaPorRol } from "@/lib/reporteDisponibilidadValor";
 
 export async function GET(req: NextRequest) {
   try {
@@ -24,8 +23,8 @@ export async function GET(req: NextRequest) {
 
     const [yi, mi, di] = desde.split("-").map(Number);
     const [yf, mf, df] = hasta.split("-").map(Number);
-    const fechaInicio = new Date(Date.UTC(yi, mi - 1, di, 0, 0, 0));
-    const fechaFin = new Date(Date.UTC(yf, mf - 1, df, 23, 59, 59));
+    const fechaInicio = new Date(Date.UTC(yi!, mi! - 1, di!, 0, 0, 0));
+    const fechaFin = new Date(Date.UTC(yf!, mf! - 1, df!, 23, 59, 59));
 
     const whereUser: Record<string, unknown> = { isActive: true };
     if (userId) whereUser.id = userId;
@@ -53,7 +52,8 @@ export async function GET(req: NextRequest) {
         fecha: { gte: fechaInicio, lte: fechaFin },
         userId: { in: userIds },
       },
-      include: { user: { select: { id: true, nombre: true, cedula: true } } },
+      // FIX: incluir role del user para calcular valor correcto por rol
+      include: { user: { select: { id: true, nombre: true, cedula: true, role: true } } },
       orderBy: [{ userId: "asc" }, { fecha: "asc" }],
     });
 
@@ -61,7 +61,8 @@ export async function GET(req: NextRequest) {
       nombre: m.user.nombre,
       cedula: m.user.cedula,
       fecha: m.fecha.toISOString().split("T")[0],
-      valor: VALOR_POR_DIA,
+      // FIX: calcular valor según rol — TECNICO: 80.000, COORDINADOR/COORDINADOR_INTERIOR: 110.000
+      valor: valorDisponibilidadMallaPorRol(m.user.role),
     }));
 
     return NextResponse.json(lista);

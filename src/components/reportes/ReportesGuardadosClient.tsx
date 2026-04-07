@@ -716,7 +716,7 @@ export default function ReportesGuardadosClient() {
                           <td className="p-2 font-mono text-xs">{d.user.cedula ?? "—"}</td>
                           <td className="p-2">{d.user.nombre}</td>
                           <td className="p-2 text-xs">{getRoleLabel(d.user.role)}</td>
-                          <td className="p-2">{format(parseISO(d.fecha), "dd/MM/yyyy")}</td>
+                          <td className="p-2">{format(parseISO(d.fecha.substring(0, 10)), "dd/MM/yyyy")}</td>
                           <td className="p-2 max-w-[200px] truncate" title={d.valor}>
                             {d.valor}
                           </td>

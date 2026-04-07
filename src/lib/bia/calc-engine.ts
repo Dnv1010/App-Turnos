@@ -43,7 +43,7 @@ export interface AlertaBIA {
 
 const DIURNA_START = 6 * 60;
 const DIURNA_END = 19 * 60;
-const UMBRAL_HE = 0.5;
+const UMBRAL_HE = 0;
 
 // ============ FUNCIONES DE TIMEZONE COLOMBIA ============
 
@@ -52,7 +52,21 @@ function getMinutesOfDayColombia(d: Date): number {
   return colombia.getUTCHours() * 60 + colombia.getUTCMinutes();
 }
 
+/**
+ * FIX: Día de la semana para fechas @db.Date (midnight UTC = día de calendario).
+ * Las fechas @db.Date llegan como midnight UTC — NO restar offset de Colombia
+ * porque 2026-04-06T00:00:00Z - 5h = 2026-04-05T19:00Z = domingo (INCORRECTO).
+ * Si tiene hora distinta de midnight (horaEntrada/horaSalida) sí aplicar offset.
+ */
 function getDayOfWeekColombia(d: Date): number {
+  if (
+    d.getUTCHours() === 0 &&
+    d.getUTCMinutes() === 0 &&
+    d.getUTCSeconds() === 0 &&
+    d.getUTCMilliseconds() === 0
+  ) {
+    return d.getUTCDay();
+  }
   const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
   return colombia.getUTCDay();
 }
@@ -121,12 +135,12 @@ function getJornadaMinutes(
     const raw = (mallaVal || "").replace(/\s/g, "");
     if (raw === "8-14") return 240;
     if (dow === 6) return 240;
-    return 540; // 9h jornada
+    return 540;
   }
 
-  if (dow === 6) return 240; // Sábado: 4h
+  if (dow === 6) return 240;
 
-  return 540; // Lun-Vie: 9h jornada
+  return 540;
 }
 
 /** Horas ordinarias PAGADAS (descontando almuerzo) */
@@ -162,12 +176,12 @@ export function getOrdinaryMinutes(
     const raw = (mallaVal || "").replace(/\s/g, "");
     if (raw === "8-14") return 240;
     if (dow === 6) return 240;
-    return 480; // 8h pagadas
+    return 480;
   }
 
-  if (dow === 6) return 240; // Sábado: 4h
+  if (dow === 6) return 240;
 
-  return 480; // Lun-Vie: 8h pagadas (9h jornada - 1h almuerzo)
+  return 480;
 }
 
 // ============ ALERTAS ============
@@ -331,7 +345,7 @@ function applyThreshold(val: number, threshold: number): number {
 // ============ RESUMEN SEMANAL ============
 
 export function calcularHorasOrdinariasEsperadas(diaSemana: number): number {
-  if (diaSemana >= 1 && diaSemana <= 5) return 8; // 8h pagadas
+  if (diaSemana >= 1 && diaSemana <= 5) return 8;
   if (diaSemana === 6) return 4;
   return 0;
 }
@@ -386,10 +400,9 @@ export function calcularTurno(
   const totalMin = Math.max(0, (turno.horaSalida.getTime() - turno.horaEntrada.getTime()) / 60000);
   const esDomFestivo = turno.esDomingo || turno.esFestivo;
 
-  // Jornada vs Ordinarias pagadas
   let jornadaMin: number;
   let ordinariasPagadasMin: number;
-  
+
   if (mallaVal !== undefined && holidaySet !== undefined) {
     jornadaMin = esDomFestivo ? 0 : getJornadaMinutes(turno.fecha, mallaVal, holidaySet);
     ordinariasPagadasMin = esDomFestivo ? 0 : getOrdinaryMinutes(turno.fecha, mallaVal, holidaySet);
@@ -403,16 +416,13 @@ export function calcularTurno(
 
   const r = calcMinutes(turno.horaEntrada, totalMin, jornadaMin, esDomFestivo, applyDomRecargo);
 
-  // Reportar ordinarias PAGADAS
   resultado.horasOrdinarias = minutosAHoras(Math.min(ordinariasPagadasMin, totalMin));
 
-  // HE con umbral 0.5h
   resultado.heDiurna = applyThreshold(minutosAHoras(r.heDiurna), UMBRAL_HE);
   resultado.heNocturna = applyThreshold(minutosAHoras(r.heNocturna), UMBRAL_HE);
   resultado.heDominical = applyThreshold(minutosAHoras(r.heFestDiurna), UMBRAL_HE);
   resultado.heNoctDominical = applyThreshold(minutosAHoras(r.heFestNocturna), UMBRAL_HE);
 
-  // Recargos
   resultado.recNocturno = minutosAHoras(r.recNocturno);
   resultado.recDominical = minutosAHoras(r.recFestDiurno);
   resultado.recNoctDominical = minutosAHoras(r.recFestNocturno);

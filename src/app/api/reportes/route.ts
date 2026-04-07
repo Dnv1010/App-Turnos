@@ -5,9 +5,23 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { calcularTurno, getInicioSemana, getFinSemana, checkMallaAlerts, dateKeyColombia } from "@/lib/bia/calc-engine";
 import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
+import { valorDisponibilidadMallaPorRol } from "@/lib/reporteDisponibilidadValor";
 
-/** Día de la semana en Colombia (0=Dom, 1=Lun, ..., 6=Sáb) */
+/**
+ * FIX: Día de la semana para fechas @db.Date (midnight UTC = día de calendario).
+ * Las fechas @db.Date llegan como midnight UTC — NO restar offset de Colombia
+ * porque 2026-04-06T00:00:00Z - 5h = 2026-04-05T19:00Z = domingo (incorrecto).
+ * Si tiene hora distinta de midnight (horaEntrada/horaSalida) sí aplicar offset.
+ */
 function getDayOfWeekColombia(d: Date): number {
+  if (
+    d.getUTCHours() === 0 &&
+    d.getUTCMinutes() === 0 &&
+    d.getUTCSeconds() === 0 &&
+    d.getUTCMilliseconds() === 0
+  ) {
+    return d.getUTCDay();
+  }
   const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
   return colombia.getUTCDay();
 }
@@ -30,7 +44,6 @@ export async function GET(req: NextRequest) {
   const whereUser: Record<string, unknown> = { isActive: true };
   if (userId) whereUser.id = userId;
   if (rol && rol !== "ALL") whereUser.role = rol;
-  // ADMIN igual que MANAGER: solo técnicos (evita cargar todo el staff y reventar tiempo/memoria en el dashboard global).
   if (
     session.user.role === "COORDINADOR" ||
     session.user.role === "MANAGER" ||
@@ -51,8 +64,8 @@ export async function GET(req: NextRequest) {
 
   const [yi, mi, di] = inicio.split("-").map(Number);
   const [yf, mf, df] = fin.split("-").map(Number);
-  const fechaInicio = new Date(Date.UTC(yi, mi - 1, di, 0, 0, 0));
-  const fechaFin = new Date(Date.UTC(yf, mf - 1, df, 23, 59, 59));
+  const fechaInicio = new Date(Date.UTC(yi!, mi! - 1, di!, 0, 0, 0));
+  const fechaFin = new Date(Date.UTC(yf!, mf! - 1, df!, 23, 59, 59));
 
   const usuarios = await prisma.user.findMany({
     where: whereUser,
@@ -69,8 +82,11 @@ export async function GET(req: NextRequest) {
         },
         orderBy: { fecha: "asc" },
       },
-      disponibilidades: {
-        where: { fecha: { gte: fechaInicio, lte: fechaFin } },
+      mallaTurnos: {
+        where: {
+          fecha: { gte: fechaInicio, lte: fechaFin },
+          tipo: "DISPONIBLE",
+        },
       },
       fotoRegistros: {
         where: {
@@ -91,20 +107,17 @@ export async function GET(req: NextRequest) {
   });
   const mallaMap = new Map<string, string>();
   for (const m of mallaDB) {
-    // CRÍTICO: Usar dateKeyColombia para la malla
     mallaMap.set(`${m.userId}|${dateKeyColombia(m.fecha)}`, m.valor);
   }
 
   const festivos = await prisma.festivo.findMany({
     where: { fecha: { gte: fechaInicio, lte: fechaFin } },
   });
-  // CRÍTICO: Usar dateKeyColombia para festivos
   const holidaySet = new Set(festivos.map((f) => dateKeyColombia(f.fecha)));
 
   const alertasMalla: Array<{ userId: string; nombre: string; mensaje: string; tipo?: string }> = [];
 
   const detalle = usuarios.map((user) => {
-    // CRÍTICO: Usar dateKeyColombia al buscar en mallaMap
     const mallaGetter = (fecha: Date) => mallaMap.get(`${user.id}|${dateKeyColombia(fecha)}`) ?? null;
 
     const turnosConMalla = user.turnos.map((t) => {
@@ -133,6 +146,7 @@ export async function GET(req: NextRequest) {
           horaEntrada: t.horaEntrada,
           horaSalida: t.horaSalida!,
           esFestivo: holidaySet.has(dateKeyColombia(t.fecha)),
+          // FIX: usar getDayOfWeekColombia corregida que respeta midnight UTC
           esDomingo: getDayOfWeekColombia(t.fecha) === 0,
         },
         resumenSemanal,
@@ -153,7 +167,9 @@ export async function GET(req: NextRequest) {
     const totalHE = turnosConMalla.reduce((sum, t) => sum + t.heDiurna + t.heNocturna + t.heDominical + t.heNoctDominical, 0);
     const totalRecargos = turnosConMalla.reduce((sum, t) => sum + t.recNocturno + t.recDominical + t.recNoctDominical, 0);
     const totalOrdinarias = turnosConMalla.reduce((sum, t) => sum + Math.max(0, t.horasOrdinarias ?? 0), 0);
-    const totalDisponibilidades = user.disponibilidades.reduce((sum, d) => sum + d.monto, 0);
+    const totalDisponibilidades = user.mallaTurnos.reduce(
+      (sum) => sum + valorDisponibilidadMallaPorRol(user.role), 0
+    );
 
     const fotosForaneo = user.fotoRegistros.filter((f) => f.tipo === "FORANEO");
     const totalKmRecorridos = fotosForaneo.reduce((sum, f) => {

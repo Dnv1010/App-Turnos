@@ -54,31 +54,46 @@ export type TurnoCoordinadorExportRow = {
   user: { nombre: string; cedula: string | null; role: string };
 };
 
+/**
+ * FIX Bug 1: Total horas trabajadas = ordinarias + HE solamente.
+ * Los recargos (nocturno, dominical) NO son horas adicionales —
+ * son un porcentaje sobre horas ya contadas en ordinarias.
+ * Sumarlos duplicaría esas horas en el total.
+ */
 function totalHorasTrabajadasTurno(t: TurnoRow): number {
   const sum =
     Math.max(0, t.horasOrdinarias ?? 0) +
     (t.heDiurna ?? 0) +
     (t.heNocturna ?? 0) +
     (t.heDominical ?? 0) +
-    (t.heNoctDominical ?? 0) +
-    (t.recNocturno ?? 0) +
-    (t.recDominical ?? 0) +
-    (t.recNoctDominical ?? 0);
+    (t.heNoctDominical ?? 0);
+  // recNocturno, recDominical, recNoctDominical NO se suman:
+  // son recargos sobre horas ordinarias ya contadas arriba
+  return Math.round(sum * 100) / 100;
+}
+
+function totalHorasTrabajadasCoord(t: TurnoCoordinadorExportRow): number {
+  // Coordinador: horasOrdinarias siempre 0, todo son HE
+  const sum =
+    (t.heDiurna ?? 0) +
+    (t.heNocturna ?? 0) +
+    (t.heDominical ?? 0) +
+    (t.heNoctDominical ?? 0);
   return Math.round(sum * 100) / 100;
 }
 
 function rowTurnoCoordExcel(t: TurnoCoordinadorExportRow) {
   return {
-    Cédula: t.user.cedula ?? "",
+    "Cédula": t.user.cedula ?? "",
     Nombre: t.user.nombre ?? "",
-    Rol: t.user.role,
+    Rol: getRoleLabel(t.user.role),
     "Código/Orden": t.codigoOrden,
     Mes: getMesEspanol(t.fecha),
     Día: getDiaEspanol(t.fecha),
     Fecha: formatFechaDDMMYYYY(t.fecha),
     "Hora inicio turno": formatHoraColombia(t.horaEntrada),
     "Hora fin turno": t.horaSalida ? formatHoraColombia(t.horaSalida) : "",
-    "Total horas trabajadas": totalHorasTrabajadasTurno(t),
+    "Total horas trabajadas": totalHorasTrabajadasCoord(t),
     "Horas extras diurnas": t.heDiurna ?? 0,
     "Horas extras nocturnas": t.heNocturna ?? 0,
     "HE dominicales o festivas diurnas": t.heDominical ?? 0,
@@ -100,13 +115,14 @@ export function buildReporteGuardadoExcelBuffer(
   filenameBase: string
 ): { buffer: Buffer; filename: string } {
   const dataTurnos = turnos.map((t) => ({
-    Cédula: t.user.cedula ?? "",
+    "Cédula": t.user.cedula ?? "",
     Nombre: t.user.nombre ?? "",
     Mes: getMesEspanol(t.fecha),
     Día: getDiaEspanol(t.fecha),
     Fecha: formatFechaDDMMYYYY(t.fecha),
     "Hora inicio turno": formatHoraColombia(t.horaEntrada),
     "Hora fin turno": t.horaSalida ? formatHoraColombia(t.horaSalida) : "",
+    // FIX: total = ordinarias + HE, sin recargos
     "Total horas trabajadas": totalHorasTrabajadasTurno(t),
     "Horas extras diurnas": t.heDiurna ?? 0,
     "Horas extras nocturnas": t.heNocturna ?? 0,
@@ -133,7 +149,9 @@ export function buildReporteGuardadoExcelBuffer(
   fotosForaneos.forEach((f) => {
     const key = f.userId;
     const km =
-      f.kmInicial != null && f.kmFinal != null && f.kmFinal > f.kmInicial ? f.kmFinal - f.kmInicial : 0;
+      f.kmInicial != null && f.kmFinal != null && f.kmFinal > f.kmInicial
+        ? f.kmFinal - f.kmInicial
+        : 0;
     if (!foraneosPorTecnico[key]) {
       foraneosPorTecnico[key] = {
         Nombre: f.user.nombre,
@@ -191,7 +209,7 @@ export function buildReporteGuardadoExcelBuffer(
   const dataDisponibilidades = disponibilidades.map((d) => {
     const valor = valorDisponibilidadMallaPorRol(d.user.role);
     return {
-      Cédula: d.user.cedula ?? "",
+      "Cédula": d.user.cedula ?? "",
       Nombre: d.user.nombre ?? "",
       Rol: getRoleLabel(d.user.role),
       Fecha: formatFechaDDMMYYYY(d.fecha),
@@ -207,7 +225,7 @@ export function buildReporteGuardadoExcelBuffer(
       0
     );
     dataDisponibilidades.push({
-      Cédula: "",
+      "Cédula": "",
       Nombre: "TOTAL",
       Rol: "",
       Fecha: "",
