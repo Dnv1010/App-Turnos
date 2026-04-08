@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-provider";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { parseResponseJson } from "@/lib/parseFetchJson";
@@ -29,8 +29,8 @@ function toDatetimeLocalValue(iso: string): string {
 }
 
 export default function TurnosCoordinadoresVista() {
-  const { data: session } = useSession();
-  const canEdit = session?.user?.role === "MANAGER" || session?.user?.role === "ADMIN";
+  const { profile } = useAuth();
+  const canEdit = profile?.role === "MANAGER" || profile?.role === "ADMIN";
 
   const [desde, setDesde] = useState(() =>
     format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), "yyyy-MM-dd")

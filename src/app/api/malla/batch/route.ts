@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
   try {
     const body = await req.json();
@@ -15,7 +19,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "userIds y fechas (arrays no vacíos) requeridos" }, { status: 400 });
     }
 
-    if (session.user.role === "TECNICO") {
+    if (profile.role === "TECNICO") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
     if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {

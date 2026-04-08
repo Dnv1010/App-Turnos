@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-provider";
 import { useState, useEffect, useCallback, useMemo, useRef, type CSSProperties } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay } from "date-fns";
 import { HiChevronDown } from "react-icons/hi";
@@ -31,7 +31,7 @@ interface Tecnico {
 }
 
 export default function SupplyMallaPage() {
-  const { data: session } = useSession();
+  const { profile } = useAuth();
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
@@ -57,12 +57,12 @@ export default function SupplyMallaPage() {
   const primaryTecnico = selectedTecnicos.size > 0 ? Array.from(selectedTecnicos)[0] : null;
 
   const cargarTecnicos = useCallback(async () => {
-    if (!session?.user) return;
+    if (!profile) return;
     const res = await fetch(`/api/usuarios?zona=ALL&role=TECNICO`);
     const data = await parseResponseJson<{ tecnicos?: Tecnico[] }>(res);
     const raw = data?.tecnicos || [];
     setTecnicos(raw.filter((t) => (t.cargo || "TECNICO") === "ALMACENISTA"));
-  }, [session?.user]);
+  }, [profile]);
 
   const tecnicosFiltrados = useMemo(() => {
     if (filtroZona === "ALL") return tecnicos;

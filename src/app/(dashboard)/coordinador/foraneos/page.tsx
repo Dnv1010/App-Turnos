@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-provider";
 import { useState, useEffect } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { parseResponseJson } from "@/lib/parseFetchJson";
@@ -13,17 +13,17 @@ interface TecnicoOption {
 }
 
 export default function CoordinadorForaneosPage() {
-  const { data: session } = useSession();
+  const { profile } = useAuth();
   const [tecnicos, setTecnicos] = useState<TecnicoOption[]>([]);
   const [inicio, setInicio] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [fin, setFin] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
   const [tecnicoFilter, setTecnicoFilter] = useState("ALL");
 
   useEffect(() => {
-    if (!session?.user) return;
+    if (!profile) return;
     const url =
-      session.user.role === "COORDINADOR"
-        ? `/api/usuarios?zona=${session.user.zona}&role=TECNICO`
+      profile.role === "COORDINADOR"
+        ? `/api/usuarios?zona=${profile.zona}&role=TECNICO`
         : `/api/usuarios?role=TECNICO`;
     fetch(url)
       .then(async (r) => parseResponseJson<{ tecnicos?: TecnicoOption[] }>(r))
@@ -31,9 +31,9 @@ export default function CoordinadorForaneosPage() {
         if (d?.tecnicos) setTecnicos(d.tecnicos);
       })
       .catch(() => {});
-  }, [session?.user?.role, session?.user?.zona]);
+  }, [profile?.role, profile?.zona]);
 
-  if (session?.user?.role === "COORDINADOR" && !session?.user?.zona) {
+  if (profile?.role === "COORDINADOR" && !profile?.zona) {
     return <div className="p-6 text-gray-500">Sin zona asignada.</div>;
   }
 
@@ -41,8 +41,8 @@ export default function CoordinadorForaneosPage() {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Foráneos</h2>
       <p className="text-gray-500">
-        {session?.user?.role === "COORDINADOR"
-          ? `Zona ${getZonaLabel(session.user.zona)} — Registros de foráneos de los operadores de tu zona.`
+        {profile?.role === "COORDINADOR"
+          ? `Zona ${getZonaLabel(profile?.zona ?? "")} — Registros de foráneos de los operadores de tu zona.`
           : "Registros foráneos."}
       </p>
 

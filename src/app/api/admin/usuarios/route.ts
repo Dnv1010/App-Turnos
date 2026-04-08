@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import { Role, Zona, Cargo } from "@prisma/client";
+import type { User } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
-async function verificarAdmin() {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "ADMIN") return null;
-  return session;
+async function verificarAdmin(): Promise<User | null> {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const profile = await getUserProfile(user.email!);
+  if (!profile || profile.role !== "ADMIN") return null;
+  return profile;
 }
 
 export async function GET() {

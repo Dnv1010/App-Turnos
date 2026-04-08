@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { Cargo } from "@prisma/client";
 import { turnoEventEmitter } from "@/lib/turno-event-emitter";
@@ -22,14 +22,20 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+
+    const profile = await getUserProfile(user.email!);
+    if (!profile) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    }
     if (
-      session.user.role !== "COORDINADOR" &&
-      session.user.role !== "ADMIN" &&
-      session.user.role !== "SUPPLY"
+      profile.role !== "COORDINADOR" &&
+      profile.role !== "ADMIN" &&
+      profile.role !== "SUPPLY"
     ) {
       return NextResponse.json({ error: "Solo coordinadores y admins pueden editar turnos" }, { status: 403 });
     }
@@ -55,11 +61,11 @@ export async function PATCH(
       return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
     }
 
-    if (session.user.role === "SUPPLY") {
+    if (profile.role === "SUPPLY") {
       const u = turnoExistente.user;
       if (
         u.role !== "TECNICO" ||
-        u.zona !== session.user.zona ||
+        u.zona !== profile.zona ||
         u.cargo !== Cargo.ALMACENISTA
       ) {
         return NextResponse.json({ error: "No autorizado" }, { status: 403 });
@@ -147,7 +153,7 @@ export async function PATCH(
       horasData = resultadoToTurnoData(resultado);
     }
 
-    const editorLabel = session.user.nombre ?? session.user.role;
+    const editorLabel = profile.nombre ?? profile.role;
     const fechaEdicion = new Date().toISOString().split("T")[0];
     const notaFinal = observaciones
       ? `${observaciones} [Editado ${fechaEdicion} por ${editorLabel}]`
@@ -213,15 +219,21 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const profile = await getUserProfile(user.email!);
+    if (!profile) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    }
+
     if (
-      session.user.role !== "COORDINADOR" &&
-      session.user.role !== "ADMIN" &&
-      session.user.role !== "SUPPLY"
+      profile.role !== "COORDINADOR" &&
+      profile.role !== "ADMIN" &&
+      profile.role !== "SUPPLY"
     ) {
       return NextResponse.json(
         { error: "Solo coordinadores y admins pueden eliminar turnos" },
@@ -240,11 +252,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
     }
 
-    if (session.user.role === "SUPPLY") {
+    if (profile.role === "SUPPLY") {
       const u = turnoAnterior.user;
       if (
         u.role !== "TECNICO" ||
-        u.zona !== session.user.zona ||
+        u.zona !== profile.zona ||
         u.cargo !== Cargo.ALMACENISTA
       ) {
         return NextResponse.json({ error: "No autorizado" }, { status: 403 });

@@ -1,8 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { Role, Zona } from "@prisma/client";
 import {
@@ -21,10 +21,11 @@ function parseYmdToUtcDate(ymd: string): Date | null {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
   const { searchParams } = new URL(req.url);
   const desde = searchParams.get("desde");
@@ -42,12 +43,12 @@ export async function GET(req: NextRequest) {
   // Para el rango fin, cubrir todo el día
   const ffEnd = new Date(ff.getTime() + 23 * 60 * 60 * 1000 + 59 * 60 * 1000 + 59 * 1000);
 
-  const role = session.user.role;
+  const role = profile.role;
 
   if (role === "COORDINADOR" || role === "COORDINADOR_INTERIOR") {
     const disponibilidades = await prisma.mallaTurno.findMany({
       where: {
-        userId: session.user.userId,
+        userId: profile.id,
         fecha: { gte: fi, lte: ffEnd },
         tipo: "DISPONIBLE",
       },
@@ -94,11 +95,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-  if (!ROLES_OK.has(session.user.role)) {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+  if (!ROLES_OK.has(profile.role)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
@@ -153,9 +155,12 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  if (!ROLES_OK.has(session.user.role)) {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+  if (!ROLES_OK.has(profile.role)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 

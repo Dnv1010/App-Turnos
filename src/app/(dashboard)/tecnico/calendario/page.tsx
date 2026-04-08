@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-provider";
 import { useState, useEffect, useMemo } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isToday } from "date-fns";
 import { es } from "date-fns/locale";
@@ -36,7 +36,7 @@ const valorColors: Record<string, string> = {
 };
 
 export default function CalendarioPage() {
-  const { data: session } = useSession();
+  const { profile } = useAuth();
   const [mesActual, setMesActual] = useState(new Date());
   const [turnos, setTurnos] = useState<TurnoEntry[]>([]);
   const [malla, setMalla] = useState<MallaItem[]>([]);
@@ -45,16 +45,16 @@ export default function CalendarioPage() {
   const mesKey = format(mesActual, "yyyy-MM");
 
   useEffect(() => {
-    if (!session?.user?.userId) return;
+    if (!profile?.id) return;
     const inicio = format(startOfMonth(mesActual), "yyyy-MM-dd");
     const fin = format(endOfMonth(mesActual), "yyyy-MM-dd");
     setLoading(true);
     Promise.all([
-      fetch(`/api/turnos?userId=${session.user.userId}&inicio=${inicio}&fin=${fin}`).then(async (r) => {
+      fetch(`/api/turnos?userId=${profile?.id}&inicio=${inicio}&fin=${fin}`).then(async (r) => {
         const j = await parseResponseJson<TurnoEntry[]>(r);
         return Array.isArray(j) ? j : [];
       }),
-      fetch(`/api/malla?userId=${session.user.userId}&mes=${mesKey}`).then(async (r) => {
+      fetch(`/api/malla?userId=${profile?.id}&mes=${mesKey}`).then(async (r) => {
         if (!r.ok) return [];
         const j = await parseResponseJson<MallaItem[]>(r);
         return Array.isArray(j) ? j : [];
@@ -66,7 +66,7 @@ export default function CalendarioPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [session?.user?.userId, mesActual, mesKey]);
+  }, [profile?.id, mesActual, mesKey]);
 
   const dias = eachDayOfInterval({ start: startOfMonth(mesActual), end: endOfMonth(mesActual) });
   const primerDia = getDay(startOfMonth(mesActual));

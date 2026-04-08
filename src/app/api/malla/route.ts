@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import { appendRow, deleteRowByValues } from "@/lib/google-sheets";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const profile = await getUserProfile(user.email!);
+    if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
@@ -21,15 +25,15 @@ export async function GET(req: NextRequest) {
     const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
     const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59));
 
-    if (session.user.role === "TECNICO" && userId !== session.user.userId) {
+    if (profile.role === "TECNICO" && userId !== profile.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
-    if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
+    if (profile.role === "COORDINADOR" || profile.role === "SUPPLY") {
       const target = await prisma.user.findUnique({
         where: { id: userId },
         select: { zona: true, role: true, cargo: true },
       });
-      if (session.user.role === "SUPPLY") {
+      if (profile.role === "SUPPLY") {
         // Supply puede ver/editar almacenistas de cualquier zona
         const ok = target && target.role === "TECNICO" && target.cargo === "ALMACENISTA";
         if (!ok) {
@@ -37,7 +41,7 @@ export async function GET(req: NextRequest) {
         }
       } else {
         // COORDINADOR solo ve su zona
-        const ok = target && target.role === "TECNICO" && target.zona === session.user.zona;
+        const ok = target && target.role === "TECNICO" && target.zona === profile.zona;
         if (!ok) {
           return NextResponse.json({ error: "Solo puedes ver la malla de operadores de tu zona" }, { status: 403 });
         }
@@ -70,8 +74,12 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const profile = await getUserProfile(user.email!);
+    if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
     let body: Record<string, unknown> = {};
     try {
@@ -100,15 +108,15 @@ export async function POST(req: NextRequest) {
     else if (tipoValido === "MEDIO_CUMPLE") valorFinal = typeof valor === "string" && valor ? valor : "Medio día cumpleaños";
     if (valorFinal === undefined) valorFinal = (valor ?? "") as string;
 
-    if (session.user.role === "TECNICO" && userId !== session.user.userId) {
+    if (profile.role === "TECNICO" && userId !== profile.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
-    if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
+    if (profile.role === "COORDINADOR" || profile.role === "SUPPLY") {
       const target = await prisma.user.findUnique({
         where: { id: userId },
         select: { zona: true, role: true, cargo: true },
       });
-      if (session.user.role === "SUPPLY") {
+      if (profile.role === "SUPPLY") {
         // Supply puede ver/editar almacenistas de cualquier zona
         const ok = target && target.role === "TECNICO" && target.cargo === "ALMACENISTA";
         if (!ok) {
@@ -116,7 +124,7 @@ export async function POST(req: NextRequest) {
         }
       } else {
         // COORDINADOR solo ve su zona
-        const ok = target && target.role === "TECNICO" && target.zona === session.user.zona;
+        const ok = target && target.role === "TECNICO" && target.zona === profile.zona;
         if (!ok) {
           return NextResponse.json({ error: "Solo puedes editar la malla de operadores de tu zona" }, { status: 403 });
         }

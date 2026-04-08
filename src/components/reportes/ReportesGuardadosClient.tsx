@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-provider";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
@@ -134,8 +134,8 @@ function nombreSugerido(desde: string, hasta: string): string {
 }
 
 export default function ReportesGuardadosClient() {
-  const { data: session, status } = useSession();
-  const role = session?.user?.role ?? "";
+  const { profile, loading } = useAuth();
+  const role = profile?.role ?? "";
   const isCoord = role === "COORDINADOR";
 
   const [desde, setDesde] = useState(() => format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), "yyyy-MM-dd"));
@@ -176,8 +176,8 @@ export default function ReportesGuardadosClient() {
   }, [isCoord, zonaFiltro]);
 
   useEffect(() => {
-    if (status === "authenticated") loadReportes();
-  }, [status, loadReportes]);
+    if (!loading && profile) loadReportes();
+  }, [loading, profile, loadReportes]);
 
   const totalesPreview = useMemo(() => {
     if (!preview) {
@@ -353,11 +353,11 @@ export default function ReportesGuardadosClient() {
     setSelTurnosCoord(checked ? new Set(list.map((t) => t.id)) : new Set());
   }
 
-  if (status === "loading") {
+  if (loading) {
     return <div className="p-6 text-gray-600 dark:text-[#A0AEC0]">Cargando…</div>;
   }
 
-  if (status !== "authenticated") {
+  if (!profile) {
     return <div className="p-6 text-red-600">Debes iniciar sesión.</div>;
   }
 

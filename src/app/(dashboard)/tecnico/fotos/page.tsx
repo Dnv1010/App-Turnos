@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-provider";
 import { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -59,7 +59,7 @@ interface FotoRecord {
 }
 
 export default function FotosPage() {
-  const { data: session } = useSession();
+  const { profile } = useAuth();
   const [tab, setTab] = useState<Tab>("registrar");
   const [tipo, setTipo] = useState<TipoFoto>("FORANEO");
   const [kmInicial, setKmInicial] = useState("");
@@ -89,7 +89,7 @@ export default function FotosPage() {
   const [loadingFinalizar, setLoadingFinalizar] = useState(false);
 
   const cargarForaneoActivo = useCallback(async () => {
-    if (!session?.user?.userId) return;
+    if (!profile?.id) return;
     setLoadingForaneoActivo(true);
     try {
       const res = await fetch(`/api/fotos?activoForaneo=1`);
@@ -99,20 +99,20 @@ export default function FotosPage() {
       }
     } catch { setForaneoActivo(null); }
     finally { setLoadingForaneoActivo(false); }
-  }, [session?.user?.userId]);
+  }, [profile?.id]);
 
   const cargarHistorial = useCallback(async () => {
-    if (!session?.user?.userId) return;
+    if (!profile?.id) return;
     setLoadingHistorial(true);
     try {
-      const res = await fetch(`/api/fotos?userId=${session.user.userId}&inicio=${filtroInicio}&fin=${filtroFin}`);
+      const res = await fetch(`/api/fotos?userId=${profile?.id}&inicio=${filtroInicio}&fin=${filtroFin}`);
       if (res.ok) {
         const h = await parseResponseJson<FotoRecord[]>(res);
         setHistorial(Array.isArray(h) ? h : []);
       }
     } catch { /* silently fail */ }
     finally { setLoadingHistorial(false); }
-  }, [session?.user?.userId, filtroInicio, filtroFin]);
+  }, [profile?.id, filtroInicio, filtroFin]);
 
   useEffect(() => {
     if (tab === "historial") cargarHistorial();
@@ -135,7 +135,7 @@ export default function FotosPage() {
   };
 
   const handleSubmitIniciarForaneo = async () => {
-    if (!fotoBase64 || !session?.user?.userId || !kmInicial.trim()) {
+    if (!fotoBase64 || !profile?.id || !kmInicial.trim()) {
       alert("Captura la foto e ingresa el km inicial.");
       return;
     }
@@ -152,7 +152,7 @@ export default function FotosPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: session.user.userId,
+          userId: profile?.id,
           base64Data: fotoBase64,
           tipo: "FORANEO",
           kmInicial: parseFloat(kmInicial),
@@ -180,7 +180,7 @@ export default function FotosPage() {
   };
 
   const handleSubmitFinalizarForaneo = async () => {
-    if (!foraneoActivo?.id || !session?.user?.userId) return;
+    if (!foraneoActivo?.id || !profile?.id) return;
     if (!pasoFinalFotoBase64) {
       alert("Captura la foto final.");
       return;
@@ -226,14 +226,14 @@ export default function FotosPage() {
   };
 
   const handleSubmitGeneral = async () => {
-    if (!fotoBase64 || !session?.user?.userId) return;
+    if (!fotoBase64 || !profile?.id) return;
     setLoading(true);
     try {
       const res = await fetch("/api/fotos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: session.user.userId,
+          userId: profile?.id,
           base64Data: fotoBase64,
           tipo: "GENERAL",
           observaciones: observaciones || undefined,

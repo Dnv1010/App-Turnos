@@ -1,16 +1,20 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    const uid = session.user.userId;
+    const profile = await getUserProfile(user.email!);
+    if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+
+    const uid = profile.id;
 
     // Fecha Colombia (UTC-5)
     const ahora = new Date();

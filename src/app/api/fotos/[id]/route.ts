@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import { getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
 import { getDay } from "date-fns";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
 import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
 import { updateRowByMatch } from "@/lib/google-sheets";
-import { uploadToDrive } from "@/lib/drive-upload";
+import { uploadToStorage } from "@/lib/supabase-storage";
 
 function dateKey(d: Date): string {
   return d.toISOString().split("T")[0];
@@ -21,21 +21,25 @@ function timeColombia(d: Date): string {
   });
 }
 
-async function checkCoordinadorZona(turnoUserId: string, session: { user: { zona?: string; role: string } }) {
-  if (session.user.role !== "COORDINADOR") return true;
+async function checkCoordinadorZona(turnoUserId: string, userProfile: { zona?: string | null; role: string }) {
+  if (userProfile.role !== "COORDINADOR") return true;
   const user = await prisma.user.findUnique({
     where: { id: turnoUserId },
     select: { zona: true, role: true },
   });
-  return user?.role === "TECNICO" && user?.zona === session.user.zona;
+  return user?.role === "TECNICO" && user?.zona === userProfile.zona;
 }
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
   const { id } = await params;
   const turno = await prisma.turno.findUnique({
@@ -44,9 +48,9 @@ export async function GET(
   });
   if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
 
-  const canAccess = session.user.role === "ADMIN" || session.user.role === "MANAGER" ||
-    (session.user.role === "COORDINADOR" && await checkCoordinadorZona(turno.userId, session)) ||
-    (session.user.role === "TECNICO" && turno.userId === session.user.userId);
+  const canAccess = profile.role === "ADMIN" || profile.role === "MANAGER" ||
+    (profile.role === "COORDINADOR" && await checkCoordinadorZona(turno.userId, profile)) ||
+    (profile.role === "TECNICO" && turno.userId === profile.id);
   if (!canAccess) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   return NextResponse.json({ ok: true, turno });
@@ -57,8 +61,12 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const profile = await getUserProfile(user.email!);
+    if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
     const { id } = await params;
 
@@ -72,7 +80,7 @@ export async function PATCH(
     // ——— FotoRegistro (foráneo: finalizar con foto + km, o editar km/obs) ———
     const fotoRec = await prisma.fotoRegistro.findUnique({ where: { id } });
     if (fotoRec) {
-      if (session.user.role !== "TECNICO" || fotoRec.userId !== session.user.userId) {
+      if (profile.role !== "TECNICO" || fotoRec.userId !== profile.id) {
         return NextResponse.json({ error: "No autorizado" }, { status: 403 });
       }
 
@@ -99,25 +107,25 @@ export async function PATCH(
           );
         }
 
-        let driveFileIdFinal: string | null = null;
-        let driveUrlFinal: string | null = null;
+        let fileIdFinal: string | null = null;
+        let fileUrlFinal: string | null = null;
         try {
           const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
           const fileName = `foraneo_fin_${fotoRec.userId}_${timestamp}.jpg`;
-          const result = await uploadToDrive(base64Data, fileName);
-          driveFileIdFinal = result.fileId;
-          driveUrlFinal = result.webViewLink;
+          const result = await uploadToStorage(base64Data, fileName, "fotos-foraneos");
+          fileIdFinal = result.fileId;
+          fileUrlFinal = result.webViewLink;
         } catch (e) {
-          console.error("[PATCH /api/fotos/[id]] Error subiendo foto final a Drive:", e);
-          return NextResponse.json({ error: "No se pudo subir la foto final a Drive" }, { status: 500 });
+          console.error("[PATCH /api/fotos/[id]] Error subiendo foto final a Storage:", e);
+          return NextResponse.json({ error: "No se pudo subir la foto final a Storage" }, { status: 500 });
         }
 
         const actualizado = await prisma.fotoRegistro.update({
           where: { id },
           data: {
             kmFinal: kmFinalNum,
-            driveFileIdFinal,
-            driveUrlFinal,
+            driveFileIdFinal: fileIdFinal,  // Mantener nombre de campo
+            driveUrlFinal: fileUrlFinal,    // Mantener nombre de campo
             latFinal: latN,
             lngFinal: lngN,
           },
@@ -161,8 +169,8 @@ export async function PATCH(
     });
     if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
 
-    const canEdit = session.user.role === "ADMIN" || session.user.role === "MANAGER" ||
-      (session.user.role === "COORDINADOR" && await checkCoordinadorZona(turno.userId, session));
+    const canEdit = profile.role === "ADMIN" || profile.role === "MANAGER" ||
+      (profile.role === "COORDINADOR" && await checkCoordinadorZona(turno.userId, profile));
     if (!canEdit) return NextResponse.json({ error: "Solo coordinador o superior puede editar este turno" }, { status: 403 });
 
     if (turno.observaciones?.startsWith("Cancelado")) {
@@ -301,15 +309,19 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
   const { id } = await params;
   const turno = await prisma.turno.findUnique({ where: { id } });
   if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
 
-  const canDelete = session.user.role === "ADMIN" || session.user.role === "MANAGER" ||
-    (session.user.role === "COORDINADOR" && await checkCoordinadorZona(turno.userId, session));
+  const canDelete = profile.role === "ADMIN" || profile.role === "MANAGER" ||
+    (profile.role === "COORDINADOR" && await checkCoordinadorZona(turno.userId, profile));
   if (!canDelete) return NextResponse.json({ error: "No autorizado para cancelar este turno" }, { status: 403 });
 
   await prisma.turno.update({

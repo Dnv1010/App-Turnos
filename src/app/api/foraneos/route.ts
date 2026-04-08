@@ -2,14 +2,18 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import type { EstadoAprobacion, Prisma, Zona } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const profile = await getUserProfile(user.email!);
+    if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
     const { searchParams } = new URL(req.url);
     const desde = searchParams.get("desde");
@@ -27,10 +31,10 @@ export async function GET(req: NextRequest) {
     const fechaFin = new Date(Date.UTC(yf, mf - 1, df, 23, 59, 59));
 
     const whereUser: Prisma.UserWhereInput = { isActive: true, role: "TECNICO" };
-    if (session.user.role === "COORDINADOR") {
-      whereUser.zona = session.user.zona as Zona;
-    } else if (session.user.role === "TECNICO") {
-      whereUser.id = session.user.userId;
+    if (profile.role === "COORDINADOR") {
+      whereUser.zona = profile.zona as Zona;
+    } else if (profile.role === "TECNICO") {
+      whereUser.id = profile.id;
     }
     if (userId && userId !== "ALL") whereUser.id = userId;
 

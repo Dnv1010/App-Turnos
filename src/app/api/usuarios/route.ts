@@ -6,20 +6,23 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import bcrypt from "bcryptjs";
 import { Cargo, Role, Zona } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    const profile = user ? await getUserProfile(user.email!) : null;
+
     const { searchParams } = req.nextUrl;
     let zona = searchParams.get("zona");
     const role = searchParams.get("role");
     const cargo = searchParams.get("cargo");
-    if ((session?.user?.role === "COORDINADOR" || session?.user?.role === "SUPPLY") && !zona) {
-      zona = session.user.zona;
+    if ((profile?.role === "COORDINADOR" || profile?.role === "SUPPLY") && !zona) {
+      zona = profile.zona;
     }
 
     const where: Record<string, unknown> = { isActive: true };
@@ -54,8 +57,12 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const profile = await getUserProfile(user.email!);
+    if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
     const body = await req.json();
     const { cedula, nombre, email, pin, role: bodyRole, zona: bodyZona, cargo: bodyCargo } = body;
@@ -66,10 +73,10 @@ export async function POST(req: NextRequest) {
 
     let zona = (bodyZona || "BOGOTA") as string;
     let role = (bodyRole || "TECNICO") as string;
-    if (session.user.role === "COORDINADOR") {
+    if (profile.role === "COORDINADOR") {
       if (role !== "TECNICO") return NextResponse.json({ error: "Solo puedes agregar operadores" }, { status: 403 });
-      zona = session.user.zona;
-    } else if (session.user.role === "SUPPLY") {
+      zona = profile.zona;
+    } else if (profile.role === "SUPPLY") {
       if (role !== "TECNICO") return NextResponse.json({ error: "Solo puedes agregar operadores" }, { status: 403 });
       const z = typeof bodyZona === "string" && Object.values(Zona).includes(bodyZona as Zona) ? bodyZona : "BOGOTA";
       zona = z;
@@ -90,7 +97,7 @@ export async function POST(req: NextRequest) {
       typeof bodyCargo === "string" && Object.values(Cargo).includes(bodyCargo as Cargo)
         ? (bodyCargo as Cargo)
         : Cargo.TECNICO;
-    if (session.user.role === "SUPPLY") {
+    if (profile.role === "SUPPLY") {
       cargoCreate = Cargo.ALMACENISTA;
     }
 

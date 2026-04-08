@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import type { Zona } from "@prisma/client";
 import * as XLSX from "xlsx";
@@ -23,8 +23,11 @@ function timeColombia(d: Date): string {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const profile = await getUserProfile(user.email!);
+    if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
     const { searchParams } = new URL(req.url);
     const desde = searchParams.get("desde");
@@ -47,10 +50,10 @@ export async function GET(req: NextRequest) {
     };
     if (userId) whereUser.id = userId;
     if (zona && zona !== "ALL") whereUser.zona = zona as Zona;
-    if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
-      whereUser.zona = session.user.zona as Zona;
-    } else if (session.user.role === "TECNICO") {
-      whereUser.id = session.user.userId;
+    if (profile.role === "COORDINADOR" || profile.role === "SUPPLY") {
+      whereUser.zona = profile.zona as Zona;
+    } else if (profile.role === "TECNICO") {
+      whereUser.id = profile.id;
     }
 
     const usuarios = await prisma.user.findMany({

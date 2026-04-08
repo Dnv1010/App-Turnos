@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-provider";
 import { useState, useEffect, useCallback, useRef, type CSSProperties } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay } from "date-fns";
 import { HiChevronDown } from "react-icons/hi";
@@ -28,7 +28,7 @@ interface Tecnico {
 }
 
 export default function CoordinadorMallaPage() {
-  const { data: session } = useSession();
+  const { profile } = useAuth();
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
@@ -53,11 +53,11 @@ export default function CoordinadorMallaPage() {
   const primaryTecnico = selectedTecnicos.size > 0 ? Array.from(selectedTecnicos)[0] : null;
 
   const cargarTecnicos = useCallback(async () => {
-    if (!session?.user?.zona) return;
-    const res = await fetch(`/api/usuarios?zona=${session.user.zona}&role=TECNICO`);
+    if (!profile?.zona) return;
+    const res = await fetch(`/api/usuarios?zona=${profile?.zona}&role=TECNICO`);
     const data = await parseResponseJson<{ tecnicos?: Tecnico[] }>(res);
     setTecnicos(data?.tecnicos || []);
-  }, [session?.user?.zona]);
+  }, [profile?.zona]);
 
   const cargarMalla = useCallback(async (userId: string, autoPrecarga = true) => {
     if (!userId || !mes) return;
@@ -280,7 +280,7 @@ export default function CoordinadorMallaPage() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Malla de Turnos</h2>
-      <p className="text-gray-500 dark:text-bia-muted">Zona {session?.user?.zona}</p>
+      <p className="text-gray-500 dark:text-bia-muted">Zona {profile?.zona}</p>
 
       <div className="card flex flex-wrap gap-4 items-end">
         <div className="relative min-w-[220px]" ref={dropdownRef}>

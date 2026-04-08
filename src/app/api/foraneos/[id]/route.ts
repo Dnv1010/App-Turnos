@@ -2,8 +2,8 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import type { EstadoAprobacion, Zona } from "@prisma/client";
 
 function canEditForaneoRole(role: string) {
@@ -12,9 +12,13 @@ function canEditForaneoRole(role: string) {
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    if (!canEditForaneoRole(session.user.role)) {
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const profile = await getUserProfile(user.email!);
+    if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    if (!canEditForaneoRole(profile.role)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -33,8 +37,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
 
     if (
-      session.user.role === "COORDINADOR" &&
-      foto.user.zona !== (session.user.zona as Zona)
+      profile.role === "COORDINADOR" &&
+      foto.user.zona !== (profile.zona as Zona)
     ) {
       return NextResponse.json({ error: "No autorizado para esta zona" }, { status: 403 });
     }
@@ -45,7 +49,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         where: { id: foraneoId },
         data: {
           estadoAprobacion: estadoAprobacion as EstadoAprobacion,
-          aprobadoPor: session.user.userId,
+          aprobadoPor: profile.id,
           fechaAprobacion: new Date(),
           notaAprobacion: typeof notaAprobacion === "string" && notaAprobacion.trim() ? notaAprobacion.trim() : null,
         },
@@ -103,9 +107,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    if (!canEditForaneoRole(session.user.role)) {
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const profile = await getUserProfile(user.email!);
+    if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    if (!canEditForaneoRole(profile.role)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -117,8 +124,8 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     if (!foto) return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
 
     if (
-      session.user.role === "COORDINADOR" &&
-      foto.user.zona !== (session.user.zona as Zona)
+      profile.role === "COORDINADOR" &&
+      foto.user.zona !== (profile.zona as Zona)
     ) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }

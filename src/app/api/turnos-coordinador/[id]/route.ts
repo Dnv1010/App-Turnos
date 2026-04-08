@@ -1,8 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { computeHorasAlCerrarTurnoCoordinador } from "@/lib/turnoCoordinadorCompute";
 import {
@@ -57,8 +57,12 @@ function sheetPayloadFromTurno(t: {
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, context: Ctx) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
   const { id } = await context.params;
 
@@ -83,8 +87,8 @@ export async function PATCH(req: NextRequest, context: Ctx) {
 
   if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
 
-  const role = session.user.role;
-  const isOwner = turno.userId === session.user.userId;
+  const role = profile.role;
+  const isOwner = turno.userId === profile.id;
   const isFichaje = ROLES_FICHAJE.has(role) && isOwner;
   const isAdmin = ROLES_ADMIN.has(role);
 
@@ -188,9 +192,13 @@ export async function PATCH(req: NextRequest, context: Ctx) {
 }
 
 export async function DELETE(_req: NextRequest, context: Ctx) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  if (!ROLES_ADMIN.has(session.user.role)) {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+  if (!ROLES_ADMIN.has(profile.role)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 

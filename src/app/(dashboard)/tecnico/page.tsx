@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-provider";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -33,7 +33,7 @@ interface TurnoRecord {
 }
 
 export default function TecnicoDashboard() {
-  const { data: session } = useSession();
+  const { profile } = useAuth();
   const router = useRouter();
   const [modalTurno, setModalTurno] = useState(null);
   const [turnos, setTurnos] = useState<TurnoRecord[]>([]);
@@ -67,7 +67,7 @@ export default function TecnicoDashboard() {
   );
 
   const cargarForaneosLista = useCallback(async () => {
-    if (!session?.user?.userId) return;
+    if (!profile?.id) return;
     setLoadingForaneosLista(true);
     try {
       const params = new URLSearchParams({ desde, hasta });
@@ -82,15 +82,15 @@ export default function TecnicoDashboard() {
     } finally {
       setLoadingForaneosLista(false);
     }
-  }, [session?.user?.userId, desde, hasta, estadoFiltroForaneo]);
+  }, [profile?.id, desde, hasta, estadoFiltroForaneo]);
 
   const cargarDatos = useCallback(async () => {
-    if (!session?.user?.userId) return;
+    if (!profile?.id) return;
     setLoading(true);
     try {
       const [turnosRes, foraneosRes] = await Promise.all([
         fetch(`/api/turnos?desde=${desde}&hasta=${hasta}`),
-        fetch(`/api/reportes/foraneos?desde=${desde}&hasta=${hasta}&userId=${session.user.userId}`),
+        fetch(`/api/reportes/foraneos?desde=${desde}&hasta=${hasta}&userId=${profile?.id}`),
       ]);
       const data = await parseResponseJson<TurnoRecord[]>(turnosRes);
       const list = Array.isArray(data) ? data : [];
@@ -98,12 +98,12 @@ export default function TecnicoDashboard() {
       const abierto = list.find((t) => !t.horaSalida);
       setTurnoActivo(
         abierto
-          ? { id: abierto.id, horaEntrada: abierto.horaEntrada, userId: session.user.userId }
+          ? { id: abierto.id, horaEntrada: abierto.horaEntrada, userId: profile?.id }
           : null
       );
       const foraneosData = await parseResponseJson<unknown[]>(foraneosRes);
       const listaForaneos = Array.isArray(foraneosData) ? foraneosData : [];
-      const miForaneo = listaForaneos.find((f: { userId: string }) => f.userId === session.user.userId);
+      const miForaneo = listaForaneos.find((f: { userId: string }) => f.userId === profile?.id);
       setForaneosResumen(miForaneo ? { totalKm: miForaneo.totalKm ?? 0, totalPagar: miForaneo.totalPagar ?? 0 } : { totalKm: 0, totalPagar: 0 });
 
       // Verificar si hoy está bloqueado por malla
@@ -127,15 +127,15 @@ export default function TecnicoDashboard() {
       setLoading(false);
     }
     void cargarForaneosLista();
-  }, [session?.user?.userId, desde, hasta, cargarForaneosLista]);
+  }, [profile?.id, desde, hasta, cargarForaneosLista]);
 
   useEffect(() => {
-    if (session?.user?.role !== "TECNICO") return;
+    if (profile?.role !== "TECNICO") return;
     void cargarForaneosLista();
-  }, [session?.user?.role, cargarForaneosLista]);
+  }, [profile?.role, cargarForaneosLista]);
 
   const filtrar = useCallback(async () => {
-    if (!session?.user?.userId) return;
+    if (!profile?.id) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/turnos?desde=${desde}&hasta=${hasta}`);
@@ -145,13 +145,13 @@ export default function TecnicoDashboard() {
       const abierto = list.find((t) => !t.horaSalida);
       setTurnoActivo(
         abierto
-          ? { id: abierto.id, horaEntrada: abierto.horaEntrada, userId: session.user.userId }
+          ? { id: abierto.id, horaEntrada: abierto.horaEntrada, userId: profile?.id }
           : null
       );
-      const foraneosRes = await fetch(`/api/reportes/foraneos?desde=${desde}&hasta=${hasta}&userId=${session.user.userId}`);
+      const foraneosRes = await fetch(`/api/reportes/foraneos?desde=${desde}&hasta=${hasta}&userId=${profile?.id}`);
       const foraneosData = await parseResponseJson<unknown[]>(foraneosRes);
       const listaForaneos = Array.isArray(foraneosData) ? foraneosData : [];
-      const miForaneo = listaForaneos.find((f: { userId: string }) => f.userId === session.user.userId);
+      const miForaneo = listaForaneos.find((f: { userId: string }) => f.userId === profile?.id);
       setForaneosResumen(miForaneo ? { totalKm: miForaneo.totalKm ?? 0, totalPagar: miForaneo.totalPagar ?? 0 } : { totalKm: 0, totalPagar: 0 });
     } catch {
       setTurnos([]);
@@ -160,17 +160,17 @@ export default function TecnicoDashboard() {
       setLoading(false);
     }
     void cargarForaneosLista();
-  }, [session?.user?.userId, desde, hasta, cargarForaneosLista]);
+  }, [profile?.id, desde, hasta, cargarForaneosLista]);
 
   useEffect(() => {
-    if (!session) return;
-    if (session.user.role !== "TECNICO") {
-      if (session.user.role === "COORDINADOR") router.replace("/coordinador");
-      else if (["MANAGER", "ADMIN"].includes(session.user.role)) router.replace("/manager");
+    if (!profile) return;
+    if (profile.role !== "TECNICO") {
+      if (profile.role === "COORDINADOR") router.replace("/coordinador");
+      else if (["MANAGER", "ADMIN"].includes(profile.role)) router.replace("/manager");
       return;
     }
     cargarDatos();
-  }, [session, router, cargarDatos]);
+  }, [profile, router, cargarDatos]);
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -247,7 +247,7 @@ export default function TecnicoDashboard() {
       )}
       <JornadaAlertaFlow
         turnoActivo={turnoActivo}
-        operadorNombre={session?.user?.nombre ?? ""}
+        operadorNombre={profile?.nombre ?? ""}
         onAfterReport={cargarDatos}
       />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -263,9 +263,9 @@ export default function TecnicoDashboard() {
         </div>
         <div id="bloque-fichaje" className="flex justify-center order-1 lg:order-2 scroll-mt-24">
           <BotonFichaje
-            userId={session?.user?.userId || ""}
+            userId={profile?.id || ""}
             turnoActivo={turnoActivo}
-            onFichaje={() => { const h=new Date().toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",hour12:true}); const n=session?.user?.nombre||session?.user?.name||"Operador"; const eraInicio=!turnoActivo; if(eraInicio){setModalTurno({hora:h,nombre:n,tipo:"inicio"});} else{setModalTurno({hora:h,nombre:n,tipo:"cierre"});} cargarDatos(); }}
+            onFichaje={() => { const h=new Date().toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",hour12:true}); const n=profile?.nombre||"Operador"; const eraInicio=!turnoActivo; if(eraInicio){setModalTurno({hora:h,nombre:n,tipo:"inicio"});} else{setModalTurno({hora:h,nombre:n,tipo:"cierre"});} cargarDatos(); }}
             onTurnoFinalizado={cargarDatos}
             mallaBloqueaInicio={!!bloqueoMalla}
           />

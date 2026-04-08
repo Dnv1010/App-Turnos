@@ -2,8 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { Zona } from "@prisma/client";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import { getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
 import { getDay } from "date-fns";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
@@ -77,8 +77,12 @@ function getDayOfWeekColombia(d: Date): number {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
   const { searchParams } = new URL(req.url);
   const userIdParam = searchParams.get("userId");
@@ -88,12 +92,12 @@ export async function GET(req: NextRequest) {
 
   let where: Record<string, unknown> = {};
 
-  if (session.user.role === "TECNICO") {
-    where.userId = session.user.userId;
-  } else if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
+  if (profile.role === "TECNICO") {
+    where.userId = profile.id;
+  } else if (profile.role === "COORDINADOR" || profile.role === "SUPPLY") {
     const useAllZonas = zonaParam === "ALL";
     const zona =
-      (useAllZonas ? undefined : (zonaParam || session.user.zona)) as Zona | undefined;
+      (useAllZonas ? undefined : (zonaParam || profile.zona)) as Zona | undefined;
     const usersZona = await prisma.user.findMany({
       where: {
         ...(zona ? { zona } : {}),
@@ -106,7 +110,7 @@ export async function GET(req: NextRequest) {
   } else if (userIdParam) {
     where.userId = userIdParam;
   } else {
-    where.userId = session.user.userId;
+    where.userId = profile.id;
   }
 
   if (desde && hasta) {
@@ -136,15 +140,20 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  if (session.user.role !== "TECNICO") {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+
+  if (profile.role !== "TECNICO") {
     return NextResponse.json({ error: "Solo los operadores pueden iniciar turnos" }, { status: 403 });
   }
 
   const body = await req.json();
   const { userId, lat, lng, startPhotoUrl } = body;
-  const uid = userId || session.user.userId;
+  const uid = userId || profile.id;
 
   const turnoAbierto = await prisma.turno.findFirst({
     where: { userId: uid, horaSalida: null },
@@ -220,9 +229,13 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    if (session.user.role !== "TECNICO") {
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const profile = await getUserProfile(user.email!);
+    if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    if (profile.role !== "TECNICO") {
       return NextResponse.json({ error: "Solo los operadores pueden cerrar turnos" }, { status: 403 });
     }
 
@@ -237,7 +250,7 @@ export async function PATCH(req: NextRequest) {
 
     const turno = await prisma.turno.findUnique({ where: { id: turnoId } });
     if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
-    if (turno.userId !== session.user.userId) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    if (turno.userId !== profile.id) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     if (turno.horaSalida) return NextResponse.json({ error: "Turno ya cerrado" }, { status: 400 });
 
     const horaSalida = new Date();

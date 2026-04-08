@@ -2,29 +2,29 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
+import type { Prisma, User } from "@prisma/client";
 import type { Zona } from "@prisma/client";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 
 /** Alineado con GET /api/turnos y reportes: solo turnos de técnicos visibles para el rol. */
 async function buildTurnoUserScope(
-  session: NonNullable<Awaited<ReturnType<typeof getServerSession>>>
+  profile: User
 ): Promise<Prisma.TurnoWhereInput> {
-  if (session.user.role === "PENDIENTE") {
+  if (profile.role === "PENDIENTE") {
     return { userId: { in: [] } };
   }
-  if (session.user.role === "TECNICO") {
-    return { userId: session.user.userId };
+  if (profile.role === "TECNICO") {
+    return { userId: profile.id };
   }
   if (
-    session.user.role === "COORDINADOR" ||
-    session.user.role === "COORDINADOR_INTERIOR" ||
-    session.user.role === "SUPPLY"
+    profile.role === "COORDINADOR" ||
+    profile.role === "COORDINADOR_INTERIOR" ||
+    profile.role === "SUPPLY"
   ) {
     const usersZona = await prisma.user.findMany({
       where: {
-        zona: session.user.zona as Zona,
+        zona: profile.zona as Zona,
         role: "TECNICO",
         isActive: true,
       },
@@ -32,20 +32,24 @@ async function buildTurnoUserScope(
     });
     return { userId: { in: usersZona.map((u) => u.id) } };
   }
-  if (session.user.role === "ADMIN" || session.user.role === "MANAGER") {
+  if (profile.role === "ADMIN" || profile.role === "MANAGER") {
     const allT = await prisma.user.findMany({
       where: { role: "TECNICO", isActive: true },
       select: { id: true },
     });
     return { userId: { in: allT.map((u) => u.id) } };
   }
-  return { userId: session.user.userId };
+  return { userId: profile.id };
 }
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const profile = await getUserProfile(user.email!);
+    if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
     const { searchParams } = new URL(req.url);
     const sinceParam = searchParams.get("since");
@@ -56,7 +60,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ creados: [], editados: [], eliminados: [] });
     }
 
-    const userScope = await buildTurnoUserScope(session);
+    const userScope = await buildTurnoUserScope(profile);
 
     const turnos = await prisma.turno.findMany({
       where: {

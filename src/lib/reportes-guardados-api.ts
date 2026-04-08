@@ -1,17 +1,16 @@
-import type { Session } from "next-auth";
-import { Role, type Zona } from "@prisma/client";
+import { Role, type Zona, type User } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 const ROLES_PERMITIDOS = new Set(["COORDINADOR", "MANAGER", "ADMIN"]);
 
-export function assertSesionReportesGuardados(session: Session | null) {
-  if (!session?.user) {
+export function assertSesionReportesGuardados(profile: User | null) {
+  if (!profile) {
     return { ok: false as const, status: 401 as const, error: "No autorizado" };
   }
-  if (!ROLES_PERMITIDOS.has(session.user.role)) {
+  if (!ROLES_PERMITIDOS.has(profile.role)) {
     return { ok: false as const, status: 403 as const, error: "Sin permiso" };
   }
-  return { ok: true as const, session };
+  return { ok: true as const, profile };
 }
 
 export function parseRangoFechasUtc(desde: string, hasta: string) {
@@ -25,15 +24,15 @@ export function parseRangoFechasUtc(desde: string, hasta: string) {
 
 /** Técnicos activos según rol y filtro de zona (query). */
 export async function getUserIdsTecnicosParaReporte(
-  session: Session,
+  profile: User,
   zonaQuery: string | null
 ): Promise<string[]> {
   const whereUser: { isActive: boolean; role: "TECNICO"; zona?: Zona } = {
     isActive: true,
     role: "TECNICO",
   };
-  if (session.user.role === "COORDINADOR") {
-    whereUser.zona = session.user.zona as Zona;
+  if (profile.role === "COORDINADOR") {
+    whereUser.zona = profile.zona as Zona;
   } else if (zonaQuery && zonaQuery !== "ALL") {
     whereUser.zona = zonaQuery as Zona;
   }
@@ -46,7 +45,7 @@ export async function getUserIdsTecnicosParaReporte(
 
 /** Coordinadores y coordinador interior en el alcance del reporte (por zona). */
 export async function getUserIdsCoordinadoresParaReporte(
-  session: Session,
+  profile: User,
   zonaQuery: string | null
 ): Promise<string[]> {
   const whereUser: {
@@ -57,8 +56,8 @@ export async function getUserIdsCoordinadoresParaReporte(
     isActive: true,
     role: { in: [Role.COORDINADOR, Role.COORDINADOR_INTERIOR] },
   };
-  if (session.user.role === "COORDINADOR") {
-    whereUser.zona = session.user.zona as Zona;
+  if (profile.role === "COORDINADOR") {
+    whereUser.zona = profile.zona as Zona;
   } else if (zonaQuery && zonaQuery !== "ALL") {
     whereUser.zona = zonaQuery as Zona;
   }
@@ -70,9 +69,9 @@ export async function getUserIdsCoordinadoresParaReporte(
 }
 
 /** Zona persistida en Reporte: coordinador siempre la suya; manager/admin opcional. */
-export function zonaPersistidaParaCrear(session: Session, zonaBody: string | null | undefined): string | null {
-  if (session.user.role === "COORDINADOR") {
-    return session.user.zona;
+export function zonaPersistidaParaCrear(profile: User, zonaBody: string | null | undefined): string | null {
+  if (profile.role === "COORDINADOR") {
+    return profile.zona;
   }
   if (zonaBody && zonaBody !== "ALL") {
     return zonaBody;
@@ -80,9 +79,9 @@ export function zonaPersistidaParaCrear(session: Session, zonaBody: string | nul
   return null;
 }
 
-export function whereListarReportes(session: Session, zonaQuery: string | null) {
-  if (session.user.role === "COORDINADOR") {
-    return { zona: session.user.zona };
+export function whereListarReportes(profile: User, zonaQuery: string | null) {
+  if (profile.role === "COORDINADOR") {
+    return { zona: profile.zona };
   }
   if (zonaQuery && zonaQuery !== "ALL") {
     return { zona: zonaQuery };
@@ -91,14 +90,14 @@ export function whereListarReportes(session: Session, zonaQuery: string | null) 
 }
 
 export function puedeGestionarReporte(
-  session: Session,
+  profile: User,
   reporte: { zona: string | null; creadoPor: string }
 ): boolean {
-  if (session.user.role === "MANAGER" || session.user.role === "ADMIN") {
+  if (profile.role === "MANAGER" || profile.role === "ADMIN") {
     return true;
   }
-  if (session.user.role === "COORDINADOR") {
-    return reporte.zona === session.user.zona;
+  if (profile.role === "COORDINADOR") {
+    return reporte.zona === profile.zona;
   }
   return false;
 }

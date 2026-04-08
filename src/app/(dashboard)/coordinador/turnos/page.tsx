@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-provider";
 import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
@@ -71,7 +71,7 @@ function formatForEditInputsColombia(d: Date): { date: string; time: string } {
 }
 
 export default function CoordinadorTurnosPage() {
-  const { data: session } = useSession();
+  const { profile } = useAuth();
   const toast = useToast();
   const [turnos, setTurnos] = useState<TurnoRow[]>([]);
   const [tecnicos, setTecnicos] = useState<TecnicoOption[]>([]);
@@ -92,10 +92,10 @@ export default function CoordinadorTurnosPage() {
   });
 
   const loadTurnos = useCallback(async () => {
-    if (!session?.user?.zona) return;
+    if (!profile?.zona) return;
     setLoading(true);
     try {
-      const params = new URLSearchParams({ inicio, fin, zona: session.user.zona });
+      const params = new URLSearchParams({ inicio, fin, zona: profile?.zona });
       if (tecnicoFilter !== "ALL") params.set("userId", tecnicoFilter);
       const res = await fetch(`/api/turnos?${params}`);
       const raw = await parseResponseJson<TurnoRow[]>(res);
@@ -113,21 +113,21 @@ export default function CoordinadorTurnosPage() {
       setTurnos(list);
     } catch { setTurnos([]); }
     finally { setLoading(false); }
-  }, [session?.user?.zona, inicio, fin, tecnicoFilter, estadoFilter]);
+  }, [profile?.zona, inicio, fin, tecnicoFilter, estadoFilter]);
 
   useEffect(() => {
     loadTurnos();
   }, [loadTurnos]);
 
   useEffect(() => {
-    if (!session?.user?.zona) return;
-    fetch(`/api/usuarios?zona=${session.user.zona}&role=TECNICO`)
+    if (!profile?.zona) return;
+    fetch(`/api/usuarios?zona=${profile?.zona}&role=TECNICO`)
       .then(async (r) => parseResponseJson<{ tecnicos?: TecnicoOption[] }>(r))
       .then((d) => {
         if (d?.tecnicos) setTecnicos(d.tecnicos);
       })
       .catch(() => {});
-  }, [session?.user?.zona]);
+  }, [profile?.zona]);
 
   function openEditModal(t: TurnoRow) {
     setEditingTurno(t);
@@ -243,7 +243,7 @@ export default function CoordinadorTurnosPage() {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Turnos Equipo</h2>
       <p className="text-gray-500 dark:text-[#A0AEC0]">
-        Zona {session?.user?.zona ? getZonaLabel(session.user.zona) : ""} — Editar o cancelar turnos de operadores de tu zona.
+        Zona {profile?.zona ? getZonaLabel(profile?.zona) : ""} — Editar o cancelar turnos de operadores de tu zona.
       </p>
 
       <div className="card">

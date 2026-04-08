@@ -1,9 +1,9 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import { Role } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ensureWebPushConfigured, webpush } from "@/lib/web-push-config";
 import { mensajeCuerpoOperador15min, primerNombreOperador } from "@/lib/jornada-alerta";
@@ -39,11 +39,12 @@ async function sendPayload(
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.userId) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-  if (session.user.role !== "TECNICO") {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+  if (profile.role !== "TECNICO") {
     return NextResponse.json({ error: "Solo operadores pueden solicitar este aviso" }, { status: 403 });
   }
 
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
   }
   const userId = typeof body.userId === "string" ? body.userId.trim() : "";
-  if (!userId || userId !== session.user.userId) {
+  if (!userId || userId !== profile.id) {
     return NextResponse.json({ error: "userId no coincide con la sesión" }, { status: 403 });
   }
 
