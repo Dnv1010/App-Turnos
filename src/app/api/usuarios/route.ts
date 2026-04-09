@@ -21,11 +21,13 @@ export async function GET(req: NextRequest) {
     let zona = searchParams.get("zona");
     const role = searchParams.get("role");
     const cargo = searchParams.get("cargo");
+    const emailFilter = searchParams.get("email");
     if ((profile?.role === "COORDINADOR" || profile?.role === "SUPPLY") && !zona) {
       zona = profile.zona;
     }
 
     const where: Record<string, unknown> = { isActive: true };
+    if (emailFilter) where.email = emailFilter.toLowerCase();
     if (zona && zona !== "ALL") where.zona = zona;
     if (role) where.role = role;
     if (cargo && cargo !== "ALL" && Object.values(Cargo).includes(cargo as Cargo)) {
@@ -101,7 +103,7 @@ export async function POST(req: NextRequest) {
       cargoCreate = Cargo.ALMACENISTA;
     }
 
-    const user = await prisma.user.create({
+    const newUser = await prisma.user.create({
       data: {
         cedula,
         nombre,
@@ -116,13 +118,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       user: {
-        id: user.id,
-        cedula: user.cedula,
-        nombre: user.nombre,
-        email: user.email,
-        role: user.role,
-        zona: user.zona,
-        cargo: user.cargo,
+        id: newUser.id,
+        cedula: newUser.cedula,
+        nombre: newUser.nombre,
+        email: newUser.email,
+        role: newUser.role,
+        zona: newUser.zona,
+        cargo: newUser.cargo,
       },
     });
   } catch (error: any) {

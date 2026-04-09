@@ -1,4 +1,4 @@
-import { supabaseAdmin } from './supabase'
+import { supabaseAdmin } from './supabase-server'
 import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
 import type { User } from '@prisma/client'
@@ -37,6 +37,8 @@ export async function authenticateWithPin(
     }
 
     // 3. Crear o actualizar usuario en Supabase Auth
+    let supabaseUserId: string | undefined
+
     const { data: authUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: user.email,
       email_confirm: true,
@@ -64,15 +66,17 @@ export async function authenticateWithPin(
             cargo: user.cargo,
           }
         })
+        supabaseUserId = existingUser.id
       } else {
         console.error('[auth-supabase] Error creando usuario en Supabase:', createError)
         return null
       }
+    } else {
+      supabaseUserId = authUser?.user?.id
     }
 
     // 4. Generar token de sesión
-    const userId = authUser?.user?.id || existingUser?.id
-    if (!userId) {
+    if (!supabaseUserId) {
       return null
     }
 

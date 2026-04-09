@@ -34,3 +34,6 @@ envs/env.download
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# build cache
+/tmp/

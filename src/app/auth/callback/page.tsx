@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@/lib/supabase'
 
 export default function AuthCallbackPage() {
   const router = useRouter()
-  const supabase = createBrowserClient()
+  const supabase = useMemo(() => createBrowserClient(), [])
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -20,14 +20,18 @@ export default function AuthCallbackPage() {
           const { data: { session } } = await supabase.auth.getSession()
 
           if (session) {
-            // Redirigir al dashboard según el rol del usuario
             router.push('/')
           } else {
             router.push('/login?error=session')
           }
         } else {
-          // No hay token - redirigir a login
-          router.push('/login')
+          // PIN login ya tiene sesión por cookie - ir directo a home
+          const { data: { session } } = await supabase.auth.getSession()
+          if (session) {
+            router.push('/')
+          } else {
+            router.push('/login')
+          }
         }
       } catch (error) {
         console.error('[callback] Error:', error)

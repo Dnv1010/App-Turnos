@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npm uninstall:*)",
       "Bash(grep:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npx next:*)"
     ]
   }
 }

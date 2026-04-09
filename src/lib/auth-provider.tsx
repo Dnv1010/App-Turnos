@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { createBrowserClient } from './supabase'
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js'
 import type { User as PrismaUser } from '@prisma/client'
@@ -30,7 +30,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<PrismaUser | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createBrowserClient()
+  const supabase = useMemo(() => createBrowserClient(), [])
 
   useEffect(() => {
     // Obtener sesión inicial
@@ -67,10 +67,12 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     try {
       const res = await fetch(`/api/usuarios?email=${encodeURIComponent(email)}`)
       if (res.ok) {
-        const users = await res.json()
-        if (Array.isArray(users) && users.length > 0) {
-          setProfile(users[0])
-        }
+        const data = await res.json()
+        const usersList = Array.isArray(data) ? data : (data.tecnicos ?? [])
+        const found = usersList.find(
+          (u: { email: string }) => u.email === email.toLowerCase()
+        )
+        if (found) setProfile(found)
       }
     } catch (error) {
       console.error('[AuthProvider] Error fetching profile:', error)

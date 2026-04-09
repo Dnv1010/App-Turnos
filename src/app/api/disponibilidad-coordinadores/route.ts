@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "userId y fechas[] requeridos" }, { status: 400 });
   }
 
-  const user = await prisma.user.findFirst({
+  const targetUser = await prisma.user.findFirst({
     where: {
       id: userId,
       isActive: true,
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
     },
     select: { id: true, nombre: true, cedula: true },
   });
-  if (!user) {
+  if (!targetUser) {
     return NextResponse.json({ error: "Usuario no es líder de zona válido" }, { status: 400 });
   }
 
@@ -147,8 +147,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    void deleteDisponibilidadCoordinadorSheet(user.cedula ?? "", f);
-    void appendDisponibilidadCoordinadorSheet(user.cedula ?? "", user.nombre, f);
+    void deleteDisponibilidadCoordinadorSheet(targetUser.cedula ?? "", f);
+    void appendDisponibilidadCoordinadorSheet(targetUser.cedula ?? "", targetUser.nombre, f);
   }
 
   return NextResponse.json({ ok: true, asignados: fechas.length });
@@ -177,11 +177,11 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "userId y fechas[] requeridos" }, { status: 400 });
   }
 
-  const user = await prisma.user.findUnique({
+  const targetUser = await prisma.user.findUnique({
     where: { id: userId },
     select: { cedula: true, nombre: true },
   });
-  if (!user) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+  if (!targetUser) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
   for (const f of fechas) {
     const fechaDate = parseYmdToUtcDate(f);
@@ -195,7 +195,7 @@ export async function DELETE(req: NextRequest) {
       },
     });
 
-    void deleteDisponibilidadCoordinadorSheet(user.cedula ?? "", f);
+    void deleteDisponibilidadCoordinadorSheet(targetUser.cedula ?? "", f);
   }
 
   return NextResponse.json({ ok: true });

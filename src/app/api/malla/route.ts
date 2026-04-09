@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
     }
     const fechaDate = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
 
-    const user = await prisma.user.findUnique({
+    const targetUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { nombre: true, cedula: true },
     });
@@ -149,19 +149,19 @@ export async function POST(req: NextRequest) {
     });
     const wasDisponible = existing?.tipo === "DISPONIBLE";
 
-    if (user) {
+    if (targetUser) {
       if (wasDisponible && tipoValido !== "DISPONIBLE") {
         // Era DISPONIBLE y cambió a otro tipo → borrar de Sheets
         deleteRowByValues("Disponibilidades", [
-          { index: 0, value: user.nombre },
+          { index: 0, value: targetUser.nombre },
           { index: 2, value: fechaStr },
         ]).catch(console.error);
       }
       if (tipoValido === "DISPONIBLE" && !wasDisponible) {
         // Era otro tipo y cambió a DISPONIBLE → agregar a Sheets
         appendRow("Disponibilidades", [
-          user.nombre,
-          user.cedula ?? "",
+          targetUser.nombre,
+          targetUser.cedula ?? "",
           fechaStr,
           80000,
         ]).catch(console.error);
