@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
-import { calcularTurno, getInicioSemana, getFinSemana, checkMallaAlerts, dateKeyColombia } from "@/lib/bia/calc-engine";
+import { calcularTurno, getInicioSemana, checkMallaAlerts, dateKeyColombia } from "@/lib/bia/calc-engine";
 import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
 import { valorDisponibilidadMallaPorRol } from "@/lib/reporteDisponibilidadValor";
 
@@ -123,13 +123,18 @@ export async function GET(req: NextRequest) {
   const detalle = usuarios.map((user) => {
     const mallaGetter = (fecha: Date) => mallaMap.get(`${user.id}|${dateKeyColombia(fecha)}`) ?? null;
 
+    // Pre-agrupar por semana para evitar O(n²): filter dentro de map
+    const turnosPorSemana = new Map<number, typeof user.turnos>();
+    for (const t of user.turnos) {
+      const key = getInicioSemana(t.fecha).getTime();
+      if (!turnosPorSemana.has(key)) turnosPorSemana.set(key, []);
+      turnosPorSemana.get(key)!.push(t);
+    }
+
     const turnosConMalla = user.turnos.map((t) => {
       const mallaVal = mallaGetter(t.fecha);
       const inicioSemana = getInicioSemana(t.fecha);
-      const finSemana = getFinSemana(t.fecha);
-      const turnosSemana = user.turnos.filter(
-        (x) => x.fecha >= inicioSemana && x.fecha <= finSemana
-      );
+      const turnosSemana = turnosPorSemana.get(inicioSemana.getTime()) ?? [];
       const weeklyOrdParaRegla44 = sumWeeklyOrdHoursMonSat(
         turnosSemana.map((x) => ({
           id: x.id,

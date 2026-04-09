@@ -28,10 +28,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "userId y mes (yyyy-MM) requeridos" }, { status: 400 });
     }
 
-    if (session.user.role === "TECNICO" && userId !== session.user.userId) {
+    if (profile.role === "TECNICO" && userId !== profile.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
-    if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
+    if (profile.role === "COORDINADOR" || profile.role === "SUPPLY") {
       const target = await prisma.user.findUnique({
         where: { id: userId },
         select: { zona: true, role: true, cargo: true },
@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
       const ok =
         target &&
         target.role === "TECNICO" &&
-        target.zona === session.user.zona &&
-        (session.user.role === "COORDINADOR" || target.cargo === "ALMACENISTA");
+        target.zona === profile.zona &&
+        (profile.role === "COORDINADOR" || target.cargo === "ALMACENISTA");
       if (!ok) {
         return NextResponse.json({ error: "Solo puedes precargar malla de operadores de tu zona" }, { status: 403 });
       }

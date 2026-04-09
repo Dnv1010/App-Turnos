@@ -84,7 +84,21 @@ export async function GET(req: NextRequest) {
           fecha: { gte: fechaInicio, lte: fechaFin },
           horaSalida: { not: null },
         },
-        include: { user: { select: { nombre: true, cedula: true } } },
+        select: {
+          userId: true,
+          fecha: true,
+          horaEntrada: true,
+          horaSalida: true,
+          horasOrdinarias: true,
+          heDiurna: true,
+          heNocturna: true,
+          heDominical: true,
+          heNoctDominical: true,
+          recNocturno: true,
+          recDominical: true,
+          recNoctDominical: true,
+          user: { select: { nombre: true, cedula: true } },
+        },
         orderBy: [{ fecha: "asc" }, { horaEntrada: "asc" }],
       }),
       prisma.mallaTurno.findMany({
@@ -93,7 +107,11 @@ export async function GET(req: NextRequest) {
           userId: { in: userIds },
           fecha: { gte: fechaInicio, lte: fechaFin },
         },
-        include: { user: { select: { nombre: true, cedula: true } } },
+        select: {
+          userId: true,
+          fecha: true,
+          user: { select: { nombre: true, cedula: true } },
+        },
         orderBy: [{ userId: "asc" }, { fecha: "asc" }],
       }),
       prisma.fotoRegistro.findMany({
@@ -103,7 +121,12 @@ export async function GET(req: NextRequest) {
           userId: { in: userIds },
           createdAt: { gte: fechaInicio, lte: fechaFin },
         },
-        include: { user: { select: { nombre: true, cedula: true } } },
+        select: {
+          userId: true,
+          kmInicial: true,
+          kmFinal: true,
+          user: { select: { nombre: true, cedula: true } },
+        },
       }),
     ]);
 

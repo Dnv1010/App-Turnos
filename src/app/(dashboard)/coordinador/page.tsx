@@ -184,26 +184,23 @@ export default function CoordinadorPage() {
     }
   }, [tabView, inicio, fin, tecnicoFilter, profile?.zona]);
   useEffect(() => {
-    if (!profile?.zona) return;
-    fetch(`/api/usuarios?zona=${profile?.zona}&role=TECNICO`)
-      .then(async (r) => parseResponseJson<{ tecnicos?: { id: string; nombre: string }[] }>(r))
-      .then((d) => {
-        if (d?.tecnicos) setTecnicosList(d.tecnicos.map((u) => ({ id: u.id, nombre: u.nombre })));
-      })
-      .catch(() => {});
-  }, [profile?.zona]);
-
-  useEffect(() => {
     if (!profile?.id || !profile?.zona) return;
     let cancelled = false;
-    fetch(`/api/usuarios?zona=${encodeURIComponent(profile?.zona)}`)
-      .then((r) => r.json())
-      .then((d: { tecnicos?: { id: string; filtroEquipo?: string }[] }) => {
+    // Ambas peticiones en paralelo en lugar de secuencial
+    Promise.all([
+      fetch(`/api/usuarios?zona=${encodeURIComponent(profile.zona)}&role=TECNICO`).then((r) => r.json()),
+      fetch(`/api/usuarios?zona=${encodeURIComponent(profile.zona)}`).then((r) => r.json()),
+    ])
+      .then(([dataTecnicos, dataAll]: [{ tecnicos?: { id: string; nombre: string }[] }, { tecnicos?: { id: string; filtroEquipo?: string }[] }]) => {
         if (cancelled) return;
-        if (usuarioEligioFiltroEquipoRef.current) return;
-        const me = d?.tecnicos?.find((u) => u.id === profile?.id);
-        if (me?.filtroEquipo && ["TODOS", "TECNICO", "ALMACENISTA"].includes(me.filtroEquipo)) {
-          setFiltroEquipo(me.filtroEquipo as "TODOS" | "TECNICO" | "ALMACENISTA");
+        if (dataTecnicos?.tecnicos) {
+          setTecnicosList(dataTecnicos.tecnicos.map((u) => ({ id: u.id, nombre: u.nombre })));
+        }
+        if (!usuarioEligioFiltroEquipoRef.current) {
+          const me = dataAll?.tecnicos?.find((u) => u.id === profile.id);
+          if (me?.filtroEquipo && ["TODOS", "TECNICO", "ALMACENISTA"].includes(me.filtroEquipo)) {
+            setFiltroEquipo(me.filtroEquipo as "TODOS" | "TECNICO" | "ALMACENISTA");
+          }
         }
       })
       .catch(() => {})
