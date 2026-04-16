@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { parseResponseJson } from "@/lib/parseFetchJson";
 import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
@@ -274,7 +274,8 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
               </div>
               <div>
                 <span className="font-medium text-gray-700 dark:text-[#CBD5E1]">Inicio:</span>{" "}
-                {format(parseISO(turnoAbierto.horaEntrada), "dd/MM/yyyy HH:mm", { locale: es })}
+                {new Date(turnoAbierto.horaEntrada).toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric" })}{" "}
+                {new Date(turnoAbierto.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })}
               </div>
               <div className="sm:col-span-2">
                 <span className="font-medium text-gray-700 dark:text-[#CBD5E1]">Tiempo transcurrido:</span>{" "}
@@ -360,11 +361,11 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
                       <td className="p-2 whitespace-nowrap">{formatFechaTurnoDdMmmYyyy(t.fecha)}</td>
                       <td className="p-2 font-mono">{t.codigoOrden}</td>
                       <td className="p-2 whitespace-nowrap">
-                        {format(parseISO(t.horaEntrada), "HH:mm", { locale: es })}
+                        {new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })}
                       </td>
                       <td className="p-2 whitespace-nowrap">
                         {t.horaSalida
-                          ? format(parseISO(t.horaSalida), "HH:mm", { locale: es })
+                          ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })
                           : "—"}
                       </td>
                       <td className="p-2 text-right font-mono">{totalHorasTrabajo(t).toFixed(2)}</td>

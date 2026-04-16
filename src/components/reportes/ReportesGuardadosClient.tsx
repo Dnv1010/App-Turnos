@@ -581,11 +581,11 @@ export default function ReportesGuardadosClient() {
                           <td className="p-2">{format(parseISO(t.fecha.split("T")[0]), "dd/MM/yyyy", { locale: es })}</td>
                           <td className="p-2 font-mono">{t.codigoOrden}</td>
                           <td className="p-2 whitespace-nowrap">
-                            {format(parseISO(t.horaEntrada), "dd/MM/yyyy HH:mm", { locale: es })}
+                            {new Date(t.horaEntrada).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                           </td>
                           <td className="p-2 whitespace-nowrap">
                             {t.horaSalida
-                              ? format(parseISO(t.horaSalida), "dd/MM/yyyy HH:mm", { locale: es })
+                              ? new Date(t.horaSalida).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
                               : "—"}
                           </td>
                           <td className="p-2 text-right font-mono">{totalHorasTrabajoCoord(t).toFixed(2)}</td>
@@ -649,7 +649,7 @@ export default function ReportesGuardadosClient() {
                             />
                           </td>
                           <td className="p-2">{f.user.nombre}</td>
-                          <td className="p-2">{format(parseISO(f.createdAt), "dd/MM/yyyy HH:mm")}</td>
+                          <td className="p-2">{new Date(f.createdAt).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
                           <td className="p-2 text-right font-mono">{kmForaneo(f).toFixed(2)}</td>
                         </tr>
                       ))
@@ -823,7 +823,7 @@ export default function ReportesGuardadosClient() {
                     <td className="p-2 text-right">{r._count.turnosCoordinadorIncluidos ?? 0}</td>
                     <td className="p-2 text-right">{r._count.foraneosIncluidos}</td>
                     <td className="p-2 text-right">{r._count.disponibilidadesIncluidas ?? 0}</td>
-                    <td className="p-2 whitespace-nowrap">{format(parseISO(r.createdAt), "dd/MM/yyyy HH:mm")}</td>
+                    <td className="p-2 whitespace-nowrap">{new Date(r.createdAt).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
                     <td className="p-2">{r.creadoPorUser.nombre}</td>
                     <td className="p-2">
                       <div className="flex flex-wrap gap-1 items-center">

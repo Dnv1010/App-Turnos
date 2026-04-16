@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-provider";
-import { format, parseISO } from "date-fns";
-import { es } from "date-fns/locale";
+import { format } from "date-fns";
 import { parseResponseJson } from "@/lib/parseFetchJson";
 import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
 import type { TurnoCoordinadorRow } from "@/components/coordinador/TurnoCoordinadorClient";
@@ -24,8 +23,8 @@ function totalRec(t: TurnoCoordinadorRow): number {
 }
 
 function toDatetimeLocalValue(iso: string): string {
-  const d = parseISO(iso);
-  return format(d, "yyyy-MM-dd'T'HH:mm");
+  const col = new Date(new Date(iso).getTime() - 5 * 60 * 60 * 1000);
+  return col.toISOString().slice(0, 16);
 }
 
 export default function TurnosCoordinadoresVista() {
@@ -294,11 +293,11 @@ export default function TurnosCoordinadoresVista() {
                     <td className="p-2 whitespace-nowrap text-gray-800 dark:text-white">{formatFechaTurnoDdMmmYyyy(t.fecha)}</td>
                     <td className="p-2 font-mono text-gray-800 dark:text-white">{t.codigoOrden}</td>
                     <td className="p-2 whitespace-nowrap text-gray-800 dark:text-white">
-                      {format(parseISO(t.horaEntrada), "dd/MM/yyyy HH:mm", { locale: es })}
+                      {new Date(t.horaEntrada).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </td>
                     <td className="p-2 whitespace-nowrap text-gray-800 dark:text-white">
                       {t.horaSalida ? (
-                        format(parseISO(t.horaSalida), "dd/MM/yyyy HH:mm", { locale: es })
+                        new Date(t.horaSalida).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
                       ) : (
                         <span className="font-medium text-amber-700">Abierto</span>
                       )}
