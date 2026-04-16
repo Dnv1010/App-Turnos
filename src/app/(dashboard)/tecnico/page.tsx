@@ -30,6 +30,7 @@ interface TurnoRecord {
   recNoctDominical: number;
   latEntrada: number | null;
   lngEntrada: number | null;
+  diaSemana: string | null;
 }
 
 export default function TecnicoDashboard() {
@@ -187,7 +188,8 @@ export default function TecnicoDashboard() {
   const totalOrdinarias = turnos.reduce((s, t) => s + Math.max(0, t.horasOrdinarias), 0);
 
   const columns = [
-    { key: "fecha", label: "Fecha", sortable: true, render: (t: TurnoRecord) => { const fechaStr = t.fecha.split("T")[0]; const [y, m, d] = fechaStr.split("-").map(Number); return format(new Date(y, m - 1, d), "EEE dd MMM", { locale: es }); } },
+    { key: "fecha", label: "Fecha", sortable: true, render: (t: TurnoRecord) => { const fechaStr = t.fecha.split("T")[0]; const [y, m, d] = fechaStr.split("-").map(Number); return format(new Date(y, m - 1, d), "dd MMM yyyy", { locale: es }); } },
+    { key: "diaSemana", label: "Día", render: (t: TurnoRecord) => { if (t.diaSemana) return t.diaSemana; const fechaStr = t.fecha.split("T")[0]; const [y, m, d] = fechaStr.split("-").map(Number); return format(new Date(y, m - 1, d), "EEEE", { locale: es }); } },
     { key: "horaEntrada", label: "Entrada", render: (t: TurnoRecord) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
     { key: "horaSalida", label: "Salida", render: (t: TurnoRecord) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
     { key: "horasOrdinarias", label: "Ord.", sortable: true, render: (t: TurnoRecord) => Math.max(0, t.horasOrdinarias) },

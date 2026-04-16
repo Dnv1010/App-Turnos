@@ -76,6 +76,12 @@ function getDayOfWeekColombia(d: Date): number {
   return colombia.getUTCDay();
 }
 
+const DIAS_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+/** Para fechas @db.Date (midnight UTC = día de calendario). */
+function getDiaSemana(fecha: Date): string {
+  return DIAS_ES[fecha.getUTCDay()];
+}
+
 export async function GET(req: NextRequest) {
   const supabase = await createServerSupabase();
   const { data: { user } } = await supabase.auth.getUser();
@@ -217,6 +223,7 @@ export async function POST(req: NextRequest) {
     data: {
       userId: uid,
       fecha,
+      diaSemana: getDiaSemana(fecha),
       horaEntrada,
       latEntrada: lat,
       lngEntrada: lng,
@@ -320,6 +327,7 @@ export async function PATCH(req: NextRequest) {
         latSalida: lat,
         lngSalida: lng,
         endPhotoUrl: endPhotoUrl || null,
+        diaSemana: getDiaSemana(turno.fecha),
         ...resultadoDb,
       },
       include: { user: { select: { nombre: true, cedula: true } } },

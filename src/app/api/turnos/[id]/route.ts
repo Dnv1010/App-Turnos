@@ -17,6 +17,11 @@ function getDayOfWeekColombia(d: Date): number {
   return colombia.getUTCDay();
 }
 
+const DIAS_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+function getDiaSemana(fecha: Date): string {
+  return DIAS_ES[fecha.getUTCDay()];
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -163,6 +168,7 @@ export async function PATCH(
       where: { id: turnoId },
       data: {
         fecha,
+        diaSemana: getDiaSemana(fecha),
         horaEntrada: newEntrada,
         horaSalida: newSalida,
         observaciones: notaFinal,

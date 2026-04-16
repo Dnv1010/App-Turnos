@@ -33,6 +33,7 @@ interface TurnoRow {
   lngSalida: number | null;
   startPhotoUrl: string | null;
   endPhotoUrl: string | null;
+  diaSemana: string | null;
   user: { nombre: string; zona: string; cargo?: string };
 }
 
@@ -304,6 +305,7 @@ export default function CoordinadorPage() {
   const columnsTurnos = [
     { key: "user", label: "Operador", render: (t: TurnoRow) => t.user?.nombre ?? "—" },
     { key: "fecha", label: "Fecha", render: (t: TurnoRow) => formatFechaTurnoDdMmmYyyy(t.fecha) },
+    { key: "diaSemana", label: "Día", render: (t: TurnoRow) => t.diaSemana ?? "—" },
     { key: "horaEntrada", label: "Entrada", render: (t: TurnoRow) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
     { key: "horaSalida", label: "Salida", render: (t: TurnoRow) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
     { key: "horasOrdinarias", label: "Ord.", render: (t: TurnoRow) => Math.max(0, t.horasOrdinarias ?? 0) },

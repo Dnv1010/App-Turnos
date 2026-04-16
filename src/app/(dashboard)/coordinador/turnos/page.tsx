@@ -31,6 +31,7 @@ interface TurnoRow {
   startPhotoUrl: string | null;
   endPhotoUrl: string | null;
   observaciones: string | null;
+  diaSemana: string | null;
   user: { nombre: string; zona: string };
 }
 
@@ -210,6 +211,7 @@ export default function CoordinadorTurnosPage() {
         ),
     },
     { key: "fecha", label: "Fecha", render: (t: TurnoRow) => formatFechaTurnoDdMmmYyyy(t.fecha) },
+    { key: "diaSemana", label: "Día", render: (t: TurnoRow) => t.diaSemana ?? "—" },
     { key: "horaEntrada", label: "Entrada", render: (t: TurnoRow) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
     { key: "horaSalida", label: "Salida", render: (t: TurnoRow) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
     { key: "totalHoras", label: "Total h", render: (t: TurnoRow) => totalHoras(t) ?? "—" },

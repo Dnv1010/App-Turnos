@@ -37,6 +37,7 @@ model Turno {
   id                      String         @id @default(cuid())
   userId                  String
   fecha                   DateTime       @db.Date
+  diaSemana               String?
   horaEntrada             DateTime
   horaSalida              DateTime?
   latEntrada              Float?
