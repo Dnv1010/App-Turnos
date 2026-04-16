@@ -48,9 +48,12 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     // Escuchar cambios de autenticación
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
+
+      // TOKEN_REFRESHED ocurre al volver a la pestaña — no recargar perfil
+      if (event === 'TOKEN_REFRESHED') return
 
       if (session?.user) {
         fetchProfile(session.user.email!)

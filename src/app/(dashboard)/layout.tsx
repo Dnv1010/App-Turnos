@@ -14,7 +14,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    if (loading || !profile) return;
+    if (loading) return;
+
+    if (!profile) {
+      router.push("/login");
+      return;
+    }
+
     const role = profile.role;
     if (role === "PENDIENTE") {
       void signOut();
@@ -37,17 +43,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [loading, profile, pathname, router, signOut]);
 
-  if (loading) {
+  if (loading || !profile) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-bia-navy-800">
         <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
       </div>
     );
-  }
-
-  if (!profile) {
-    router.push("/login");
-    return null;
   }
 
   const role = profile.role;
