@@ -117,7 +117,7 @@ export async function GET(_req: NextRequest, context: Ctx) {
     slugNombre(reporte.nombre, reporte.id)
   );
 
-  return new NextResponse(buffer, {
+  return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename="${filename}"`,

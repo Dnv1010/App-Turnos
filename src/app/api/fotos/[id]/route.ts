@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
-import { getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
-import { getDay } from "date-fns";
+import { getInicioSemana, getFinSemana, getDayOfWeekColombia } from "@/lib/bia/calc-engine";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
 import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
 import { updateRowByMatch } from "@/lib/google-sheets";
@@ -244,13 +243,13 @@ export async function PATCH(
         }
       : esFestivo
         ? { tipo: "FESTIVO" as const, valor: null, horaInicio: null, horaFin: null }
-        : getDay(fecha) === 0
+        : getDayOfWeekColombia(fecha) === 0
           ? { tipo: "DESCANSO" as const, valor: null, horaInicio: null, horaFin: null }
           : {
               tipo: "TRABAJO" as const,
               valor: "Trabajo",
               horaInicio: "08:00",
-              horaFin: getDay(fecha) === 6 ? "12:00" : "17:00",
+              horaFin: getDayOfWeekColombia(fecha) === 6 ? "12:00" : "17:00",
             };
 
     const resultado = calcularHorasTurno(
@@ -291,7 +290,9 @@ export async function PATCH(
       resultadoDb.recNocturno ?? 0,
       resultadoDb.recDominical ?? 0,
       resultadoDb.recNoctDominical ?? 0,
-    ]).catch(console.error);
+    ]).catch((err) =>
+      console.error("[sheets] updateRowByMatch falló — turnoId:", id, "userId:", turno.userId, "fecha:", dateKey(turno.fecha), err)
+    );
 
     return NextResponse.json({
       ok: true,

@@ -17,12 +17,19 @@ export async function GET(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     const profile = user ? await getUserProfile(user.email!) : null;
 
+    if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const ROLES_PERMITIDOS = new Set(["ADMIN", "MANAGER", "COORDINADOR", "COORDINADOR_INTERIOR", "SUPPLY"]);
+    if (!ROLES_PERMITIDOS.has(profile.role)) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
     const { searchParams } = req.nextUrl;
     let zona = searchParams.get("zona");
     const role = searchParams.get("role");
     const cargo = searchParams.get("cargo");
     const emailFilter = searchParams.get("email");
-    if ((profile?.role === "COORDINADOR" || profile?.role === "SUPPLY") && !zona) {
+    if ((profile.role === "COORDINADOR" || profile.role === "COORDINADOR_INTERIOR" || profile.role === "SUPPLY") && !zona) {
       zona = profile.zona;
     }
 
@@ -52,8 +59,9 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, tecnicos: users });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("[/api/usuarios]", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }
 
@@ -127,7 +135,8 @@ export async function POST(req: NextRequest) {
         cargo: newUser.cargo,
       },
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("[/api/usuarios]", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }

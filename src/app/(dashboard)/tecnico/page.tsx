@@ -15,6 +15,12 @@ import TecnicoPushSetup from "@/components/tecnico/TecnicoPushSetup";
 import JornadaAlertaFlow from "@/components/tecnico/JornadaAlertaFlow";
 import type { ForaneoRow } from "@/components/foraneos/CoordinadorForaneosPanel";
 
+interface ForaneoResumenAPI {
+  userId: string;
+  totalKm: number;
+  totalPagar: number;
+}
+
 interface TurnoRecord {
   id: string;
   fecha: string;
@@ -36,7 +42,7 @@ interface TurnoRecord {
 export default function TecnicoDashboard() {
   const { profile } = useAuth();
   const router = useRouter();
-  const [modalTurno, setModalTurno] = useState(null);
+  const [modalTurno, setModalTurno] = useState<{ hora: string; nombre: string; tipo: "inicio" | "cierre" } | null>(null);
   const [turnos, setTurnos] = useState<TurnoRecord[]>([]);
   const [turnoActivo, setTurnoActivo] = useState<{
     id: string;
@@ -102,9 +108,9 @@ export default function TecnicoDashboard() {
           ? { id: abierto.id, horaEntrada: abierto.horaEntrada, userId: profile?.id }
           : null
       );
-      const foraneosData = await parseResponseJson<unknown[]>(foraneosRes);
-      const listaForaneos = Array.isArray(foraneosData) ? foraneosData : [];
-      const miForaneo = listaForaneos.find((f: { userId: string }) => f.userId === profile?.id);
+      const foraneosData = await parseResponseJson<ForaneoResumenAPI[]>(foraneosRes);
+      const listaForaneos = Array.isArray(foraneosData) ? (foraneosData as ForaneoResumenAPI[]) : [];
+      const miForaneo = listaForaneos.find((f) => f.userId === profile?.id);
       setForaneosResumen(miForaneo ? { totalKm: miForaneo.totalKm ?? 0, totalPagar: miForaneo.totalPagar ?? 0 } : { totalKm: 0, totalPagar: 0 });
 
       // Verificar si hoy está bloqueado por malla
@@ -150,9 +156,9 @@ export default function TecnicoDashboard() {
           : null
       );
       const foraneosRes = await fetch(`/api/reportes/foraneos?desde=${desde}&hasta=${hasta}&userId=${profile?.id}`);
-      const foraneosData = await parseResponseJson<unknown[]>(foraneosRes);
-      const listaForaneos = Array.isArray(foraneosData) ? foraneosData : [];
-      const miForaneo = listaForaneos.find((f: { userId: string }) => f.userId === profile?.id);
+      const foraneosData = await parseResponseJson<ForaneoResumenAPI[]>(foraneosRes);
+      const listaForaneos = Array.isArray(foraneosData) ? (foraneosData as ForaneoResumenAPI[]) : [];
+      const miForaneo = listaForaneos.find((f) => f.userId === profile?.id);
       setForaneosResumen(miForaneo ? { totalKm: miForaneo.totalKm ?? 0, totalPagar: miForaneo.totalPagar ?? 0 } : { totalKm: 0, totalPagar: 0 });
     } catch {
       setTurnos([]);

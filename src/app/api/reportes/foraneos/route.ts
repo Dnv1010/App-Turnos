@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
+import type { Prisma } from "@prisma/client";
 
 const TARIFA_POR_KM = 1100;
 
@@ -45,7 +46,7 @@ export async function GET(req: NextRequest) {
     }
 
     const usuarios = await prisma.user.findMany({
-      where: whereUser as { isActive: boolean; id?: string; role?: string; zona?: string },
+      where: whereUser as unknown as Prisma.UserWhereInput,
       select: { id: true },
     });
     const userIds = usuarios.map((u) => u.id);

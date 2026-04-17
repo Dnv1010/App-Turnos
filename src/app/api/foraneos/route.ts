@@ -87,6 +87,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(lista);
   } catch (e) {
     console.error("[GET /api/foraneos]", e);
-    return NextResponse.json([], { status: 500 });
+    return NextResponse.json({ error: "Error interno al obtener foráneos" }, { status: 500 });
   }
 }

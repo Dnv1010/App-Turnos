@@ -7,15 +7,11 @@ import { turnoEventEmitter } from "@/lib/turno-event-emitter";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
 import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
 import { startOfWeek, endOfWeek } from "date-fns";
-import { dateKeyColombia } from "@/lib/bia/calc-engine";
+import { dateKeyColombia, getDayOfWeekColombia } from "@/lib/bia/calc-engine";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function getDayOfWeekColombia(d: Date): number {
-  const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
-  return colombia.getUTCDay();
-}
 
 const DIAS_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 function getDiaSemana(fecha: Date): string {

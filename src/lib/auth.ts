@@ -143,9 +143,8 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Contraseña", type: "password" },
       },
       async authorize(credentials) {
-        const raw = credentials ?? {};
-        const email = (raw.email ?? "").toString().trim().toLowerCase();
-        const pin = (raw.pin ?? raw.password ?? "").toString().trim();
+        const email = (credentials?.email ?? "").toString().trim().toLowerCase();
+        const pin = (credentials?.pin ?? credentials?.password ?? "").toString().trim();
         if (!email || !pin) {
           if (process.env.NODE_ENV === "development") {
             console.warn("[auth] authorize: faltan email o pin");
@@ -208,7 +207,7 @@ export const authOptions: NextAuthOptions = {
         user: {
           ...session.user,
           userId: (token.userId as string) ?? "",
-          nombre: (token.name as string) ?? session.user.name ?? session.user.email ?? "",
+          nombre: (token.name as string) ?? session.user.email ?? "",
           role: (token.role as string) ?? "",
           zona: (token.zona as string) ?? "",
         },

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
-import { getDay } from "date-fns";
 
 function dateKey(d: Date): string {
   return d.toISOString().split("T")[0];
@@ -27,13 +26,14 @@ export async function POST(req: NextRequest) {
     if (!userId || !mes) {
       return NextResponse.json({ error: "userId y mes (yyyy-MM) requeridos" }, { status: 400 });
     }
+    const userIdStr = userId as string;
 
-    if (profile.role === "TECNICO" && userId !== profile.id) {
+    if (profile.role === "TECNICO" && userIdStr !== profile.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
     if (profile.role === "COORDINADOR" || profile.role === "SUPPLY") {
       const target = await prisma.user.findUnique({
-        where: { id: userId },
+        where: { id: userIdStr },
         select: { zona: true, role: true, cargo: true },
       });
       const ok =
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     const current = new Date(start);
     while (current <= end) {
       const key = dateKey(current);
-      const dayOfWeek = getDay(current);
+      const dayOfWeek = current.getUTCDay();
       const isSunday = dayOfWeek === 0;
       const isSaturday = dayOfWeek === 6;
       const isFestivo = festivoSet.has(key);
@@ -80,9 +80,9 @@ export async function POST(req: NextRequest) {
       }
 
       await prisma.mallaTurno.upsert({
-        where: { userId_fecha: { userId, fecha: new Date(current.getTime()) } },
+        where: { userId_fecha: { userId: userIdStr, fecha: new Date(current.getTime()) } },
         update: { valor, tipo, horaInicio: horaInicio || null, horaFin: horaFin || null },
-        create: { userId, fecha: new Date(current.getTime()), valor, tipo, horaInicio: horaInicio || null, horaFin: horaFin || null },
+        create: { userId: userIdStr, fecha: new Date(current.getTime()), valor, tipo, horaInicio: horaInicio || null, horaFin: horaFin || null },
       });
       count++;
       current.setUTCDate(current.getUTCDate() + 1);

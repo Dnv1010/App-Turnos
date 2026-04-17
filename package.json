@@ -53,6 +53,7 @@
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",
+    "@types/web-push": "^3.6.4",
     "dotenv": "^16.6.1",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.1.6",

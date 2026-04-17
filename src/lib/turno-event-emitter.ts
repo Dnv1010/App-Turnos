@@ -13,7 +13,7 @@ export const turnoEventEmitter = {
     connectedClients.delete(controller);
   },
   emit(event: string, data: unknown) {
-    const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+    const message = new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     connectedClients.forEach((controller) => {
       try {
         controller.enqueue(message);

@@ -6,9 +6,10 @@
  * Total semana: 8h × 5 + 4h = 44h
  */
 
+import { normalizeName, looksLikeShift } from "@/lib/bia/calc-engine";
+
 const DIURNA_START = 6 * 60;
 const DIURNA_END = 19 * 60;
-const HE_THRESHOLD = 0;
 
 export interface Turno {
   horaEntrada: Date;
@@ -67,14 +68,14 @@ export function dateKeyColombia(d: Date): string {
 /** Jornada laboral = tiempo después del cual empiezan HE */
 function getJornadaMinutes(dow: number, mallaVal: string | null | undefined): number {
   if (dow === 0) return 0;
-  const v = (mallaVal ?? "").toLowerCase().trim();
+  const v = normalizeName(mallaVal ?? "");
 
   if (
+    v.includes("descanso") ||
     v.includes("vacacion") ||
     v.includes("dia de la familia") ||
     v.includes("semana santa") ||
-    v.includes("keynote") ||
-    v.includes("descanso")
+    v.includes("keynote")
   ) return 0;
 
   if (v === "disponible") return 0;
@@ -82,6 +83,13 @@ function getJornadaMinutes(dow: number, mallaVal: string | null | undefined): nu
   if (v.includes("medio") && v.includes("cumple")) {
     if (dow === 6) return 0;
     return 240;
+  }
+
+  if (looksLikeShift(mallaVal ?? null)) {
+    const raw = (mallaVal ?? "").replace(/\s/g, "");
+    if (raw === "8-14") return 240;
+    if (dow === 6) return 240;
+    return 540;
   }
 
   if (dow === 6) return 240;
@@ -92,14 +100,14 @@ function getJornadaMinutes(dow: number, mallaVal: string | null | undefined): nu
 /** Horas ordinarias PAGADAS (descontando almuerzo) */
 export function getOrdinaryMinutes(dow: number, mallaVal: string | null | undefined): number {
   if (dow === 0) return 0;
-  const v = (mallaVal ?? "").toLowerCase().trim();
+  const v = normalizeName(mallaVal ?? "");
 
   if (
+    v.includes("descanso") ||
     v.includes("vacacion") ||
     v.includes("dia de la familia") ||
     v.includes("semana santa") ||
-    v.includes("keynote") ||
-    v.includes("descanso")
+    v.includes("keynote")
   ) return 0;
 
   if (v === "disponible") return 0;
@@ -107,6 +115,13 @@ export function getOrdinaryMinutes(dow: number, mallaVal: string | null | undefi
   if (v.includes("medio") && v.includes("cumple")) {
     if (dow === 6) return 0;
     return 240;
+  }
+
+  if (looksLikeShift(mallaVal ?? null)) {
+    const raw = (mallaVal ?? "").replace(/\s/g, "");
+    if (raw === "8-14") return 240;
+    if (dow === 6) return 240;
+    return 480;
   }
 
   if (dow === 6) return 240;
@@ -139,8 +154,8 @@ function calcMinutes(
   start: Date,
   totalMin: number,
   jornadaMin: number,
-  esDomFestivo: boolean,
-  applyDomRecargo: boolean
+  holidaySet: Set<string>,
+  weeklyOrdHoursLt44: boolean
 ): CalcMinutesResult {
   let heDiurna = 0;
   let heNocturna = 0;
@@ -154,12 +169,13 @@ function calcMinutes(
     const t = new Date(start.getTime() + m * 60000);
     const mod = getMinutesOfDayColombia(t);
     const isDiurna = mod >= DIURNA_START && mod < DIURNA_END;
-    const isNocturna = !isDiurna;
-    /** Umbral HE en días hábiles: siempre jornada (540/240/etc.), nunca ordinarias pagadas */
+    const dow = getDayOfWeekColombia(t);
+    const isMinuteDomFestivo = dow === 0 || holidaySet.has(dateKeyColombia(t));
+    const minuteApplyRecargo = isMinuteDomFestivo && weeklyOrdHoursLt44;
     const withinOrd = jornadaMin > 0 && m < jornadaMin;
 
-    if (esDomFestivo) {
-      if (applyDomRecargo) {
+    if (isMinuteDomFestivo) {
+      if (minuteApplyRecargo) {
         if (isDiurna) recFestDiurno++;
         else recFestNocturno++;
       } else {
@@ -168,7 +184,7 @@ function calcMinutes(
       }
     } else {
       if (withinOrd) {
-        if (isNocturna) recNocturno++;
+        if (!isDiurna) recNocturno++;
       } else {
         if (isDiurna) heDiurna++;
         else heNocturna++;
@@ -176,13 +192,11 @@ function calcMinutes(
     }
   }
 
-  // Mínimo 0.5h para contar HE
-  const totalHEMin = heDiurna + heNocturna + heFestDiurna + heFestNocturna;
-  if (totalHEMin < HE_THRESHOLD * 60) {
+  // Umbral 0.5h: aplica solo a HE de días hábiles.
+  // Festivos/dominicales y recargos se pagan desde el primer minuto.
+  if (heDiurna + heNocturna < 30) {
     heDiurna = 0;
     heNocturna = 0;
-    heFestDiurna = 0;
-    heFestNocturna = 0;
   }
 
   return {
@@ -224,8 +238,7 @@ export function calcularHorasTurno(
   const dow = getDayOfWeekColombia(fechaTurno);
   const fechaKey = fechaTurno.toISOString().split("T")[0];
   const esFestivo = holidaySet.has(fechaKey);
-  const esDomingo = dow === 0;
-  const esDomFestivo = esDomingo || esFestivo;
+  const esDomFestivo = dow === 0 || esFestivo;
 
   const mallaVal = mallaDia?.valor ?? null;
 
@@ -240,9 +253,7 @@ export function calcularHorasTurno(
     ordinariasPagadasMin = getOrdinaryMinutes(dow, mallaVal);
   }
 
-  const applyDomRecargo = esDomFestivo && weeklyOrdHours < 44;
-
-  const r = calcMinutes(entrada, totalMin, jornadaMin, esDomFestivo, applyDomRecargo);
+  const r = calcMinutes(entrada, totalMin, jornadaMin, holidaySet, weeklyOrdHours < 44);
 
   const minutosOrdinarios = Math.min(ordinariasPagadasMin, totalMin);
 

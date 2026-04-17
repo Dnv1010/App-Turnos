@@ -4,8 +4,7 @@ import { prisma } from "@/lib/prisma";
 import type { Zona } from "@prisma/client";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
-import { getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
-import { getDay } from "date-fns";
+import { getInicioSemana, getFinSemana, getDayOfWeekColombia } from "@/lib/bia/calc-engine";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
 import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
 import { appendRow } from "@/lib/google-sheets";
@@ -70,11 +69,6 @@ function timeColombia(d: Date): string {
   return `${hh}:${mm}`;
 }
 
-/** Día de la semana en Colombia */
-function getDayOfWeekColombia(d: Date): number {
-  const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
-  return colombia.getUTCDay();
-}
 
 const DIAS_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 /** Para fechas @db.Date (midnight UTC = día de calendario). */
@@ -354,7 +348,9 @@ export async function PATCH(req: NextRequest) {
       turnoActualizado.recNocturno ?? 0,
       turnoActualizado.recDominical ?? 0,
       turnoActualizado.recNoctDominical ?? 0,
-    ]).catch(console.error);
+    ]).catch((err) =>
+      console.error("[sheets] appendRow falló — turnoId:", turnoId, "userId:", turno.userId, "fecha:", dateKeyColombia(turno.fecha), err)
+    );
 
     return NextResponse.json(turnoActualizado);
   } catch (error: unknown) {

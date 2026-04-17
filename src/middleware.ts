@@ -54,9 +54,11 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  // Proteger rutas del dashboard
+  const pathname = request.nextUrl.pathname
+
+  // Rutas protegidas por sesión
   const protectedPaths = [
     '/tecnico',
     '/coordinador',
@@ -66,12 +68,32 @@ export async function middleware(request: NextRequest) {
     '/supply',
   ]
 
-  const isProtectedPath = protectedPaths.some(path =>
-    request.nextUrl.pathname.startsWith(path)
-  )
+  const isProtectedPath = protectedPaths.some(path => pathname.startsWith(path))
 
-  if (isProtectedPath && !session) {
+  if (isProtectedPath && !user) {
     return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  // Verificación de rol: cada ruta solo es accesible por su rol correspondiente
+  if (user) {
+    const role: string = user.user_metadata?.role ?? ''
+
+    const roleRouteMap: Record<string, string[]> = {
+      TECNICO: ['/tecnico'],
+      COORDINADOR: ['/coordinador'],
+      COORDINADOR_INTERIOR: ['/coordinador', '/coordinador-interior'],
+      MANAGER: ['/manager'],
+      ADMIN: ['/admin', '/tecnico', '/coordinador', '/coordinador-interior', '/manager', '/supply'],
+      SUPPLY: ['/supply'],
+    }
+
+    const allowedPrefixes = roleRouteMap[role] ?? []
+    const isRoleRestricted = isProtectedPath && allowedPrefixes.length > 0
+    const hasAccess = allowedPrefixes.some(prefix => pathname.startsWith(prefix))
+
+    if (isRoleRestricted && !hasAccess) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
   }
 
   return response

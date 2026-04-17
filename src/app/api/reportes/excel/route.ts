@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import type { Zona } from "@prisma/client";
+import type { Zona, Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
 
 const VALOR_DISPONIBILIDAD = 80000;
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     }
 
     const usuarios = await prisma.user.findMany({
-      where: whereUser,
+      where: whereUser as unknown as Prisma.UserWhereInput,
       select: { id: true },
     });
     const userIds = usuarios.map((u) => u.id);
