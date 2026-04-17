@@ -46,18 +46,30 @@ export async function GET(req: NextRequest) {
   const role = profile.role;
 
   if (role === "COORDINADOR" || role === "COORDINADOR_INTERIOR") {
-    const disponibilidades = await prisma.mallaTurno.findMany({
-      where: {
-        userId: profile.id,
-        fecha: { gte: fi, lte: ffEnd },
-        tipo: "DISPONIBLE",
-      },
-      include: {
-        user: { select: { nombre: true, cedula: true, zona: true, role: true } },
-      },
-      orderBy: { fecha: "asc" },
-    });
-    return NextResponse.json({ coordinadores: [], disponibilidades });
+    const [disponibilidades, disponibilidadesTabla] = await Promise.all([
+      prisma.mallaTurno.findMany({
+        where: {
+          userId: profile.id,
+          fecha: { gte: fi, lte: ffEnd },
+          tipo: "DISPONIBLE",
+        },
+        include: {
+          user: { select: { nombre: true, cedula: true, zona: true, role: true } },
+        },
+        orderBy: { fecha: "asc" },
+      }),
+      prisma.disponibilidad.findMany({
+        where: {
+          userId: profile.id,
+          fecha: { gte: fi, lte: ffEnd },
+        },
+        include: {
+          user: { select: { nombre: true, cedula: true, zona: true, role: true } },
+        },
+        orderBy: { fecha: "asc" },
+      }),
+    ]);
+    return NextResponse.json({ coordinadores: [], disponibilidades, disponibilidadesTabla });
   }
 
   if (!ROLES_OK.has(role)) {
@@ -72,7 +84,7 @@ export async function GET(req: NextRequest) {
     whereUser.zona = zona as Zona;
   }
 
-  const [coordinadores, disponibilidades] = await Promise.all([
+  const [coordinadores, disponibilidades, disponibilidadesTabla] = await Promise.all([
     prisma.user.findMany({
       where: whereUser,
       select: { id: true, nombre: true, cedula: true, zona: true, role: true },
@@ -89,9 +101,19 @@ export async function GET(req: NextRequest) {
       },
       orderBy: [{ fecha: "asc" }, { user: { nombre: "asc" } }],
     }),
+    prisma.disponibilidad.findMany({
+      where: {
+        fecha: { gte: fi, lte: ffEnd },
+        user: whereUser,
+      },
+      include: {
+        user: { select: { nombre: true, cedula: true, zona: true, role: true } },
+      },
+      orderBy: [{ fecha: "asc" }, { user: { nombre: "asc" } }],
+    }),
   ]);
 
-  return NextResponse.json({ coordinadores, disponibilidades });
+  return NextResponse.json({ coordinadores, disponibilidades, disponibilidadesTabla });
 }
 
 export async function POST(req: NextRequest) {

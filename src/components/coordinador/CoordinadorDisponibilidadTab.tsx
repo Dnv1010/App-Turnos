@@ -13,9 +13,18 @@ type DispoRow = {
   user: { nombre: string; cedula: string | null; zona: string; role: string };
 };
 
+type DispoTablaRow = {
+  id: string;
+  fecha: string;
+  monto: number;
+  userId: string;
+  user: { nombre: string; cedula: string | null; zona: string; role: string };
+};
+
 export default function CoordinadorDisponibilidadTab() {
   const [mes, setMes] = useState(() => format(new Date(), "yyyy-MM"));
   const [items, setItems] = useState<DispoRow[]>([]);
+  const [itemsTabla, setItemsTabla] = useState<DispoTablaRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const { desde, hasta } = useMemo(() => {
@@ -34,11 +43,13 @@ export default function CoordinadorDisponibilidadTab() {
       const res = await fetch(
         `/api/disponibilidad-coordinadores?desde=${desde}&hasta=${hasta}`
       );
-      const data = await parseResponseJson<{ disponibilidades: DispoRow[] }>(res);
+      const data = await parseResponseJson<{ disponibilidades: DispoRow[]; disponibilidadesTabla: DispoTablaRow[] }>(res);
       if (!res.ok) throw new Error((data as { error?: string })?.error ?? "Error");
       setItems(data?.disponibilidades ?? []);
+      setItemsTabla(data?.disponibilidadesTabla ?? []);
     } catch {
       setItems([]);
+      setItemsTabla([]);
     } finally {
       setLoading(false);
     }
@@ -119,7 +130,7 @@ export default function CoordinadorDisponibilidadTab() {
 
           {items.length > 0 && (
             <div className="rounded-lg border border-gray-200 dark:border-[#3A4565] bg-white dark:bg-[#1A2340] p-4 shadow-sm dark:shadow-black/30">
-              <p className="text-xs font-medium text-gray-500 dark:text-[#A0AEC0] mb-2">Detalle</p>
+              <p className="text-xs font-medium text-gray-500 dark:text-[#A0AEC0] mb-2">Detalle malla</p>
               <ul className="text-sm text-gray-700 dark:text-[#CBD5E1] space-y-1 max-h-40 overflow-y-auto">
                 {items.map((d) => (
                   <li key={d.id}>
@@ -128,6 +139,36 @@ export default function CoordinadorDisponibilidadTab() {
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {itemsTabla.length > 0 && (
+            <div className="rounded-lg border border-blue-200 dark:border-[#2A4080] bg-blue-50 dark:bg-[#0F1E40] p-4 shadow-sm dark:shadow-black/30">
+              <p className="text-xs font-medium text-blue-700 dark:text-[#60A5FA] mb-2">
+                Tabla Disponibilidad ({itemsTabla.length} registro{itemsTabla.length !== 1 ? "s" : ""})
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-gray-700 dark:text-[#CBD5E1]">
+                  <thead>
+                    <tr className="text-xs text-gray-500 dark:text-[#A0AEC0] border-b border-blue-200 dark:border-[#2A4080]">
+                      <th className="py-1 pr-4 text-left font-medium">Fecha</th>
+                      <th className="py-1 text-right font-medium">Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {itemsTabla.map((d) => (
+                      <tr key={d.id} className="border-b border-blue-100 dark:border-[#1A3060] last:border-0">
+                        <td className="py-1 pr-4">
+                          {format(parseISO(d.fecha.split("T")[0]), "EEEE d MMM", { locale: es })}
+                        </td>
+                        <td className="py-1 text-right font-semibold text-blue-700 dark:text-[#60A5FA]">
+                          ${d.monto.toLocaleString("es-CO")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </>
