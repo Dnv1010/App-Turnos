@@ -40,8 +40,12 @@ function LoginForm() {
         return;
       }
 
-      if (data.success) {
-        // Redirigir al dashboard
+      if (data.success && data.session) {
+        // Sincronizar sesión en el cliente Supabase antes de navegar
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
         router.push('/');
         router.refresh();
       } else {
