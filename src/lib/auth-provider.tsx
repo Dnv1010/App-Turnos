@@ -56,6 +56,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       if (event === 'TOKEN_REFRESHED') return
 
       if (session?.user) {
+        setLoading(true)
         fetchProfile(session.user.email!)
       } else {
         setProfile(null)
