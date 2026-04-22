@@ -2,17 +2,26 @@ import { cookies } from 'next/headers'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 
-// Cliente admin para uso exclusivo en servidor (service role key)
-export const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
+// Cliente admin lazy — se inicializa solo cuando se usa (no en build time)
+type SupabaseAdminClient = ReturnType<typeof createClient>;
+let _supabaseAdmin: SupabaseAdminClient | null = null;
+function getSupabaseAdmin(): SupabaseAdminClient {
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createClient(
+      process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
   }
-)
+  return _supabaseAdmin;
+}
+export const supabaseAdmin = new Proxy({} as SupabaseAdminClient, {
+  get(_, prop) {
+    const client = getSupabaseAdmin();
+    const val = (client as unknown as Record<string, unknown>)[prop as string];
+    return typeof val === "function" ? (val as Function).bind(client) : val;
+  },
+});
 
 export async function createServerSupabase() {
   const cookieStore = await cookies()
