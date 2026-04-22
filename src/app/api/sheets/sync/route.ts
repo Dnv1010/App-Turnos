@@ -17,6 +17,13 @@ function timeColombia(d: Date): string {
   });
 }
 
+function diaSemana(d: Date): string {
+  return new Date(d).toLocaleDateString("es-CO", {
+    timeZone: "America/Bogota",
+    weekday: "long",
+  });
+}
+
 export async function POST() {
   try {
     const supabase = await createServerSupabase();
@@ -36,7 +43,7 @@ export async function POST() {
     if (userIds.length === 0) {
       await Promise.all([
         rewriteSheet("Resumen", ["Nombre", "Cédula", "Total Turnos", "Total Horas Trabajadas", "Horas Ordinarias", "HE Diurna", "HE Nocturna", "HE Dom/Fest Diurna", "HE Dom/Fest Nocturna", "Recargo Nocturno", "Recargo Dom/Fest Diurno", "Recargo Dom/Fest Nocturno", "Total HE", "Total Recargos"], []),
-        rewriteSheet("Turnos", ["Nombre", "Cédula", "Fecha", "Entrada", "Salida", "Total Horas", "Horas Ordinarias", "HE Diurna", "HE Nocturna", "HE Dom/Fest Diurna", "HE Dom/Fest Nocturna", "Recargo Nocturno", "Recargo Dom/Fest Diurno", "Recargo Dom/Fest Nocturno"], []),
+        rewriteSheet("Turnos", ["Nombre", "Cédula", "Fecha", "Día", "Entrada", "Salida", "Total Horas", "Horas Ordinarias", "HE Diurna", "HE Nocturna", "HE Dom/Fest Diurna", "HE Dom/Fest Nocturna", "Recargo Nocturno", "Recargo Dom/Fest Diurno", "Recargo Dom/Fest Nocturno"], []),
         rewriteSheet("Disponibilidades", ["Nombre", "Cédula", "Fecha", "Valor"], []),
         rewriteSheet("Foraneos", ["Nombre", "Cédula", "Fecha", "Cantidad Foráneos", "Total Km", "Total a Pagar"], []),
       ]);
@@ -122,55 +129,28 @@ export async function POST() {
       r.recDomD += t.recDominical ?? 0;
       r.recDomN += t.recNoctDominical ?? 0;
     });
+
     const resumenHeaders = [
-      "Nombre",
-      "Cédula",
-      "Total Turnos",
-      "Total Horas Trabajadas",
-      "Horas Ordinarias",
-      "HE Diurna",
-      "HE Nocturna",
-      "HE Dom/Fest Diurna",
-      "HE Dom/Fest Nocturna",
-      "Recargo Nocturno",
-      "Recargo Dom/Fest Diurno",
-      "Recargo Dom/Fest Nocturno",
-      "Total HE",
-      "Total Recargos",
+      "Nombre", "Cédula", "Total Turnos", "Total Horas Trabajadas", "Horas Ordinarias",
+      "HE Diurna", "HE Nocturna", "HE Dom/Fest Diurna", "HE Dom/Fest Nocturna",
+      "Recargo Nocturno", "Recargo Dom/Fest Diurno", "Recargo Dom/Fest Nocturno",
+      "Total HE", "Total Recargos",
     ];
     const resumenRows = Object.values(resumenMap).map((r) => [
-      r.nombre,
-      r.cedula ?? "",
-      r.totalTurnos,
+      r.nombre, r.cedula ?? "", r.totalTurnos,
       Math.round(r.totalHoras * 100) / 100,
       Math.round(r.horasOrd * 100) / 100,
-      r.heDiurna,
-      r.heNocturna,
-      r.heDomD,
-      r.heDomN,
-      r.recNoc,
-      r.recDomD,
-      r.recDomN,
+      r.heDiurna, r.heNocturna, r.heDomD, r.heDomN,
+      r.recNoc, r.recDomD, r.recDomN,
       Math.round((r.heDiurna + r.heNocturna + r.heDomD + r.heDomN) * 100) / 100,
       Math.round((r.recNoc + r.recDomD + r.recDomN) * 100) / 100,
     ]);
 
-    // Turnos — detalle
+    // Turnos — detalle con columna Día
     const turnosHeaders = [
-      "Nombre",
-      "Cédula",
-      "Fecha",
-      "Entrada",
-      "Salida",
-      "Total Horas",
-      "Horas Ordinarias",
-      "HE Diurna",
-      "HE Nocturna",
-      "HE Dom/Fest Diurna",
-      "HE Dom/Fest Nocturna",
-      "Recargo Nocturno",
-      "Recargo Dom/Fest Diurno",
-      "Recargo Dom/Fest Nocturno",
+      "Nombre", "Cédula", "Fecha", "Día", "Entrada", "Salida", "Total Horas",
+      "Horas Ordinarias", "HE Diurna", "HE Nocturna", "HE Dom/Fest Diurna",
+      "HE Dom/Fest Nocturna", "Recargo Nocturno", "Recargo Dom/Fest Diurno", "Recargo Dom/Fest Nocturno",
     ];
     const turnosRows = turnos.map((t) => {
       const totalHoras = t.horaSalida
@@ -180,6 +160,7 @@ export async function POST() {
         t.user.nombre,
         t.user.cedula ?? "",
         dateKey(t.fecha),
+        diaSemana(t.fecha),
         timeColombia(t.horaEntrada),
         t.horaSalida ? timeColombia(t.horaSalida) : "",
         totalHoras,
@@ -197,10 +178,7 @@ export async function POST() {
     // Disponibilidades
     const dispHeaders = ["Nombre", "Cédula", "Fecha", "Valor"];
     const dispRows = mallaDisponibles.map((m) => [
-      m.user.nombre,
-      m.user.cedula ?? "",
-      dateKey(m.fecha),
-      80000,
+      m.user.nombre, m.user.cedula ?? "", dateKey(m.fecha), 80000,
     ]);
 
     // Foráneos — agrupados por técnico y fecha
@@ -213,13 +191,7 @@ export async function POST() {
       const fechaStr = dateKey(f.createdAt);
       const key = `${f.userId}_${fechaStr}`;
       if (!foraneosMap[key]) {
-        foraneosMap[key] = {
-          nombre: f.user.nombre,
-          cedula: f.user.cedula,
-          cantidad: 0,
-          km: 0,
-          totalPagar: 0,
-        };
+        foraneosMap[key] = { nombre: f.user.nombre, cedula: f.user.cedula, cantidad: 0, km: 0, totalPagar: 0 };
       }
       foraneosMap[key].cantidad += 1;
       foraneosMap[key].km += km;

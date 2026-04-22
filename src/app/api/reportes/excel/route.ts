@@ -21,6 +21,13 @@ function timeColombia(d: Date): string {
   });
 }
 
+function diaSemana(d: Date): string {
+  return new Date(d).toLocaleDateString("es-CO", {
+    timeZone: "America/Bogota",
+    weekday: "long",
+  });
+}
+
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createServerSupabase();
@@ -84,21 +91,7 @@ export async function GET(req: NextRequest) {
           fecha: { gte: fechaInicio, lte: fechaFin },
           horaSalida: { not: null },
         },
-        select: {
-          userId: true,
-          fecha: true,
-          horaEntrada: true,
-          horaSalida: true,
-          horasOrdinarias: true,
-          heDiurna: true,
-          heNocturna: true,
-          heDominical: true,
-          heNoctDominical: true,
-          recNocturno: true,
-          recDominical: true,
-          recNoctDominical: true,
-          user: { select: { nombre: true, cedula: true } },
-        },
+        include: { user: { select: { nombre: true, cedula: true } } },
         orderBy: [{ fecha: "asc" }, { horaEntrada: "asc" }],
       }),
       prisma.mallaTurno.findMany({
@@ -107,11 +100,7 @@ export async function GET(req: NextRequest) {
           userId: { in: userIds },
           fecha: { gte: fechaInicio, lte: fechaFin },
         },
-        select: {
-          userId: true,
-          fecha: true,
-          user: { select: { nombre: true, cedula: true } },
-        },
+        include: { user: { select: { nombre: true, cedula: true } } },
         orderBy: [{ userId: "asc" }, { fecha: "asc" }],
       }),
       prisma.fotoRegistro.findMany({
@@ -121,12 +110,7 @@ export async function GET(req: NextRequest) {
           userId: { in: userIds },
           createdAt: { gte: fechaInicio, lte: fechaFin },
         },
-        select: {
-          userId: true,
-          kmInicial: true,
-          kmFinal: true,
-          user: { select: { nombre: true, cedula: true } },
-        },
+        include: { user: { select: { nombre: true, cedula: true } } },
       }),
     ]);
 
@@ -193,7 +177,7 @@ export async function GET(req: NextRequest) {
       "Total Recargos": Math.round(r["Total Recargos"] * 100) / 100,
     }));
 
-    // Hoja Turnos — detalle de cada turno
+    // Hoja Turnos — detalle con columna Día
     const dataTurnos = turnos.map((t) => {
       const totalHoras = t.horaSalida
         ? Math.round(((t.horaSalida.getTime() - t.horaEntrada.getTime()) / (1000 * 60 * 60)) * 100) / 100
@@ -202,6 +186,7 @@ export async function GET(req: NextRequest) {
         Nombre: t.user.nombre,
         Cedula: t.user.cedula,
         Fecha: dateKey(t.fecha),
+        Día: diaSemana(t.fecha),
         Entrada: timeColombia(t.horaEntrada),
         Salida: t.horaSalida ? timeColombia(t.horaSalida) : "",
         "Total Horas": totalHoras,

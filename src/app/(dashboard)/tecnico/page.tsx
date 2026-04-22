@@ -39,6 +39,11 @@ interface TurnoRecord {
   diaSemana: string | null;
 }
 
+function diaSemana(fechaStr: string): string {
+  const [y, m, d] = fechaStr.split("T")[0].split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("es-CO", { weekday: "long" });
+}
+
 export default function TecnicoDashboard() {
   const { profile } = useAuth();
   const router = useRouter();
@@ -194,8 +199,21 @@ export default function TecnicoDashboard() {
   const totalOrdinarias = turnos.reduce((s, t) => s + Math.max(0, t.horasOrdinarias), 0);
 
   const columns = [
-    { key: "fecha", label: "Fecha", sortable: true, render: (t: TurnoRecord) => { const fechaStr = t.fecha.split("T")[0]; const [y, m, d] = fechaStr.split("-").map(Number); return format(new Date(y, m - 1, d), "dd MMM yyyy", { locale: es }); } },
-    { key: "diaSemana", label: "Día", render: (t: TurnoRecord) => { if (t.diaSemana) return t.diaSemana; const fechaStr = t.fecha.split("T")[0]; const [y, m, d] = fechaStr.split("-").map(Number); return format(new Date(y, m - 1, d), "EEEE", { locale: es }); } },
+    {
+      key: "fecha", label: "Fecha", sortable: true,
+      render: (t: TurnoRecord) => {
+        const fechaStr = t.fecha.split("T")[0];
+        const [y, m, d] = fechaStr.split("-").map(Number);
+        return format(new Date(y, m - 1, d), "dd MMM yyyy", { locale: es });
+      }
+    },
+    {
+      key: "dia", label: "Día",
+      render: (t: TurnoRecord) => {
+        if (t.diaSemana) return t.diaSemana;
+        return diaSemana(t.fecha);
+      },
+    },
     { key: "horaEntrada", label: "Entrada", render: (t: TurnoRecord) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
     { key: "horaSalida", label: "Salida", render: (t: TurnoRecord) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
     { key: "horasOrdinarias", label: "Ord.", sortable: true, render: (t: TurnoRecord) => Math.max(0, t.horasOrdinarias) },
@@ -387,7 +405,7 @@ export default function TecnicoDashboard() {
           </div>
         </div>
       </div>
-    
+
       {modalTurno && (
         <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",background:"rgba(0,0,0,0.75)"}}>
           <div style={{background:"#001035",border:"1px solid rgba(8,221,188,0.3)",borderRadius:"16px",padding:"32px",maxWidth:"360px",width:"100%",textAlign:"center"}}>
