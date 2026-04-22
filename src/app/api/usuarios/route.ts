@@ -20,16 +20,25 @@ export async function GET(req: NextRequest) {
 
     if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    const ROLES_PERMITIDOS = new Set(["ADMIN", "MANAGER", "COORDINADOR", "COORDINADOR_INTERIOR", "SUPPLY"]);
-    if (!ROLES_PERMITIDOS.has(profile.role)) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    }
-
     const { searchParams } = req.nextUrl;
     let zona = searchParams.get("zona");
     const role = searchParams.get("role");
     const cargo = searchParams.get("cargo");
     const emailFilter = searchParams.get("email");
+
+    // Cualquier usuario autenticado puede consultar su propio perfil
+    if (emailFilter && emailFilter.toLowerCase() === user.email!.toLowerCase()) {
+      const self = await prisma.user.findUnique({
+        where: { email: emailFilter.toLowerCase() },
+        select: { id: true, cedula: true, nombre: true, email: true, role: true, zona: true, cargo: true, filtroEquipo: true, isActive: true, createdAt: true },
+      });
+      return NextResponse.json({ ok: true, tecnicos: self ? [self] : [] });
+    }
+
+    const ROLES_PERMITIDOS = new Set(["ADMIN", "MANAGER", "COORDINADOR", "COORDINADOR_INTERIOR", "SUPPLY"]);
+    if (!ROLES_PERMITIDOS.has(profile.role)) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
     if ((profile.role === "COORDINADOR" || profile.role === "COORDINADOR_INTERIOR" || profile.role === "SUPPLY") && !zona) {
       zona = profile.zona;
     }
