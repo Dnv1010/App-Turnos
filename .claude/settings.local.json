@@ -4,7 +4,9 @@
       "Bash(npm uninstall:*)",
       "Bash(grep:*)",
       "Bash(find:*)",
-      "Bash(npx next:*)"
+      "Bash(npx next:*)",
+      "Bash(npx tsc *)",
+      "Bash(node *)"
     ]
   }
 }

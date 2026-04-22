@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 /**
  * API Route: /api/usuarios
  * GET  - Listar usuarios (filtro por zona, role)
