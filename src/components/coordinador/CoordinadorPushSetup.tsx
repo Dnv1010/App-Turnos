@@ -59,7 +59,7 @@ export default function CoordinadorPushSetup() {
       await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapid),
+        applicationServerKey: urlBase64ToUint8Array(vapid) as unknown as BufferSource,
       });
       const json = sub.toJSON();
       if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
@@ -111,7 +111,7 @@ export default function CoordinadorPushSetup() {
     );
   }
 
-  const showRetryCard = perm !== "denied" && (status === "err" || (status === "loading" && everFailedRef.current));
+  const showRetryCard = status === "err" || (status === "loading" && everFailedRef.current);
   if (showRetryCard) {
     return (
       <div className="card p-4 border border-blue-200 bg-blue-50/50 dark:border-[#3A4565] dark:bg-[#1A2340]/80 flex flex-col sm:flex-row sm:items-center gap-3">

@@ -43,7 +43,6 @@ export interface AlertaBIA {
 
 const DIURNA_START = 6 * 60;
 const DIURNA_END = 19 * 60;
-const UMBRAL_HE = 0;
 
 // ============ FUNCIONES DE TIMEZONE COLOMBIA ============
 
@@ -58,7 +57,7 @@ function getMinutesOfDayColombia(d: Date): number {
  * porque 2026-04-06T00:00:00Z - 5h = 2026-04-05T19:00Z = domingo (INCORRECTO).
  * Si tiene hora distinta de midnight (horaEntrada/horaSalida) sí aplicar offset.
  */
-function getDayOfWeekColombia(d: Date): number {
+export function getDayOfWeekColombia(d: Date): number {
   if (
     d.getUTCHours() === 0 &&
     d.getUTCMinutes() === 0 &&
@@ -295,8 +294,8 @@ function calcMinutes(
   start: Date,
   totalMin: number,
   jornadaMin: number,
-  esDomFestivo: boolean,
-  applyDomRecargo: boolean
+  holidaySet: Set<string>,
+  weeklyOrdHoursLt44: boolean
 ): CalcMinutesResult {
   let heDiurna = 0;
   let heNocturna = 0;
@@ -310,11 +309,13 @@ function calcMinutes(
     const t = new Date(start.getTime() + m * 60000);
     const mod = getMinutesOfDayColombia(t);
     const isDiurna = mod >= DIURNA_START && mod < DIURNA_END;
-    const isNocturna = !isDiurna;
+    const dow = getDayOfWeekColombia(t);
+    const isMinuteDomFestivo = dow === 0 || holidaySet.has(dateKeyColombia(t));
+    const minuteApplyRecargo = isMinuteDomFestivo && weeklyOrdHoursLt44;
     const withinOrd = jornadaMin > 0 && m < jornadaMin;
 
-    if (esDomFestivo) {
-      if (applyDomRecargo) {
+    if (isMinuteDomFestivo) {
+      if (minuteApplyRecargo) {
         if (isDiurna) recFestDiurno++;
         else recFestNocturno++;
       } else {
@@ -323,12 +324,19 @@ function calcMinutes(
       }
     } else {
       if (withinOrd) {
-        if (isNocturna) recNocturno++;
+        if (!isDiurna) recNocturno++;
       } else {
         if (isDiurna) heDiurna++;
         else heNocturna++;
       }
     }
+  }
+
+  // Umbral 0.5h: aplica solo a HE de días hábiles.
+  // Festivos/dominicales y recargos se pagan desde el primer minuto.
+  if (heDiurna + heNocturna < 30) {
+    heDiurna = 0;
+    heNocturna = 0;
   }
 
   return { heDiurna, heNocturna, heFestDiurna, heFestNocturna, recNocturno, recFestDiurno, recFestNocturno };
@@ -338,9 +346,6 @@ function minutosAHoras(min: number): number {
   return Math.round((min / 60) * 100) / 100;
 }
 
-function applyThreshold(val: number, threshold: number): number {
-  return val >= threshold ? val : 0;
-}
 
 // ============ RESUMEN SEMANAL ============
 
@@ -412,16 +417,15 @@ export function calcularTurno(
     ordinariasPagadasMin = esDomFestivo ? 0 : (dow === 6 ? 240 : 480);
   }
 
-  const applyDomRecargo = esDomFestivo && resumenSemanal.aplicaRegla44h;
-
-  const r = calcMinutes(turno.horaEntrada, totalMin, jornadaMin, esDomFestivo, applyDomRecargo);
+  const efectivoHolidaySet = holidaySet ?? new Set<string>();
+  const r = calcMinutes(turno.horaEntrada, totalMin, jornadaMin, efectivoHolidaySet, resumenSemanal.aplicaRegla44h);
 
   resultado.horasOrdinarias = minutosAHoras(Math.min(ordinariasPagadasMin, totalMin));
 
-  resultado.heDiurna = applyThreshold(minutosAHoras(r.heDiurna), UMBRAL_HE);
-  resultado.heNocturna = applyThreshold(minutosAHoras(r.heNocturna), UMBRAL_HE);
-  resultado.heDominical = applyThreshold(minutosAHoras(r.heFestDiurna), UMBRAL_HE);
-  resultado.heNoctDominical = applyThreshold(minutosAHoras(r.heFestNocturna), UMBRAL_HE);
+  resultado.heDiurna = minutosAHoras(r.heDiurna);
+  resultado.heNocturna = minutosAHoras(r.heNocturna);
+  resultado.heDominical = minutosAHoras(r.heFestDiurna);
+  resultado.heNoctDominical = minutosAHoras(r.heFestNocturna);
 
   resultado.recNocturno = minutosAHoras(r.recNocturno);
   resultado.recDominical = minutosAHoras(r.recFestDiurno);

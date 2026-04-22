@@ -6,23 +6,35 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import bcrypt from "bcryptjs";
 import { Cargo, Role, Zona } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    const profile = user ? await getUserProfile(user.email!) : null;
+
+    if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const ROLES_PERMITIDOS = new Set(["ADMIN", "MANAGER", "COORDINADOR", "COORDINADOR_INTERIOR", "SUPPLY"]);
+    if (!ROLES_PERMITIDOS.has(profile.role)) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
     const { searchParams } = req.nextUrl;
     let zona = searchParams.get("zona");
     const role = searchParams.get("role");
     const cargo = searchParams.get("cargo");
-    if ((session?.user?.role === "COORDINADOR" || session?.user?.role === "SUPPLY") && !zona) {
-      zona = session.user.zona;
+    const emailFilter = searchParams.get("email");
+    if ((profile.role === "COORDINADOR" || profile.role === "COORDINADOR_INTERIOR" || profile.role === "SUPPLY") && !zona) {
+      zona = profile.zona;
     }
 
     const where: Record<string, unknown> = { isActive: true };
+    if (emailFilter) where.email = emailFilter.toLowerCase();
     if (zona && zona !== "ALL") where.zona = zona;
     if (role) where.role = role;
     if (cargo && cargo !== "ALL" && Object.values(Cargo).includes(cargo as Cargo)) {
@@ -47,15 +59,20 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, tecnicos: users });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("[/api/usuarios]", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const profile = await getUserProfile(user.email!);
+    if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
     const body = await req.json();
     const { cedula, nombre, email, pin, role: bodyRole, zona: bodyZona, cargo: bodyCargo } = body;
@@ -66,10 +83,10 @@ export async function POST(req: NextRequest) {
 
     let zona = (bodyZona || "BOGOTA") as string;
     let role = (bodyRole || "TECNICO") as string;
-    if (session.user.role === "COORDINADOR") {
+    if (profile.role === "COORDINADOR") {
       if (role !== "TECNICO") return NextResponse.json({ error: "Solo puedes agregar operadores" }, { status: 403 });
-      zona = session.user.zona;
-    } else if (session.user.role === "SUPPLY") {
+      zona = profile.zona;
+    } else if (profile.role === "SUPPLY") {
       if (role !== "TECNICO") return NextResponse.json({ error: "Solo puedes agregar operadores" }, { status: 403 });
       const z = typeof bodyZona === "string" && Object.values(Zona).includes(bodyZona as Zona) ? bodyZona : "BOGOTA";
       zona = z;
@@ -90,11 +107,11 @@ export async function POST(req: NextRequest) {
       typeof bodyCargo === "string" && Object.values(Cargo).includes(bodyCargo as Cargo)
         ? (bodyCargo as Cargo)
         : Cargo.TECNICO;
-    if (session.user.role === "SUPPLY") {
+    if (profile.role === "SUPPLY") {
       cargoCreate = Cargo.ALMACENISTA;
     }
 
-    const user = await prisma.user.create({
+    const newUser = await prisma.user.create({
       data: {
         cedula,
         nombre,
@@ -109,16 +126,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       user: {
-        id: user.id,
-        cedula: user.cedula,
-        nombre: user.nombre,
-        email: user.email,
-        role: user.role,
-        zona: user.zona,
-        cargo: user.cargo,
+        id: newUser.id,
+        cedula: newUser.cedula,
+        nombre: newUser.nombre,
+        email: newUser.email,
+        role: newUser.role,
+        zona: newUser.zona,
+        cargo: newUser.cargo,
       },
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("[/api/usuarios]", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }

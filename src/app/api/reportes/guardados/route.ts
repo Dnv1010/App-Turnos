@@ -1,8 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import {
   assertSesionReportesGuardados,
@@ -20,8 +20,11 @@ import {
 } from "@/lib/reportes-guardados";
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  const auth = assertSesionReportesGuardados(session);
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const profile = await getUserProfile(user.email!);
+  const auth = assertSesionReportesGuardados(profile);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -30,7 +33,7 @@ export async function GET(req: NextRequest) {
   const zona = searchParams.get("zona");
 
   const reportes = await prisma.reporte.findMany({
-    where: whereListarReportes(auth.session, zona),
+    where: whereListarReportes(auth.profile, zona),
     include: {
       creadoPorUser: { select: { nombre: true } },
       _count: {
@@ -49,8 +52,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  const auth = assertSesionReportesGuardados(session);
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const profile = await getUserProfile(user.email!);
+  const auth = assertSesionReportesGuardados(profile);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -106,9 +112,9 @@ export async function POST(req: NextRequest) {
   }
 
   const zonaParam =
-    auth.session.user.role === "COORDINADOR" ? null : body.zona === "ALL" ? null : body.zona ?? null;
-  const userIds = await getUserIdsTecnicosParaReporte(auth.session, zonaParam);
-  const coordUserIds = await getUserIdsCoordinadoresParaReporte(auth.session, zonaParam);
+    auth.profile.role === "COORDINADOR" ? null : body.zona === "ALL" ? null : body.zona ?? null;
+  const userIds = await getUserIdsTecnicosParaReporte(auth.profile, zonaParam);
+  const coordUserIds = await getUserIdsCoordinadoresParaReporte(auth.profile, zonaParam);
 
   if (
     userIds.length === 0 &&
@@ -193,7 +199,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const zonaGuardar = zonaPersistidaParaCrear(auth.session, body.zona ?? null);
+  const zonaGuardar = zonaPersistidaParaCrear(auth.profile, body.zona ?? null);
 
   try {
     const reporte = await prisma.reporte.create({
@@ -201,7 +207,7 @@ export async function POST(req: NextRequest) {
         nombre,
         fechaInicio,
         fechaFin,
-        creadoPor: auth.session.user.userId,
+        creadoPor: auth.profile.id,
         zona: zonaGuardar,
         turnosIncluidos: {
           create: turnoIds.map((turnoId) => ({ turnoId })),

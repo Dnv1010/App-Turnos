@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-provider";
 import { parseResponseJson } from "@/lib/parseFetchJson";
 import { useState, useEffect, useCallback } from "react";
 import { HiUserAdd, HiPencil, HiTrash, HiX, HiEye, HiEyeOff } from "react-icons/hi";
@@ -18,7 +18,7 @@ interface Tecnico {
 }
 
 export default function SupplyEquipoPage() {
-  const { data: session } = useSession();
+  const { profile } = useAuth();
   const [list, setList] = useState<Tecnico[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<"none" | "add" | "edit">("none");
@@ -34,7 +34,7 @@ export default function SupplyEquipoPage() {
   const [error, setError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
-    if (!session?.user) return;
+    if (!profile) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/usuarios?zona=ALL&role=TECNICO`);
@@ -43,7 +43,7 @@ export default function SupplyEquipoPage() {
       setList(raw.filter((t) => (t.cargo || "TECNICO") === "ALMACENISTA"));
     } catch { setList([]); }
     finally { setLoading(false); }
-  }, [session?.user]);
+  }, [profile]);
 
   const listFiltrada =
     filtroZona === "ALL" ? list : list.filter((t) => t.zona === filtroZona);

@@ -2,8 +2,8 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import type { EstadoAprobacion, Prisma, Zona } from "@prisma/client";
 
 function canAprobarRole(role: string) {
@@ -12,9 +12,13 @@ function canAprobarRole(role: string) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    if (!canAprobarRole(session.user.role)) {
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const profile = await getUserProfile(user.email!);
+    if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    if (!canAprobarRole(profile.role)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -38,8 +42,8 @@ export async function PATCH(req: NextRequest) {
     const where: Prisma.FotoRegistroWhereInput = {
       id: { in: ids },
       tipo: "FORANEO",
-      ...(session.user.role === "COORDINADOR"
-        ? { user: { zona: session.user.zona as Zona } }
+      ...(profile.role === "COORDINADOR"
+        ? { user: { zona: profile.zona as Zona } }
         : {}),
     };
 
@@ -52,7 +56,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const now = new Date();
-    const actorId = session.user.userId;
+    const actorId = profile.id;
 
     const { count } = await prisma.fotoRegistro.updateMany({
       where,

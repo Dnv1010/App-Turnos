@@ -15,6 +15,13 @@ type DispoRow = {
   valor: string;
   user: CoordUser;
 };
+type DispoTablaRow = {
+  id: string;
+  fecha: string;
+  monto: number;
+  userId: string;
+  user: CoordUser;
+};
 
 export default function DisponibilidadCoordinadoresClient() {
   const [zona, setZona] = useState<"ALL" | "BOGOTA" | "COSTA" | "INTERIOR">("ALL");
@@ -22,6 +29,7 @@ export default function DisponibilidadCoordinadoresClient() {
   const [userId, setUserId] = useState("");
   const [coordinadores, setCoordinadores] = useState<CoordUser[]>([]);
   const [disponibilidades, setDisponibilidades] = useState<DispoRow[]>([]);
+  const [disponibilidadesTabla, setDisponibilidadesTabla] = useState<DispoTablaRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -46,14 +54,17 @@ export default function DisponibilidadCoordinadoresClient() {
       const data = await parseResponseJson<{
         coordinadores: CoordUser[];
         disponibilidades: DispoRow[];
+        disponibilidadesTabla: DispoTablaRow[];
       }>(res);
       if (!res.ok) throw new Error((data as { error?: string })?.error ?? "Error");
       setCoordinadores(data?.coordinadores ?? []);
       setDisponibilidades(data?.disponibilidades ?? []);
+      setDisponibilidadesTabla(data?.disponibilidadesTabla ?? []);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Error");
       setCoordinadores([]);
       setDisponibilidades([]);
+      setDisponibilidadesTabla([]);
     } finally {
       setLoading(false);
     }
@@ -256,6 +267,38 @@ export default function DisponibilidadCoordinadoresClient() {
                 </li>
               ))}
           </ul>
+        </div>
+      )}
+
+      {userId && disponibilidadesTabla.filter((d) => d.userId === userId).length > 0 && (
+        <div className="rounded-xl border border-blue-200 dark:border-[#2A4080] bg-blue-50 dark:bg-[#0F1E40] p-4 shadow-sm dark:shadow-black/30">
+          <h3 className="text-sm font-semibold text-blue-800 dark:text-[#60A5FA] mb-3">
+            Tabla Disponibilidad — {disponibilidadesTabla.filter((d) => d.userId === userId).length} registro{disponibilidadesTabla.filter((d) => d.userId === userId).length !== 1 ? "s" : ""}
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-gray-700 dark:text-[#CBD5E1]">
+              <thead>
+                <tr className="text-xs text-gray-500 dark:text-[#A0AEC0] border-b border-blue-200 dark:border-[#2A4080]">
+                  <th className="py-1 pr-4 text-left font-medium">Fecha</th>
+                  <th className="py-1 text-right font-medium">Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                {disponibilidadesTabla
+                  .filter((d) => d.userId === userId)
+                  .map((d) => (
+                    <tr key={d.id} className="border-b border-blue-100 dark:border-[#1A3060] last:border-0">
+                      <td className="py-1 pr-4">
+                        {format(parseISO(d.fecha.split("T")[0]), "EEEE d MMMM", { locale: es })}
+                      </td>
+                      <td className="py-1 text-right font-semibold text-blue-700 dark:text-[#60A5FA]">
+                        ${d.monto.toLocaleString("es-CO")}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

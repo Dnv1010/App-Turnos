@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useSession, signOut } from "next-auth/react";
+import { useAuth } from "@/lib/auth-provider";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { getPostLoginPath } from "@/lib/postLoginPath";
@@ -9,21 +9,21 @@ import { getPostLoginPath } from "@/lib/postLoginPath";
  * Tras OAuth (Google), NextAuth redirige aquí para enviar al usuario a su dashboard según rol.
  */
 export default function AuthRedirectPage() {
-  const { data: session, status } = useSession();
+  const { profile, loading, signOut } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "loading") return;
-    if (!session?.user) {
+    if (loading) return;
+    if (!profile) {
       router.replace("/login");
       return;
     }
-    if (session.user.role === "PENDIENTE") {
-      void signOut({ callbackUrl: "/" });
+    if (profile.role === "PENDIENTE") {
+      void signOut().then(() => router.push("/"));
       return;
     }
-    router.replace(getPostLoginPath(session.user.role));
-  }, [session, status, router]);
+    router.replace(getPostLoginPath(profile.role));
+  }, [profile, loading, router, signOut]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-bia-navy-800">

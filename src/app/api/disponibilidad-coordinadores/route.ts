@@ -1,8 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { Role, Zona } from "@prisma/client";
 import {
@@ -21,10 +21,11 @@ function parseYmdToUtcDate(ymd: string): Date | null {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
   const { searchParams } = new URL(req.url);
   const desde = searchParams.get("desde");
@@ -42,21 +43,33 @@ export async function GET(req: NextRequest) {
   // Para el rango fin, cubrir todo el día
   const ffEnd = new Date(ff.getTime() + 23 * 60 * 60 * 1000 + 59 * 60 * 1000 + 59 * 1000);
 
-  const role = session.user.role;
+  const role = profile.role;
 
   if (role === "COORDINADOR" || role === "COORDINADOR_INTERIOR") {
-    const disponibilidades = await prisma.mallaTurno.findMany({
-      where: {
-        userId: session.user.userId,
-        fecha: { gte: fi, lte: ffEnd },
-        tipo: "DISPONIBLE",
-      },
-      include: {
-        user: { select: { nombre: true, cedula: true, zona: true, role: true } },
-      },
-      orderBy: { fecha: "asc" },
-    });
-    return NextResponse.json({ coordinadores: [], disponibilidades });
+    const [disponibilidades, disponibilidadesTabla] = await Promise.all([
+      prisma.mallaTurno.findMany({
+        where: {
+          userId: profile.id,
+          fecha: { gte: fi, lte: ffEnd },
+          tipo: "DISPONIBLE",
+        },
+        include: {
+          user: { select: { nombre: true, cedula: true, zona: true, role: true } },
+        },
+        orderBy: { fecha: "asc" },
+      }),
+      prisma.disponibilidad.findMany({
+        where: {
+          userId: profile.id,
+          fecha: { gte: fi, lte: ffEnd },
+        },
+        include: {
+          user: { select: { nombre: true, cedula: true, zona: true, role: true } },
+        },
+        orderBy: { fecha: "asc" },
+      }),
+    ]);
+    return NextResponse.json({ coordinadores: [], disponibilidades, disponibilidadesTabla });
   }
 
   if (!ROLES_OK.has(role)) {
@@ -71,7 +84,7 @@ export async function GET(req: NextRequest) {
     whereUser.zona = zona as Zona;
   }
 
-  const [coordinadores, disponibilidades] = await Promise.all([
+  const [coordinadores, disponibilidades, disponibilidadesTabla] = await Promise.all([
     prisma.user.findMany({
       where: whereUser,
       select: { id: true, nombre: true, cedula: true, zona: true, role: true },
@@ -88,17 +101,28 @@ export async function GET(req: NextRequest) {
       },
       orderBy: [{ fecha: "asc" }, { user: { nombre: "asc" } }],
     }),
+    prisma.disponibilidad.findMany({
+      where: {
+        fecha: { gte: fi, lte: ffEnd },
+        user: whereUser,
+      },
+      include: {
+        user: { select: { nombre: true, cedula: true, zona: true, role: true } },
+      },
+      orderBy: [{ fecha: "asc" }, { user: { nombre: "asc" } }],
+    }),
   ]);
 
-  return NextResponse.json({ coordinadores, disponibilidades });
+  return NextResponse.json({ coordinadores, disponibilidades, disponibilidadesTabla });
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-  if (!ROLES_OK.has(session.user.role)) {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+  if (!ROLES_OK.has(profile.role)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
@@ -115,7 +139,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "userId y fechas[] requeridos" }, { status: 400 });
   }
 
-  const user = await prisma.user.findFirst({
+  const targetUser = await prisma.user.findFirst({
     where: {
       id: userId,
       isActive: true,
@@ -123,7 +147,7 @@ export async function POST(req: NextRequest) {
     },
     select: { id: true, nombre: true, cedula: true },
   });
-  if (!user) {
+  if (!targetUser) {
     return NextResponse.json({ error: "Usuario no es líder de zona válido" }, { status: 400 });
   }
 
@@ -145,17 +169,20 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    void deleteDisponibilidadCoordinadorSheet(user.cedula ?? "", f);
-    void appendDisponibilidadCoordinadorSheet(user.cedula ?? "", user.nombre, f);
+    void deleteDisponibilidadCoordinadorSheet(targetUser.cedula ?? "", f);
+    void appendDisponibilidadCoordinadorSheet(targetUser.cedula ?? "", targetUser.nombre, f);
   }
 
   return NextResponse.json({ ok: true, asignados: fechas.length });
 }
 
 export async function DELETE(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  if (!ROLES_OK.has(session.user.role)) {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+  if (!ROLES_OK.has(profile.role)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
@@ -172,11 +199,11 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "userId y fechas[] requeridos" }, { status: 400 });
   }
 
-  const user = await prisma.user.findUnique({
+  const targetUser = await prisma.user.findUnique({
     where: { id: userId },
     select: { cedula: true, nombre: true },
   });
-  if (!user) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+  if (!targetUser) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
   for (const f of fechas) {
     const fechaDate = parseYmdToUtcDate(f);
@@ -190,7 +217,7 @@ export async function DELETE(req: NextRequest) {
       },
     });
 
-    void deleteDisponibilidadCoordinadorSheet(user.cedula ?? "", f);
+    void deleteDisponibilidadCoordinadorSheet(targetUser.cedula ?? "", f);
   }
 
   return NextResponse.json({ ok: true });

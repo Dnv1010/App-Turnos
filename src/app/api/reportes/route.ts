@@ -1,9 +1,9 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { calcularTurno, getInicioSemana, getFinSemana, checkMallaAlerts, dateKeyColombia } from "@/lib/bia/calc-engine";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
+import { calcularTurno, getInicioSemana, checkMallaAlerts, dateKeyColombia } from "@/lib/bia/calc-engine";
 import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
 import { valorDisponibilidadMallaPorRol } from "@/lib/reporteDisponibilidadValor";
 
@@ -27,8 +27,11 @@ function getDayOfWeekColombia(d: Date): number {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
   const { searchParams } = new URL(req.url);
   const inicio = searchParams.get("inicio");
@@ -45,19 +48,19 @@ export async function GET(req: NextRequest) {
   if (userId) whereUser.id = userId;
   if (rol && rol !== "ALL") whereUser.role = rol;
   if (
-    session.user.role === "COORDINADOR" ||
-    session.user.role === "MANAGER" ||
-    session.user.role === "ADMIN" ||
-    session.user.role === "SUPPLY"
+    profile.role === "COORDINADOR" ||
+    profile.role === "MANAGER" ||
+    profile.role === "ADMIN" ||
+    profile.role === "SUPPLY"
   ) {
     whereUser.role = "TECNICO";
   }
-  if (session.user.role === "COORDINADOR") {
-    whereUser.zona = session.user.zona;
-  } else if (session.user.role === "SUPPLY") {
+  if (profile.role === "COORDINADOR") {
+    whereUser.zona = profile.zona;
+  } else if (profile.role === "SUPPLY") {
     if (zona && zona !== "ALL") whereUser.zona = zona;
-  } else if (session.user.role === "TECNICO") {
-    whereUser.id = session.user.userId;
+  } else if (profile.role === "TECNICO") {
+    whereUser.id = profile.id;
   } else if (zona && zona !== "ALL") {
     whereUser.zona = zona;
   }
@@ -120,13 +123,18 @@ export async function GET(req: NextRequest) {
   const detalle = usuarios.map((user) => {
     const mallaGetter = (fecha: Date) => mallaMap.get(`${user.id}|${dateKeyColombia(fecha)}`) ?? null;
 
+    // Pre-agrupar por semana para evitar O(n²): filter dentro de map
+    const turnosPorSemana = new Map<number, typeof user.turnos>();
+    for (const t of user.turnos) {
+      const key = getInicioSemana(t.fecha).getTime();
+      if (!turnosPorSemana.has(key)) turnosPorSemana.set(key, []);
+      turnosPorSemana.get(key)!.push(t);
+    }
+
     const turnosConMalla = user.turnos.map((t) => {
       const mallaVal = mallaGetter(t.fecha);
       const inicioSemana = getInicioSemana(t.fecha);
-      const finSemana = getFinSemana(t.fecha);
-      const turnosSemana = user.turnos.filter(
-        (x) => x.fecha >= inicioSemana && x.fecha <= finSemana
-      );
+      const turnosSemana = turnosPorSemana.get(inicioSemana.getTime()) ?? [];
       const weeklyOrdParaRegla44 = sumWeeklyOrdHoursMonSat(
         turnosSemana.map((x) => ({
           id: x.id,

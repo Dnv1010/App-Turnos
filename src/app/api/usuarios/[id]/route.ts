@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import bcrypt from "bcryptjs";
 import { Cargo, Zona } from "@prisma/client";
 
@@ -23,8 +23,12 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
   const { id } = await params;
   const target = await prisma.user.findUnique({ where: { id } });
@@ -34,10 +38,10 @@ export async function PATCH(
   const { nombre, email, pin, cargo, filtroEquipo, zona: bodyZona } = body;
 
   const isCoordSelf =
-    session.user.userId === id &&
-    (session.user.role === "COORDINADOR" ||
-      session.user.role === "COORDINADOR_INTERIOR" ||
-      session.user.role === "SUPPLY");
+    profile.id === id &&
+    (profile.role === "COORDINADOR" ||
+      profile.role === "COORDINADOR_INTERIOR" ||
+      profile.role === "SUPPLY");
 
   if (isCoordSelf) {
     if (nombre != null || email != null || pin != null || cargo != null) {
@@ -57,15 +61,15 @@ export async function PATCH(
     return NextResponse.json(updated);
   }
 
-  if (session.user.role === "COORDINADOR") {
-    if (target.role !== "TECNICO" || target.zona !== session.user.zona) {
+  if (profile.role === "COORDINADOR") {
+    if (target.role !== "TECNICO" || target.zona !== profile.zona) {
       return NextResponse.json({ error: "Solo puedes editar operadores de tu zona" }, { status: 403 });
     }
-  } else if (session.user.role === "SUPPLY") {
+  } else if (profile.role === "SUPPLY") {
     if (target.role !== "TECNICO" || target.cargo !== "ALMACENISTA") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
-  } else if (session.user.role !== "ADMIN" && session.user.role !== "MANAGER") {
+  } else if (profile.role !== "ADMIN" && profile.role !== "MANAGER") {
     return NextResponse.json({ error: "Sin permisos para editar usuarios" }, { status: 403 });
   }
 
@@ -90,7 +94,7 @@ export async function PATCH(
     if (typeof cargo !== "string" || !Object.values(Cargo).includes(cargo as Cargo)) {
       return NextResponse.json({ error: "cargo inválido" }, { status: 400 });
     }
-    if (session.user.role === "SUPPLY" && (cargo as Cargo) !== Cargo.ALMACENISTA) {
+    if (profile.role === "SUPPLY" && (cargo as Cargo) !== Cargo.ALMACENISTA) {
       return NextResponse.json({ error: "Solo puedes mantener cargo Almacenista" }, { status: 400 });
     }
     data.cargo = cargo as Cargo;
@@ -101,7 +105,7 @@ export async function PATCH(
     }
     data.filtroEquipo = filtroEquipo;
   }
-  if (bodyZona != null && session.user.role === "SUPPLY") {
+  if (bodyZona != null && profile.role === "SUPPLY") {
     if (typeof bodyZona !== "string" || !Object.values(Zona).includes(bodyZona as Zona)) {
       return NextResponse.json({ error: "zona inválida" }, { status: 400 });
     }
@@ -121,8 +125,12 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
   const { id } = await params;
   const target = await prisma.user.findUnique({ where: { id } });
@@ -132,15 +140,15 @@ export async function DELETE(
     return NextResponse.json({ error: "No se puede desactivar coordinadores, managers ni administradores" }, { status: 400 });
   }
 
-  if (session.user.role === "COORDINADOR") {
-    if (target.zona !== session.user.zona) {
+  if (profile.role === "COORDINADOR") {
+    if (target.zona !== profile.zona) {
       return NextResponse.json({ error: "Solo puedes desactivar operadores de tu zona" }, { status: 403 });
     }
-  } else if (session.user.role === "SUPPLY") {
+  } else if (profile.role === "SUPPLY") {
     if (target.cargo !== "ALMACENISTA") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
-  } else if (session.user.role !== "ADMIN") {
+  } else if (profile.role !== "ADMIN") {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
 

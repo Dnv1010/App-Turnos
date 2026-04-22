@@ -1,8 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { assertSesionReportesGuardados, puedeGestionarReporte } from "@/lib/reportes-guardados-api";
 import { buildReporteGuardadoCsvString, slugNombreReporteArchivo } from "@/lib/buildReporteGuardadoCsv";
@@ -10,8 +10,11 @@ import { buildReporteGuardadoCsvString, slugNombreReporteArchivo } from "@/lib/b
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, context: Ctx) {
-  const session = await getServerSession(authOptions);
-  const auth = assertSesionReportesGuardados(session);
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const profile = await getUserProfile(user.email!);
+  const auth = assertSesionReportesGuardados(profile);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -56,7 +59,7 @@ export async function GET(_req: NextRequest, context: Ctx) {
     return NextResponse.json({ error: "Reporte no encontrado" }, { status: 404 });
   }
 
-  if (!puedeGestionarReporte(auth.session, reporte)) {
+  if (!puedeGestionarReporte(auth.profile, reporte)) {
     return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
   }
 

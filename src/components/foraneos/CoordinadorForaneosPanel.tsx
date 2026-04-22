@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-provider";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
 import { parseResponseJson } from "@/lib/parseFetchJson";
@@ -54,7 +54,7 @@ type Props = {
 };
 
 export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }: Props) {
-  const { data: session } = useSession();
+  const { profile } = useAuth();
   const toast = useToast();
   const [foraneos, setForaneos] = useState<ForaneoRow[]>([]);
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>("PENDIENTE");
@@ -70,13 +70,13 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
   const headerCbRef = useRef<HTMLInputElement>(null);
 
   const canApprove =
-    session?.user?.role === "COORDINADOR" ||
-    session?.user?.role === "MANAGER" ||
-    session?.user?.role === "ADMIN";
+    profile?.role === "COORDINADOR" ||
+    profile?.role === "MANAGER" ||
+    profile?.role === "ADMIN";
 
   const loadForaneos = useCallback(async () => {
-    if (!session?.user) return;
-    if (session.user.role === "COORDINADOR" && !session.user.zona) return;
+    if (!profile) return;
+    if (profile.role === "COORDINADOR" && !profile.zona) return;
     setLoading(true);
     try {
       const params = new URLSearchParams({ desde, hasta });
@@ -92,7 +92,7 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
     } finally {
       setLoading(false);
     }
-  }, [session, desde, hasta, tecnicoFilter, estadoFiltro]);
+  }, [profile, desde, hasta, tecnicoFilter, estadoFiltro]);
 
   useEffect(() => {
     loadForaneos();
@@ -326,8 +326,8 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
       "—"
     );
 
-  if (!session?.user) return null;
-  if (session.user.role === "COORDINADOR" && !session.user.zona) return null;
+  if (!profile) return null;
+  if (profile.role === "COORDINADOR" && !profile.zona) return null;
 
   return (
     <div className="space-y-4">

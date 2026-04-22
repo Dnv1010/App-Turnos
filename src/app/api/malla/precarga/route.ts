@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { getDay } from "date-fns";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 
 function dateKey(d: Date): string {
   return d.toISOString().split("T")[0];
@@ -10,8 +9,12 @@ function dateKey(d: Date): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const profile = await getUserProfile(user.email!);
+    if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
     let body: Record<string, unknown> = {};
     try {
@@ -23,20 +26,21 @@ export async function POST(req: NextRequest) {
     if (!userId || !mes) {
       return NextResponse.json({ error: "userId y mes (yyyy-MM) requeridos" }, { status: 400 });
     }
+    const userIdStr = userId as string;
 
-    if (session.user.role === "TECNICO" && userId !== session.user.userId) {
+    if (profile.role === "TECNICO" && userIdStr !== profile.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
-    if (session.user.role === "COORDINADOR" || session.user.role === "SUPPLY") {
+    if (profile.role === "COORDINADOR" || profile.role === "SUPPLY") {
       const target = await prisma.user.findUnique({
-        where: { id: userId },
+        where: { id: userIdStr },
         select: { zona: true, role: true, cargo: true },
       });
       const ok =
         target &&
         target.role === "TECNICO" &&
-        target.zona === session.user.zona &&
-        (session.user.role === "COORDINADOR" || target.cargo === "ALMACENISTA");
+        target.zona === profile.zona &&
+        (profile.role === "COORDINADOR" || target.cargo === "ALMACENISTA");
       if (!ok) {
         return NextResponse.json({ error: "Solo puedes precargar malla de operadores de tu zona" }, { status: 403 });
       }
@@ -54,7 +58,7 @@ export async function POST(req: NextRequest) {
     const current = new Date(start);
     while (current <= end) {
       const key = dateKey(current);
-      const dayOfWeek = getDay(current);
+      const dayOfWeek = current.getUTCDay();
       const isSunday = dayOfWeek === 0;
       const isSaturday = dayOfWeek === 6;
       const isFestivo = festivoSet.has(key);
@@ -76,9 +80,9 @@ export async function POST(req: NextRequest) {
       }
 
       await prisma.mallaTurno.upsert({
-        where: { userId_fecha: { userId, fecha: new Date(current.getTime()) } },
+        where: { userId_fecha: { userId: userIdStr, fecha: new Date(current.getTime()) } },
         update: { valor, tipo, horaInicio: horaInicio || null, horaFin: horaFin || null },
-        create: { userId, fecha: new Date(current.getTime()), valor, tipo, horaInicio: horaInicio || null, horaFin: horaFin || null },
+        create: { userId: userIdStr, fecha: new Date(current.getTime()), valor, tipo, horaInicio: horaInicio || null, horaFin: horaFin || null },
       });
       count++;
       current.setUTCDate(current.getUTCDate() + 1);

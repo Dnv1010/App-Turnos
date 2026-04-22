@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  allowedDevOrigins: ['172.31.208.249'],
   eslint: {
     ignoreDuringBuilds: true,
   },

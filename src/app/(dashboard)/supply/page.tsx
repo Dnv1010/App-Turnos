@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-provider";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
@@ -89,7 +89,7 @@ interface ReporteData {
 type TabView = "turnos" | "equipo" | "disponibilidades";
 
 export default function SupplyDashboardPage() {
-  const { data: session } = useSession();
+  const { profile } = useAuth();
   const ahora = new Date();
   const [inicio, setInicio] = useState(format(startOfMonth(ahora), "yyyy-MM-dd"));
   const [fin, setFin] = useState(format(endOfMonth(ahora), "yyyy-MM-dd"));
@@ -154,7 +154,7 @@ export default function SupplyDashboardPage() {
   );
 
   const cargarTurnos = useCallback(async () => {
-    if (!session?.user) return;
+    if (!profile) return;
     setLoadingTurnos(true);
     try {
       const params = new URLSearchParams({ inicio, fin, zona: "ALL" });
@@ -169,10 +169,10 @@ export default function SupplyDashboardPage() {
       setTurnos(list);
     } catch { /* ignore */ }
     finally { setLoadingTurnos(false); }
-  }, [session?.user, inicio, fin, tecnicoFilter, estadoFilter]);
+  }, [profile, inicio, fin, tecnicoFilter, estadoFilter]);
 
   const cargarReportes = useCallback(async () => {
-    if (!session?.user) return;
+    if (!profile) return;
     setLoadingReportes(true);
     setReporteError(null);
     const z = "ALL";
@@ -214,12 +214,12 @@ export default function SupplyDashboardPage() {
     } finally {
       setLoadingReportes(false);
     }
-  }, [session?.user, inicio, fin, tecnicoFilter]);
+  }, [profile, inicio, fin, tecnicoFilter]);
 
   useEffect(() => { cargarTurnos(); }, [cargarTurnos]);
   useEffect(() => { if (tabView !== "turnos") cargarReportes(); }, [tabView, cargarReportes]);
   useEffect(() => {
-    if (tabView === "disponibilidades" && session?.user) {
+    if (tabView === "disponibilidades" && profile) {
       setLoadingDisp(true);
       const q = `${tecnicoFilter !== "ALL" ? `&userId=${tecnicoFilter}` : ""}`;
       fetch(`/api/usuarios?zona=ALL&role=TECNICO&cargo=ALMACENISTA`)
@@ -242,16 +242,16 @@ export default function SupplyDashboardPage() {
         .catch(() => setDisponibilidadesList([]))
         .finally(() => setLoadingDisp(false));
     }
-  }, [tabView, inicio, fin, tecnicoFilter, session?.user, filtroZona]);
+  }, [tabView, inicio, fin, tecnicoFilter, profile, filtroZona]);
   useEffect(() => {
-    if (!session?.user) return;
+    if (!profile) return;
     fetch(`/api/usuarios?zona=ALL&role=TECNICO&cargo=ALMACENISTA`)
       .then(async (r) => parseResponseJson<{ tecnicos?: { id: string; nombre: string }[] }>(r))
       .then((d) => {
         if (d?.tecnicos) setTecnicosList(d.tecnicos.map((u) => ({ id: u.id, nombre: u.nombre })));
       })
       .catch(() => {});
-  }, [session?.user]);
+  }, [profile]);
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -286,7 +286,7 @@ export default function SupplyDashboardPage() {
   };
 
   const exportarExcel = async () => {
-    if (!session?.user) return;
+    if (!profile) return;
     const params = new URLSearchParams({ desde: inicio, hasta: fin });
     if (tecnicoFilter !== "ALL") params.set("userId", tecnicoFilter);
     const res = await fetch(`/api/reportes/excel?${params}`);

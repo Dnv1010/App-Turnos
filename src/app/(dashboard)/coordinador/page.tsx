@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-provider";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
@@ -91,7 +91,7 @@ interface ReporteData {
 type TabView = "turnos" | "equipo" | "disponibilidades";
 
 export default function CoordinadorPage() {
-  const { data: session } = useSession();
+  const { profile } = useAuth();
   const ahora = new Date();
   const [inicio, setInicio] = useState(format(startOfMonth(ahora), "yyyy-MM-dd"));
   const [fin, setFin] = useState(format(endOfMonth(ahora), "yyyy-MM-dd"));
@@ -109,11 +109,12 @@ export default function CoordinadorPage() {
   const [syncingSheets, setSyncingSheets] = useState(false);
   const [filtroEquipo, setFiltroEquipo] = useState<"TODOS" | "TECNICO" | "ALMACENISTA">("TODOS");
   const [filtroEquipoListo, setFiltroEquipoListo] = useState(false);
+  /** Evita que la respuesta tardía del servidor pise Técnicos/Almacenistas tras hacer clic. */
   const usuarioEligioFiltroEquipoRef = useRef(false);
 
   useEffect(() => {
     usuarioEligioFiltroEquipoRef.current = false;
-  }, [session?.user?.userId, session?.user?.zona]);
+  }, [profile?.id, profile?.zona]);
 
   useTurnosStream(
     (data) => {
@@ -129,10 +130,10 @@ export default function CoordinadorPage() {
   );
 
   const cargarTurnos = useCallback(async () => {
-    if (!session?.user?.zona) return;
+    if (!profile?.zona) return;
     setLoadingTurnos(true);
     try {
-      const params = new URLSearchParams({ inicio, fin, zona: session.user.zona });
+      const params = new URLSearchParams({ inicio, fin, zona: profile?.zona });
       if (tecnicoFilter !== "ALL") params.set("userId", tecnicoFilter);
       const res = await fetch(`/api/turnos?${params}`);
       const raw = await parseResponseJson<TurnoRow[] | { error?: string }>(res);
@@ -143,13 +144,13 @@ export default function CoordinadorPage() {
       setTurnos(list);
     } catch { /* ignore */ }
     finally { setLoadingTurnos(false); }
-  }, [session?.user?.zona, inicio, fin, tecnicoFilter, estadoFilter]);
+  }, [profile?.zona, inicio, fin, tecnicoFilter, estadoFilter]);
 
   const cargarReportes = useCallback(async () => {
-    if (!session?.user?.zona) return;
+    if (!profile?.zona) return;
     setLoadingReportes(true);
     setReporteError(null);
-    const params = new URLSearchParams({ inicio, fin, zona: session.user.zona });
+    const params = new URLSearchParams({ inicio, fin, zona: profile?.zona });
     if (tecnicoFilter !== "ALL") params.set("userId", tecnicoFilter);
     try {
       const res = await fetch(`/api/reportes?${params}`);
@@ -166,12 +167,12 @@ export default function CoordinadorPage() {
     } finally {
       setLoadingReportes(false);
     }
-  }, [session?.user?.zona, inicio, fin, tecnicoFilter]);
+  }, [profile?.zona, inicio, fin, tecnicoFilter]);
 
   useEffect(() => { cargarTurnos(); }, [cargarTurnos]);
   useEffect(() => { if (tabView !== "turnos") cargarReportes(); }, [tabView, cargarReportes]);
   useEffect(() => {
-    if (tabView === "disponibilidades" && session?.user?.zona) {
+    if (tabView === "disponibilidades" && profile?.zona) {
       setLoadingDisp(true);
       fetch(`/api/reportes/disponibilidades?desde=${inicio}&hasta=${fin}${tecnicoFilter !== "ALL" ? `&userId=${tecnicoFilter}` : ""}`)
         .then(async (r) => {
@@ -182,44 +183,44 @@ export default function CoordinadorPage() {
         .catch(() => setDisponibilidadesList([]))
         .finally(() => setLoadingDisp(false));
     }
-  }, [tabView, inicio, fin, tecnicoFilter, session?.user?.zona]);
-
+  }, [tabView, inicio, fin, tecnicoFilter, profile?.zona]);
   useEffect(() => {
-    if (!session?.user?.zona) return;
-    fetch(`/api/usuarios?zona=${session.user.zona}&role=TECNICO`)
-      .then(async (r) => parseResponseJson<{ tecnicos?: { id: string; nombre: string }[] }>(r))
-      .then((d) => {
-        if (d?.tecnicos) setTecnicosList(d.tecnicos.map((u) => ({ id: u.id, nombre: u.nombre })));
-      })
-      .catch(() => {});
-  }, [session?.user?.zona]);
-
-  useEffect(() => {
-    if (!session?.user?.userId || !session?.user?.zona) return;
+    if (!profile?.id || !profile?.zona) return;
     let cancelled = false;
-    fetch(`/api/usuarios?zona=${encodeURIComponent(session.user.zona)}`)
-      .then((r) => r.json())
-      .then((d: { tecnicos?: { id: string; filtroEquipo?: string }[] }) => {
+    // Ambas peticiones en paralelo en lugar de secuencial
+    Promise.all([
+      fetch(`/api/usuarios?zona=${encodeURIComponent(profile.zona)}&role=TECNICO`).then((r) => r.json()),
+      fetch(`/api/usuarios?zona=${encodeURIComponent(profile.zona)}`).then((r) => r.json()),
+    ])
+      .then(([dataTecnicos, dataAll]: [{ tecnicos?: { id: string; nombre: string }[] }, { tecnicos?: { id: string; filtroEquipo?: string }[] }]) => {
         if (cancelled) return;
-        if (usuarioEligioFiltroEquipoRef.current) return;
-        const me = d?.tecnicos?.find((u) => u.id === session.user.userId);
-        if (me?.filtroEquipo && ["TODOS", "TECNICO", "ALMACENISTA"].includes(me.filtroEquipo)) {
-          setFiltroEquipo(me.filtroEquipo as "TODOS" | "TECNICO" | "ALMACENISTA");
+        if (dataTecnicos?.tecnicos) {
+          setTecnicosList(dataTecnicos.tecnicos.map((u) => ({ id: u.id, nombre: u.nombre })));
+        }
+        if (!usuarioEligioFiltroEquipoRef.current) {
+          const me = dataAll?.tecnicos?.find((u) => u.id === profile.id);
+          if (me?.filtroEquipo && ["TODOS", "TECNICO", "ALMACENISTA"].includes(me.filtroEquipo)) {
+            setFiltroEquipo(me.filtroEquipo as "TODOS" | "TECNICO" | "ALMACENISTA");
+          }
         }
       })
       .catch(() => {})
-      .finally(() => { if (!cancelled) setFiltroEquipoListo(true); });
-    return () => { cancelled = true; };
-  }, [session?.user?.userId, session?.user?.zona]);
+      .finally(() => {
+        if (!cancelled) setFiltroEquipoListo(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id, profile?.zona]);
 
   useEffect(() => {
-    if (!session?.user?.userId || !filtroEquipoListo) return;
-    fetch(`/api/usuarios/${session.user.userId}`, {
+    if (!profile?.id || !filtroEquipoListo) return;
+    fetch(`/api/usuarios/${profile?.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ filtroEquipo }),
     }).catch(() => {});
-  }, [filtroEquipo, session?.user?.userId, filtroEquipoListo]);
+  }, [filtroEquipo, profile?.id, filtroEquipoListo]);
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -250,13 +251,13 @@ export default function CoordinadorPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `reporte_${session?.user?.zona}_${inicio}_${fin}.csv`;
+    link.download = `reporte_${profile?.zona}_${inicio}_${fin}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
 
   const exportarExcel = async () => {
-    if (!session?.user?.zona) return;
+    if (!profile?.zona) return;
     const params = new URLSearchParams({ desde: inicio, hasta: fin });
     if (tecnicoFilter !== "ALL") params.set("userId", tecnicoFilter);
     const res = await fetch(`/api/reportes/excel?${params}`);
@@ -265,7 +266,7 @@ export default function CoordinadorPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `reporte_${session?.user?.zona}_${inicio}_${fin}.xlsx`;
+    link.download = `reporte_${profile?.zona}_${inicio}_${fin}.xlsx`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -345,7 +346,7 @@ export default function CoordinadorPage() {
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Dashboard Líder de Zona</h2>
             <p className="text-sm text-gray-500 dark:text-bia-muted">
-              Zona {session?.user?.zona ? getZonaLabel(session.user.zona) : ""} — {session?.user?.nombre}
+              Zona {profile?.zona ? getZonaLabel(profile?.zona) : ""} — {profile?.nombre}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">

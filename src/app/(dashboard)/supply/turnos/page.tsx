@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-provider";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { format } from "date-fns";
 import { formatFechaTurnoDdMmmYyyy } from "@/lib/formatFechaTurno";
@@ -72,7 +72,7 @@ function formatForEditInputsColombia(d: Date): { date: string; time: string } {
 }
 
 export default function SupplyTurnosPage() {
-  const { data: session } = useSession();
+  const { profile } = useAuth();
   const toast = useToast();
   const [turnos, setTurnos] = useState<TurnoRow[]>([]);
   const [tecnicos, setTecnicos] = useState<TecnicoOption[]>([]);
@@ -94,7 +94,7 @@ export default function SupplyTurnosPage() {
   });
 
   const loadTurnos = useCallback(async () => {
-    if (!session?.user) return;
+    if (!profile) return;
     setLoading(true);
     try {
       const params = new URLSearchParams({ inicio, fin, zona: "ALL" });
@@ -116,21 +116,21 @@ export default function SupplyTurnosPage() {
       setTurnos(list);
     } catch { setTurnos([]); }
     finally { setLoading(false); }
-  }, [session?.user, inicio, fin, tecnicoFilter, estadoFilter]);
+  }, [profile, inicio, fin, tecnicoFilter, estadoFilter]);
 
   useEffect(() => {
     loadTurnos();
   }, [loadTurnos]);
 
   useEffect(() => {
-    if (!session?.user) return;
+    if (!profile) return;
     fetch(`/api/usuarios?zona=ALL&role=TECNICO&cargo=ALMACENISTA`)
       .then(async (r) => parseResponseJson<{ tecnicos?: (TecnicoOption & { cargo?: string })[] }>(r))
       .then((d) => {
         if (d?.tecnicos) setTecnicos(d.tecnicos);
       })
       .catch(() => {});
-  }, [session?.user]);
+  }, [profile]);
 
   const turnosFiltradosPorZona = useMemo(() => {
     if (filtroZona === "ALL") return turnos;

@@ -1,8 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import {
   assertSesionReportesGuardados,
@@ -19,8 +19,11 @@ import {
 } from "@/lib/reportes-guardados";
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  const auth = assertSesionReportesGuardados(session);
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const profile = await getUserProfile(user.email!);
+  const auth = assertSesionReportesGuardados(profile);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -40,8 +43,8 @@ export async function GET(req: NextRequest) {
   }
 
   const { fechaInicio, fechaFin } = rango;
-  const userIds = await getUserIdsTecnicosParaReporte(auth.session, zona);
-  const coordUserIds = await getUserIdsCoordinadoresParaReporte(auth.session, zona);
+  const userIds = await getUserIdsTecnicosParaReporte(auth.profile, zona);
+  const coordUserIds = await getUserIdsCoordinadoresParaReporte(auth.profile, zona);
 
   const whereDisp = whereDisponibilidadesMallaCombinadaParaReporte(
     fechaInicio,

@@ -3,8 +3,393 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("SUPABASE_DATABASE_URL")
+  directUrl = env("SUPABASE_DIRECT_URL")
+}
+
+model User {
+  id                String             @id @default(cuid())
+  cedula            String             @unique
+  nombre            String
+  email             String             @unique
+  password          String
+  role              Role               @default(TECNICO)
+  zona              Zona               @default(BOGOTA)
+  cargo             Cargo              @default(TECNICO)
+  filtroEquipo      String             @default("TODOS")
+  isActive          Boolean            @default(true)
+  fotoUrl           String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  accounts          Account[]
+  disponibilidades  Disponibilidad[]
+  fotoRegistros     FotoRegistro[]
+  mallaTurnos       MallaTurno[]
+  pushSubscriptions PushSubscription[]
+  reportesCreados   Reporte[]          @relation("ReportesCreados")
+  sessions          Session[]
+  turnos            Turno[]
+  turnosCoordinador TurnoCoordinador[]
+}
+
+model Turno {
+  id                      String         @id @default(cuid())
+  userId                  String
+  fecha                   DateTime       @db.Date
+  diaSemana               String?
+  horaEntrada             DateTime
+  horaSalida              DateTime?
+  latEntrada              Float?
+  lngEntrada              Float?
+  latSalida               Float?
+  lngSalida               Float?
+  startPhotoUrl           String?
+  endPhotoUrl             String?
+  horasOrdinarias         Float          @default(0)
+  heDiurna                Float          @default(0)
+  heNocturna              Float          @default(0)
+  heDominical             Float          @default(0)
+  heNoctDominical         Float          @default(0)
+  recNocturno             Float          @default(0)
+  recDominical            Float          @default(0)
+  recNoctDominical        Float          @default(0)
+  observaciones           String?
+  jornadaAlertaPushSentAt DateTime?
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+  reportes                ReporteTurno[]
+  user                    User           @relation(fields: [userId], references: [id])
+
+  @@index([userId, fecha])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model MallaTurno {
+  id         String                  @id @default(cuid())
+  userId     String
+  fecha      DateTime                @db.Date
+  valor      String
+  tipo       TipoDia?                @default(TRABAJO)
+  horaInicio String?
+  horaFin    String?
+  createdAt  DateTime                @default(now())
+  user       User                    @relation(fields: [userId], references: [id])
+  reportes   ReporteDisponibilidad[]
+
+  @@unique([userId, fecha])
+}
+
+model Festivo {
+  id     String   @id @default(cuid())
+  fecha  DateTime @unique @db.Date
+  nombre String
+}
+
+model Disponibilidad {
+  id        String   @id @default(cuid())
+  userId    String
+  fecha     DateTime @db.Date
+  monto     Float    @default(80000)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, fecha])
+}
+
+model FotoRegistro {
+  id               String           @id @default(cuid())
+  userId           String
+  tipo             String
+  driveFileId      String?
+  driveUrl         String?
+  driveFileIdFinal String?
+  driveUrlFinal    String?
+  base64Fallback   String?
+  kmInicial        Float?
+  kmFinal          Float?
+  latInicial       Float?
+  lngInicial       Float?
+  latFinal         Float?
+  lngFinal         Float?
+  observaciones    String?
+  estadoAprobacion EstadoAprobacion @default(PENDIENTE)
+  aprobadoPor      String?
+  fechaAprobacion  DateTime?
+  notaAprobacion   String?
+  createdAt        DateTime         @default(now())
+  user             User             @relation(fields: [userId], references: [id])
+  reportes         ReporteForaneo[]
+}
+
+model Reporte {
+  id                         String                    @id @default(cuid())
+  nombre                     String
+  fechaInicio                DateTime                  @db.Date
+  fechaFin                   DateTime                  @db.Date
+  creadoPor                  String
+  zona                       String?
+  createdAt                  DateTime                  @default(now())
+  creadoPorUser              User                      @relation("ReportesCreados", fields: [creadoPor], references: [id])
+  disponibilidadesIncluidas  ReporteDisponibilidad[]
+  foraneosIncluidos          ReporteForaneo[]
+  turnosIncluidos            ReporteTurno[]
+  turnosCoordinadorIncluidos ReporteTurnoCoordinador[]
+
+  @@index([zona])
+  @@index([createdAt])
+}
+
+model ReporteTurno {
+  id        String  @id @default(cuid())
+  reporteId String
+  turnoId   String
+  reporte   Reporte @relation(fields: [reporteId], references: [id], onDelete: Cascade)
+  turno     Turno   @relation(fields: [turnoId], references: [id])
+
+  @@unique([reporteId, turnoId])
+}
+
+model ReporteForaneo {
+  id             String       @id @default(cuid())
+  reporteId      String
+  fotoRegistroId String
+  fotoRegistro   FotoRegistro @relation(fields: [fotoRegistroId], references: [id])
+  reporte        Reporte      @relation(fields: [reporteId], references: [id], onDelete: Cascade)
+
+  @@unique([reporteId, fotoRegistroId])
+}
+
+model ReporteDisponibilidad {
+  id           String     @id @default(cuid())
+  reporteId    String
+  mallaTurnoId String
+  mallaTurno   MallaTurno @relation(fields: [mallaTurnoId], references: [id])
+  reporte      Reporte    @relation(fields: [reporteId], references: [id], onDelete: Cascade)
+
+  @@unique([reporteId, mallaTurnoId])
+}
+
+model TurnoCoordinador {
+  id               String                    @id @default(cuid())
+  userId           String
+  fecha            DateTime                  @db.Date
+  horaEntrada      DateTime
+  horaSalida       DateTime?
+  codigoOrden      String
+  nota             String?
+  horasOrdinarias  Float                     @default(0)
+  heDiurna         Float                     @default(0)
+  heNocturna       Float                     @default(0)
+  heDominical      Float                     @default(0)
+  heNoctDominical  Float                     @default(0)
+  recNocturno      Float                     @default(0)
+  recDominical     Float                     @default(0)
+  recNoctDominical Float                     @default(0)
+  latEntrada       Float?
+  lngEntrada       Float?
+  latSalida        Float?
+  lngSalida        Float?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  reportes         ReporteTurnoCoordinador[]
+  user             User                      @relation(fields: [userId], references: [id])
+
+  @@index([userId, fecha])
+}
+
+model ReporteTurnoCoordinador {
+  id                 String           @id @default(cuid())
+  reporteId          String
+  turnoCoordinadorId String
+  reporte            Reporte          @relation(fields: [reporteId], references: [id], onDelete: Cascade)
+  turnoCoordinador   TurnoCoordinador @relation(fields: [turnoCoordinadorId], references: [id], onDelete: Cascade)
+
+  @@unique([reporteId, turnoCoordinadorId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model entregas {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_entrega            String    @unique
+  fecha_entrega         DateTime  @db.Date
+  id_envio              String?
+  responsable           String
+  monto_entregado       Decimal   @default(0) @db.Decimal(14, 2)
+  saldo_total_entregado Decimal?  @default(0) @db.Decimal(14, 2)
+  aceptar               Boolean?  @default(false)
+  firma                 String?
+  created_at            DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([fecha_entrega], map: "idx_mc_entregas_fecha")
+  @@index([responsable], map: "idx_mc_entregas_responsable")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model envios {
+  id          String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_envio    String                      @unique
+  fecha       DateTime                    @db.Date
+  responsable String
+  monto       Decimal                     @default(0) @db.Decimal(14, 2)
+  sector      Unsupported("sector_type")?
+  comprobante String?
+  observacion String?
+  created_at  DateTime?                   @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime?                   @default(now()) @db.Timestamptz(6)
+
+  @@index([responsable], map: "idx_mc_envios_responsable")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model facturas {
+  id                String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_factura        String                        @unique
+  num_factura       String?
+  fecha_factura     DateTime?                     @db.Date
+  monto_factura     Decimal                       @default(0) @db.Decimal(14, 2)
+  responsable       String
+  tipo_servicio     String?
+  tipo_factura      String?
+  nit_factura       String?
+  razon_social      String?
+  nombre_bia        Boolean?                      @default(false)
+  observacion       String?
+  adjuntar_factura  String?
+  url               String?
+  estado            Unsupported("estado_factura") @default(dbgenerated("'Pendiente'::micaja.estado_factura"))
+  verificado        Boolean?                      @default(false)
+  ciudad            String?
+  sector            Unsupported("sector_type")?
+  centro_costo      String?
+  info_centro_costo String?
+  fecha_creacion    DateTime?                     @default(now()) @db.Timestamptz(6)
+  created_at        DateTime?                     @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime?                     @default(now()) @db.Timestamptz(6)
+
+  @@index([estado], map: "idx_mc_facturas_estado")
+  @@index([fecha_factura], map: "idx_mc_facturas_fecha")
+  @@index([responsable], map: "idx_mc_facturas_responsable")
+  @@index([sector], map: "idx_mc_facturas_sector")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model gastos_generales {
+  id          String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_gasto    String                      @unique
+  fecha       DateTime                    @db.Date
+  descripcion String?
+  monto       Decimal                     @default(0) @db.Decimal(14, 2)
+  categoria   String?
+  responsable String?
+  sector      Unsupported("sector_type")?
+  comprobante String?
+  estado      String?                     @default("Pendiente")
+  created_at  DateTime?                   @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime?                   @default(now()) @db.Timestamptz(6)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model gastos_grupos {
+  id          String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_gasto    String                      @unique
+  fecha       DateTime                    @db.Date
+  grupo       String?
+  descripcion String?
+  monto       Decimal                     @default(0) @db.Decimal(14, 2)
+  responsable String?
+  sector      Unsupported("sector_type")?
+  estado      String?                     @default("Pendiente")
+  created_at  DateTime?                   @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime?                   @default(now()) @db.Timestamptz(6)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model legalizaciones {
+  id             String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_reporte     String                      @unique
+  fecha          DateTime                    @db.Date
+  coordinador    String
+  sector         Unsupported("sector_type")?
+  total          Decimal?                    @default(0) @db.Decimal(14, 2)
+  total_aprobado Decimal?                    @default(0) @db.Decimal(14, 2)
+  estado         String?                     @default("Pendiente")
+  observacion    String?
+  url_reporte    String?
+  created_at     DateTime?                   @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime?                   @default(now()) @db.Timestamptz(6)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model sesiones_bot {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chat_id        String    @unique
+  responsable    String?
+  estado         String?
+  datos_temp     Json?
+  ultimo_mensaje DateTime? @default(now()) @db.Timestamptz(6)
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model usuarios {
+  id               String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  responsable      String
+  correo           String                     @unique
+  telefono         String?
+  rol              Unsupported("rol_type")    @default(dbgenerated("'user'::micaja.rol_type"))
+  user_active      Boolean                    @default(true)
+  area             String?
+  cargo            String?
+  cedula           String?
+  pin              String?                    @default("1234")
+  sector           Unsupported("sector_type") @default(dbgenerated("'Bogota'::micaja.sector_type"))
+  telegram_chat_id String?
+  created_at       DateTime?                  @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime?                  @default(now()) @db.Timestamptz(6)
+
+  @@index([correo], map: "idx_mc_usuarios_correo")
+  @@index([rol], map: "idx_mc_usuarios_rol")
+  @@index([sector], map: "idx_mc_usuarios_sector")
 }
 
 enum Role {
@@ -42,240 +427,4 @@ enum TipoDia {
   INCAPACITADO
   VACACIONES
   MEDIO_CUMPLE
-}
-
-model User {
-  id             String          @id @default(cuid())
-  cedula         String          @unique
-  nombre         String
-  email          String          @unique
-  password       String
-  role           Role            @default(TECNICO)
-  zona           Zona            @default(BOGOTA)
-  cargo          Cargo           @default(TECNICO)
-  filtroEquipo   String          @default("TODOS")
-  isActive       Boolean         @default(true)
-  fotoUrl        String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  turnos         Turno[]
-  mallaTurnos    MallaTurno[]
-  disponibilidades Disponibilidad[]
-  fotoRegistros  FotoRegistro[]
-  pushSubscriptions PushSubscription[]
-  reportesCreados Reporte[] @relation("ReportesCreados")
-  turnosCoordinador TurnoCoordinador[]
-  accounts       Account[]
-  sessions       Session[]
-}
-
-model Turno {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id])
-  fecha          DateTime @db.Date
-  horaEntrada    DateTime
-  horaSalida     DateTime?
-  latEntrada     Float?
-  lngEntrada     Float?
-  latSalida      Float?
-  lngSalida      Float?
-  startPhotoUrl  String?
-  endPhotoUrl    String?
-  horasOrdinarias Float   @default(0)
-  heDiurna       Float    @default(0)
-  heNocturna     Float    @default(0)
-  heDominical    Float    @default(0)
-  heNoctDominical Float   @default(0)
-  recNocturno    Float    @default(0)
-  recDominical   Float    @default(0)
-  recNoctDominical Float  @default(0)
-  observaciones  String?
-  jornadaAlertaPushSentAt DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  reportes       ReporteTurno[]
-
-  @@index([userId, fecha])
-}
-
-model PushSubscription {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  endpoint  String   @unique
-  p256dh    String
-  auth      String
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-}
-
-model MallaTurno {
-  id         String    @id @default(cuid())
-  userId     String
-  user       User      @relation(fields: [userId], references: [id])
-  fecha      DateTime  @db.Date
-  valor      String
-  tipo       TipoDia?  @default(TRABAJO)
-  horaInicio String?
-  horaFin    String?
-  createdAt  DateTime  @default(now())
-  reportes   ReporteDisponibilidad[]
-
-  @@unique([userId, fecha])
-}
-
-model Festivo {
-  id     String   @id @default(cuid())
-  fecha  DateTime @db.Date @unique
-  nombre String
-}
-
-model Disponibilidad {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  fecha     DateTime @db.Date
-  monto     Float    @default(80000)
-  createdAt DateTime @default(now())
-
-  @@unique([userId, fecha])
-}
-
-model FotoRegistro {
-  id                 String            @id @default(cuid())
-  userId             String
-  user               User              @relation(fields: [userId], references: [id])
-  tipo               String
-  driveFileId        String?
-  driveUrl           String?
-  driveFileIdFinal   String?
-  driveUrlFinal      String?
-  base64Fallback     String?           @db.Text
-  kmInicial          Float?
-  kmFinal            Float?
-  latInicial         Float?
-  lngInicial         Float?
-  latFinal           Float?
-  lngFinal           Float?
-  observaciones      String?
-  estadoAprobacion   EstadoAprobacion  @default(PENDIENTE)
-  aprobadoPor        String?
-  fechaAprobacion    DateTime?
-  notaAprobacion     String?
-  createdAt          DateTime          @default(now())
-  reportes           ReporteForaneo[]
-}
-
-model Reporte {
-  id                        String                   @id @default(cuid())
-  nombre                    String
-  fechaInicio               DateTime                 @db.Date
-  fechaFin                  DateTime                 @db.Date
-  creadoPor                 String
-  creadoPorUser             User                     @relation("ReportesCreados", fields: [creadoPor], references: [id])
-  zona                      String?
-  createdAt                 DateTime                 @default(now())
-  turnosIncluidos           ReporteTurno[]
-  foraneosIncluidos         ReporteForaneo[]
-  disponibilidadesIncluidas ReporteDisponibilidad[]
-  turnosCoordinadorIncluidos ReporteTurnoCoordinador[]
-
-  @@index([zona])
-  @@index([createdAt])
-}
-
-model ReporteTurno {
-  id        String  @id @default(cuid())
-  reporteId String
-  reporte   Reporte @relation(fields: [reporteId], references: [id], onDelete: Cascade)
-  turnoId   String
-  turno     Turno   @relation(fields: [turnoId], references: [id], onDelete: Restrict)
-
-  @@unique([reporteId, turnoId])
-}
-
-model ReporteForaneo {
-  id             String       @id @default(cuid())
-  reporteId      String
-  reporte        Reporte      @relation(fields: [reporteId], references: [id], onDelete: Cascade)
-  fotoRegistroId String
-  fotoRegistro   FotoRegistro @relation(fields: [fotoRegistroId], references: [id], onDelete: Restrict)
-
-  @@unique([reporteId, fotoRegistroId])
-}
-
-model ReporteDisponibilidad {
-  id           String     @id @default(cuid())
-  reporteId    String
-  reporte      Reporte    @relation(fields: [reporteId], references: [id], onDelete: Cascade)
-  mallaTurnoId String
-  mallaTurno   MallaTurno @relation(fields: [mallaTurnoId], references: [id], onDelete: Restrict)
-
-  @@unique([reporteId, mallaTurnoId])
-}
-
-model TurnoCoordinador {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id])
-  fecha          DateTime @db.Date
-  horaEntrada    DateTime
-  horaSalida     DateTime?
-  codigoOrden    String
-  nota           String?
-  horasOrdinarias Float   @default(0)
-  heDiurna       Float    @default(0)
-  heNocturna     Float    @default(0)
-  heDominical    Float    @default(0)
-  heNoctDominical Float   @default(0)
-  recNocturno    Float    @default(0)
-  recDominical   Float    @default(0)
-  recNoctDominical Float  @default(0)
-  latEntrada     Float?
-  lngEntrada     Float?
-  latSalida      Float?
-  lngSalida      Float?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  reportes       ReporteTurnoCoordinador[]
-
-  @@index([userId, fecha])
-}
-
-model ReporteTurnoCoordinador {
-  id                 String           @id @default(cuid())
-  reporteId          String
-  reporte            Reporte          @relation(fields: [reporteId], references: [id], onDelete: Cascade)
-  turnoCoordinadorId String
-  turnoCoordinador   TurnoCoordinador @relation(fields: [turnoCoordinadorId], references: [id], onDelete: Cascade)
-
-  @@unique([reporteId, turnoCoordinadorId])
-}
-
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

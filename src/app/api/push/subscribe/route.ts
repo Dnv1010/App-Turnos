@@ -1,8 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 
 type Body = {
@@ -12,8 +12,11 @@ type Body = {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const profile = await getUserProfile(user.email!);
+    if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
     let body: Body;
     try {
@@ -31,13 +34,13 @@ export async function POST(req: NextRequest) {
     await prisma.pushSubscription.upsert({
       where: { endpoint },
       create: {
-        userId: session.user.userId,
+        userId: profile.id,
         endpoint,
         p256dh,
         auth,
       },
       update: {
-        userId: session.user.userId,
+        userId: profile.id,
         p256dh,
         auth,
       },
@@ -53,8 +56,11 @@ export async function POST(req: NextRequest) {
 /** Elimina una suscripción (un dispositivo) o todas las del usuario si no mandas endpoint */
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const profile = await getUserProfile(user.email!);
+    if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
     let endpoint: string | undefined;
     try {
@@ -66,11 +72,11 @@ export async function DELETE(req: NextRequest) {
 
     if (endpoint) {
       await prisma.pushSubscription.deleteMany({
-        where: { userId: session.user.userId, endpoint },
+        where: { userId: profile.id, endpoint },
       });
     } else {
       await prisma.pushSubscription.deleteMany({
-        where: { userId: session.user.userId },
+        where: { userId: profile.id },
       });
     }
 

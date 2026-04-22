@@ -1,15 +1,19 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    if (session.user.role !== "TECNICO") {
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const profile = await getUserProfile(user.email!);
+    if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    if (profile.role !== "TECNICO") {
       return NextResponse.json({ error: "Solo operadores" }, { status: 403 });
     }
 
@@ -27,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     const turno = await prisma.turno.findUnique({ where: { id: turnoId } });
     if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
-    if (turno.userId !== session.user.userId) {
+    if (turno.userId !== profile.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
     if (turno.horaSalida) {

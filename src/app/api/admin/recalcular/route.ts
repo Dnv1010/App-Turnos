@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
 import { getDay } from "date-fns";
@@ -13,9 +13,15 @@ function dateKey(d: Date): string {
 }
 
 export async function POST() {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "ADMIN") {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const profile = await getUserProfile(user.email!);
+  if (!profile || profile.role !== "ADMIN") {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
   const turnos = await prisma.turno.findMany({

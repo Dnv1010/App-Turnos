@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-provider";
 import { parseResponseJson } from "@/lib/parseFetchJson";
 import { useState, useEffect, useCallback } from "react";
 import { HiUserAdd, HiPencil, HiTrash, HiX, HiEye, HiEyeOff } from "react-icons/hi";
@@ -18,7 +18,7 @@ interface Tecnico {
 }
 
 export default function CoordinadorEquipoPage() {
-  const { data: session } = useSession();
+  const { profile } = useAuth();
   const [list, setList] = useState<Tecnico[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<"none" | "add" | "edit">("none");
@@ -34,15 +34,15 @@ export default function CoordinadorEquipoPage() {
   const [error, setError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
-    if (!session?.user?.zona) return;
+    if (!profile?.zona) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/usuarios?zona=${session.user.zona}&role=TECNICO`);
+      const res = await fetch(`/api/usuarios?zona=${profile?.zona}&role=TECNICO`);
       const data = await parseResponseJson<{ tecnicos?: Tecnico[] }>(res);
       setList(data?.tecnicos || []);
     } catch { setList([]); }
     finally { setLoading(false); }
-  }, [session?.user?.zona]);
+  }, [profile?.zona]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -133,7 +133,7 @@ export default function CoordinadorEquipoPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Mi Equipo</h2>
         <p className="text-gray-500 dark:text-[#A0AEC0]">
-          Zona {session?.user?.zona ? getZonaLabel(session.user.zona) : ""}
+          Zona {profile?.zona ? getZonaLabel(profile?.zona) : ""}
         </p>
         <button onClick={openAdd} className="btn-primary flex items-center gap-2">
           <HiUserAdd className="h-5 w-5" />Agregar operador

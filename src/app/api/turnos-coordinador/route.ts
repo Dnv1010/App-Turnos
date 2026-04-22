@@ -1,8 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { Zona } from "@prisma/client";
 
@@ -20,10 +20,14 @@ function parseFechas(desde: string, hasta: string) {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const role = session.user.role;
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+
+  const role = profile.role;
   if (!ROLES_FICHAJE.has(role) && !ROLES_VER_TODOS.has(role)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
@@ -37,7 +41,7 @@ export async function GET(req: NextRequest) {
   const where: Record<string, unknown> = {};
 
   if (ROLES_FICHAJE.has(role)) {
-    where.userId = session.user.userId;
+    where.userId = profile.id;
   } else if (ROLES_VER_TODOS.has(role)) {
     if (userIdParam) where.userId = userIdParam;
     if (zona && zona !== "ALL") {
@@ -62,9 +66,14 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  if (!ROLES_FICHAJE.has(session.user.role)) {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const profile = await getUserProfile(user.email!);
+  if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+
+  if (!ROLES_FICHAJE.has(profile.role)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
@@ -81,7 +90,7 @@ export async function POST(req: NextRequest) {
   }
 
   const turnoAbierto = await prisma.turnoCoordinador.findFirst({
-    where: { userId: session.user.userId, horaSalida: null },
+    where: { userId: profile.id, horaSalida: null },
   });
   if (turnoAbierto) {
     return NextResponse.json({ error: "Ya tienes un turno abierto" }, { status: 400 });
@@ -95,7 +104,7 @@ export async function POST(req: NextRequest) {
 
   const turno = await prisma.turnoCoordinador.create({
     data: {
-      userId: session.user.userId,
+      userId: profile.id,
       fecha,
       horaEntrada,
       codigoOrden,

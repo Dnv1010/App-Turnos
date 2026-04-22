@@ -1,20 +1,20 @@
-﻿"use client";
+"use client";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth-provider";
 
 export default function OpsHomePage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { profile, loading } = useAuth();
 
   useEffect(() => {
-    if (status === "unauthenticated") router.replace("/login");
-  }, [status, router]);
+    if (!loading && !profile) router.replace("/login");
+  }, [loading, profile, router]);
 
-  if (status === "loading" || !session) return null;
+  if (loading || !profile) return null;
 
   function getDashboardUrl() {
-    const rol = String((session?.user as any)?.role || "").toUpperCase();
+    const rol = String(profile?.role || "").toUpperCase();
     if (rol === "ADMIN") return "/admin";
     if (rol === "COORDINADOR") return "/coordinador";
     if (rol === "COORDINADOR_INTERIOR") return "/coordinador-interior";
@@ -23,7 +23,7 @@ export default function OpsHomePage() {
     return "/tecnico";
   }
 
-  const nombre = (session?.user as any)?.nombre || session?.user?.name || session?.user?.email || "Usuario";
+  const nombre = profile?.nombre || profile?.email || "Usuario";
   const hora = new Date().getHours();
   const saludo = hora < 12 ? "Buenos dias" : hora < 18 ? "Buenas tardes" : "Buenas noches";
 
