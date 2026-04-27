@@ -7,7 +7,6 @@ import { getUserProfile } from "@/lib/auth-supabase";
 import { getInicioSemana, getFinSemana, getDayOfWeekColombia } from "@/lib/bia/calc-engine";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
 import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
-import { appendRow } from "@/lib/google-sheets";
 
 /** Convierte Date a fecha Colombia (UTC-5) como string YYYY-MM-DD */
 function dateKeyColombia(d: Date): string {
@@ -326,31 +325,6 @@ export async function PATCH(req: NextRequest) {
       },
       include: { user: { select: { nombre: true, cedula: true } } },
     });
-
-    const totalHoras =
-      Math.round(
-        ((turnoActualizado.horaSalida!.getTime() - turnoActualizado.horaEntrada.getTime()) /
-          (1000 * 60 * 60)) * 100
-      ) / 100;
-
-    appendRow("Turnos", [
-      turnoActualizado.user?.nombre ?? "",
-      turnoActualizado.user?.cedula ?? "",
-      dateKeyColombia(turnoActualizado.fecha),
-      timeColombia(turnoActualizado.horaEntrada),
-      timeColombia(turnoActualizado.horaSalida!),
-      totalHoras,
-      Math.max(0, turnoActualizado.horasOrdinarias ?? 0),
-      turnoActualizado.heDiurna ?? 0,
-      turnoActualizado.heNocturna ?? 0,
-      turnoActualizado.heDominical ?? 0,
-      turnoActualizado.heNoctDominical ?? 0,
-      turnoActualizado.recNocturno ?? 0,
-      turnoActualizado.recDominical ?? 0,
-      turnoActualizado.recNoctDominical ?? 0,
-    ]).catch((err) =>
-      console.error("[sheets] appendRow falló — turnoId:", turnoId, "userId:", turno.userId, "fecha:", dateKeyColombia(turno.fecha), err)
-    );
 
     return NextResponse.json(turnoActualizado);
   } catch (error: unknown) {

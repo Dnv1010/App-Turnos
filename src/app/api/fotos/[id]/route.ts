@@ -6,19 +6,10 @@ import { getUserProfile } from "@/lib/auth-supabase";
 import { getInicioSemana, getFinSemana, getDayOfWeekColombia } from "@/lib/bia/calc-engine";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
 import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
-import { updateRowByMatch } from "@/lib/google-sheets";
 import { uploadToStorage } from "@/lib/supabase-storage";
 
 function dateKey(d: Date): string {
   return d.toISOString().split("T")[0];
-}
-
-function timeColombia(d: Date): string {
-  return new Date(d).toLocaleTimeString("es-CO", {
-    timeZone: "America/Bogota",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 async function checkCoordinadorZona(turnoUserId: string, userProfile: { zona?: string | null; role: string }) {
@@ -271,29 +262,6 @@ export async function PATCH(
         ...resultadoDb,
       },
     });
-
-    const totalHoras = Math.round(((newSalida.getTime() - newEntrada.getTime()) / (1000 * 60 * 60)) * 100) / 100;
-    updateRowByMatch("Turnos", [
-      { columnIndex: 0, value: turno.user.nombre },
-      { columnIndex: 2, value: dateKey(turno.fecha) },
-    ], [
-      turno.user.nombre,
-      turno.user.cedula ?? "",
-      dateKey(fecha),
-      timeColombia(newEntrada),
-      timeColombia(newSalida),
-      totalHoras,
-      Math.max(0, resultadoDb.horasOrdinarias ?? 0),
-      resultadoDb.heDiurna ?? 0,
-      resultadoDb.heNocturna ?? 0,
-      resultadoDb.heDominical ?? 0,
-      resultadoDb.heNoctDominical ?? 0,
-      resultadoDb.recNocturno ?? 0,
-      resultadoDb.recDominical ?? 0,
-      resultadoDb.recNoctDominical ?? 0,
-    ]).catch((err) =>
-      console.error("[sheets] updateRowByMatch falló — turnoId:", id, "userId:", turno.userId, "fecha:", dateKey(turno.fecha), err)
-    );
 
     return NextResponse.json({
       ok: true,
