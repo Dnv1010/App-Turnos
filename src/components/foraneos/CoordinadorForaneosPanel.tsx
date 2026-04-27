@@ -98,14 +98,6 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
     loadForaneos();
   }, [loadForaneos]);
 
-  useEffect(() => {
-    const onVis = () => {
-      if (document.visibilityState === "visible") loadForaneos();
-    };
-    document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
-  }, [loadForaneos]);
-
   const filteredRows = useMemo(() => {
     if (!search.trim()) return foraneos;
     const t = search.toLowerCase();

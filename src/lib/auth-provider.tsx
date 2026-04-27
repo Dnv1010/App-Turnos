@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { createBrowserClient } from './supabase'
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js'
 import type { User as PrismaUser } from '@prisma/client'
@@ -31,6 +31,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const [profile, setProfile] = useState<PrismaUser | null>(null)
   const [loading, setLoading] = useState(true)
   const supabase = useMemo(() => createBrowserClient(), [])
+  const loadedEmailRef = useRef<string | null>(null)
 
   useEffect(() => {
     // Obtener sesión inicial
@@ -38,8 +39,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       setSession(session)
       setUser(session?.user ?? null)
 
-      if (session?.user) {
-        fetchProfile(session.user.email!)
+      if (session?.user?.email) {
+        fetchProfile(session.user.email)
       } else {
         setLoading(false)
       }
@@ -48,20 +49,28 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     // Escuchar cambios de autenticación
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
+      // Mantener siempre session/user actualizados — token refrescado debe quedar en el contexto
+      setSession(newSession)
+      setUser(newSession?.user ?? null)
 
-      // TOKEN_REFRESHED ocurre al volver a la pestaña — no recargar perfil
-      if (event === 'TOKEN_REFRESHED') return
+      const newEmail = newSession?.user?.email ?? null
 
-      if (session?.user) {
-        setLoading(true)
-        fetchProfile(session.user.email!)
-      } else {
+      // Sin sesión → logout
+      if (!newEmail) {
+        loadedEmailRef.current = null
         setProfile(null)
         setLoading(false)
+        return
       }
+
+      // Si ya cargamos el perfil de este mismo email, no recargar
+      // (cubre TOKEN_REFRESHED, SIGNED_IN re-disparado al volver a la pestaña, INITIAL_SESSION, etc.)
+      if (loadedEmailRef.current === newEmail) return
+
+      // Usuario nuevo o cambio real de cuenta → recargar perfil
+      setLoading(true)
+      fetchProfile(newEmail)
     })
 
     return () => subscription.unsubscribe()
@@ -76,7 +85,10 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         const found = usersList.find(
           (u: { email: string }) => u.email === email.toLowerCase()
         )
-        if (found) setProfile(found)
+        if (found) {
+          setProfile(found)
+          loadedEmailRef.current = email
+        }
       }
     } catch (error) {
       console.error('[AuthProvider] Error fetching profile:', error)
@@ -90,6 +102,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     setUser(null)
     setSession(null)
     setProfile(null)
+    loadedEmailRef.current = null
   }
 
   const value = {

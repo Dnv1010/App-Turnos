@@ -25,6 +25,7 @@ interface Tecnico {
   id: string;
   nombre: string;
   email?: string;
+  cargo?: string;
 }
 
 export default function CoordinadorMallaPage() {
@@ -48,6 +49,11 @@ export default function CoordinadorMallaPage() {
   const [selectedTecnicos, setSelectedTecnicos] = useState<Set<string>>(new Set());
   const [showTecnicoDropdown, setShowTecnicoDropdown] = useState(false);
   const [festivosSet, setFestivosSet] = useState<Set<string>>(new Set());
+  const [autoDispLoading, setAutoDispLoading] = useState(false);
+  const [autoDispPreview, setAutoDispPreview] = useState<{
+    asignaciones: { userId: string; nombre: string; fecha: string; ultimaPrev: string | null }[];
+    ordenInicial: { userId: string; nombre: string; ultima: string | null }[];
+  } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const primaryTecnico = selectedTecnicos.size > 0 ? Array.from(selectedTecnicos)[0] : null;
@@ -56,7 +62,8 @@ export default function CoordinadorMallaPage() {
     if (!profile?.zona) return;
     const res = await fetch(`/api/usuarios?zona=${profile?.zona}&role=TECNICO`);
     const data = await parseResponseJson<{ tecnicos?: Tecnico[] }>(res);
-    setTecnicos(data?.tecnicos || []);
+    const raw = data?.tecnicos || [];
+    setTecnicos(raw.filter((t) => (t.cargo || "TECNICO") !== "ALMACENISTA"));
   }, [profile?.zona]);
 
   const cargarMalla = useCallback(async (userId: string, autoPrecarga = true) => {
@@ -178,21 +185,87 @@ export default function CoordinadorMallaPage() {
   };
 
   const precargarMalla = async () => {
-    if (!primaryTecnico) return;
+    if (selectedTecnicos.size === 0) return;
+    const ids = Array.from(selectedTecnicos);
+    if (ids.length > 1) {
+      const ok = window.confirm(
+        `¿Precargar la malla regular (L-V 08-17, Sáb 08-12, Dom/festivos descanso) a ${ids.length} operadores para ${mes}?\n\n⚠️ Esto sobrescribirá la malla existente de esos operadores en este mes.`
+      );
+      if (!ok) return;
+    }
     setPrecargando(true);
     try {
       const res = await fetch("/api/malla/precarga", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: primaryTecnico, mes }),
+        body: JSON.stringify({ userIds: ids, mes }),
       });
-      const data = await parseResponseJson<{ ok?: boolean; registros?: number; error?: string }>(res);
+      const data = await parseResponseJson<{ ok?: boolean; registros?: number; usuarios?: number; error?: string }>(res);
       if (data?.ok) {
-        alert(`Malla precargada: ${data.registros ?? 0} días (L-V 08:00-17:00, Sáb 08:00-12:00, Dom y festivos descanso)`);
-        cargarMalla(primaryTecnico);
+        alert(
+          `✓ Malla precargada en ${data.usuarios ?? ids.length} operador(es): ${data.registros ?? 0} días totales`
+        );
+        if (primaryTecnico) cargarMalla(primaryTecnico);
       } else alert("Error: " + (data?.error || "No se pudo precargar"));
     } catch (e) { alert("Error: " + (e instanceof Error ? e.message : "No se pudo precargar")); }
     setPrecargando(false);
+  };
+
+  const previsualizarAutoDisponibilidad = async () => {
+    if (selectedTecnicos.size === 0) { alert("Selecciona al menos un operador"); return; }
+    setAutoDispLoading(true);
+    try {
+      const res = await fetch("/api/malla/auto-disponibilidad", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: Array.from(selectedTecnicos), mes, modo: "preview" }),
+      });
+      const data = await parseResponseJson<{
+        ok?: boolean;
+        asignaciones?: { userId: string; nombre: string; fecha: string; ultimaPrev: string | null }[];
+        ordenInicial?: { userId: string; nombre: string; ultima: string | null }[];
+        mensaje?: string;
+        error?: string;
+      }>(res);
+      if (data?.ok) {
+        if (!data.asignaciones || data.asignaciones.length === 0) {
+          alert(data.mensaje || "No hay días para asignar en este mes");
+        } else {
+          setAutoDispPreview({
+            asignaciones: data.asignaciones,
+            ordenInicial: data.ordenInicial ?? [],
+          });
+        }
+      } else {
+        alert("Error: " + (data?.error || "No se pudo previsualizar"));
+      }
+    } catch (e) {
+      alert("Error: " + (e instanceof Error ? e.message : "No se pudo previsualizar"));
+    }
+    setAutoDispLoading(false);
+  };
+
+  const aplicarAutoDisponibilidad = async () => {
+    if (selectedTecnicos.size === 0 || !autoDispPreview) return;
+    setAutoDispLoading(true);
+    try {
+      const res = await fetch("/api/malla/auto-disponibilidad", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: Array.from(selectedTecnicos), mes, modo: "apply" }),
+      });
+      const data = await parseResponseJson<{ ok?: boolean; escritos?: number; error?: string }>(res);
+      if (data?.ok) {
+        alert(`✓ Disponibilidades asignadas: ${data.escritos ?? 0} días`);
+        setAutoDispPreview(null);
+        if (primaryTecnico) cargarMalla(primaryTecnico);
+      } else {
+        alert("Error: " + (data?.error || "No se pudo aplicar"));
+      }
+    } catch (e) {
+      alert("Error: " + (e instanceof Error ? e.message : "No se pudo aplicar"));
+    }
+    setAutoDispLoading(false);
   };
 
   const guardar = async (fecha: Date, valor: string, tipo?: TipoDia, horaInicio?: string, horaFin?: string) => {
@@ -325,9 +398,23 @@ export default function CoordinadorMallaPage() {
           <label className="block text-sm font-medium text-gray-700 dark:text-bia-label mb-1">Mes</label>
           <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="input-field" />
         </div>
-        {primaryTecnico && (
+        {selectedTecnicos.size > 0 && (
           <button type="button" onClick={precargarMalla} disabled={precargando || loading} className="btn-secondary text-sm py-2">
-            {precargando ? "Precargando…" : "Precargar malla (L-V 08-17, Sáb 08-12, Dom/festivos descanso)"}
+            {precargando
+              ? "Precargando…"
+              : selectedTecnicos.size === 1
+                ? "Precargar malla (L-V 08-17, Sáb 08-12, Dom/festivos descanso)"
+                : `Precargar malla a ${selectedTecnicos.size} operadores`}
+          </button>
+        )}
+        {selectedTecnicos.size > 0 && (
+          <button
+            type="button"
+            onClick={previsualizarAutoDisponibilidad}
+            disabled={autoDispLoading || loading}
+            className="text-sm py-2 px-3 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium disabled:opacity-60"
+          >
+            {autoDispLoading ? "Calculando…" : `Autocompletar Disponibilidades (${selectedTecnicos.size} op.)`}
           </button>
         )}
       </div>
@@ -480,6 +567,93 @@ export default function CoordinadorMallaPage() {
       )}
 
       <p className="text-xs text-gray-500 dark:text-bia-muted mt-2">Click para seleccionar un día (o abrir opciones). Shift+Click para seleccionar rango.</p>
+
+      {autoDispPreview && (
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-30 p-4" onClick={() => !autoDispLoading && setAutoDispPreview(null)}>
+          <div
+            className="bg-white dark:bg-[#1A2340] rounded-xl shadow-xl dark:shadow-black/40 max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 border border-transparent dark:border-[#3A4565]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Propuesta de rotación — {mes}
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-bia-muted mb-4">
+              Domingos y festivos del mes, asignados por orden de mayor tiempo sin disponibilidad.
+            </p>
+
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-700 dark:text-bia-label mb-2">Orden de prioridad calculado:</p>
+              <ol className="text-xs space-y-1 list-decimal list-inside text-gray-700 dark:text-gray-300">
+                {autoDispPreview.ordenInicial.map((o) => (
+                  <li key={o.userId}>
+                    <span className="font-medium">{o.nombre}</span>
+                    <span className="text-gray-500 dark:text-bia-muted ml-2">
+                      {o.ultima ? `(última: ${o.ultima})` : "(nunca)"}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-700 dark:text-bia-label mb-2">
+                Asignaciones propuestas ({autoDispPreview.asignaciones.length}):
+              </p>
+              <div className="border border-gray-200 dark:border-[#3A4565] rounded-lg overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50 dark:bg-[#162035]">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-medium text-gray-600 dark:text-bia-label">Fecha</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-600 dark:text-bia-label">Día</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-600 dark:text-bia-label">Operador asignado</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-600 dark:text-bia-label">Última disp.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {autoDispPreview.asignaciones.map((a, i) => {
+                      const [y, m, d] = a.fecha.split("-").map(Number);
+                      const dt = new Date(Date.UTC(y, m - 1, d));
+                      const diaSemana = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"][dt.getUTCDay()];
+                      const esFestivo = festivosSet.has(a.fecha);
+                      return (
+                        <tr key={i} className="border-t border-gray-100 dark:border-[#3A4565]">
+                          <td className="px-3 py-2 text-gray-900 dark:text-white">{a.fecha}</td>
+                          <td className="px-3 py-2">
+                            <span className={esFestivo ? "text-red-600 dark:text-red-400 font-semibold" : "text-gray-700 dark:text-gray-300"}>
+                              {diaSemana}{esFestivo ? " (festivo)" : ""}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-gray-900 dark:text-white font-medium">{a.nombre}</td>
+                          <td className="px-3 py-2 text-gray-500 dark:text-bia-muted">{a.ultimaPrev ?? "nunca"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setAutoDispPreview(null)}
+                disabled={autoDispLoading}
+                className="px-4 py-2 text-sm bg-gray-200 text-gray-700 dark:bg-[#1E2A45] dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-[#243052] disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={aplicarAutoDisponibilidad}
+                disabled={autoDispLoading}
+                className="px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium disabled:opacity-60"
+              >
+                {autoDispLoading ? "Aplicando…" : "Aplicar y guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

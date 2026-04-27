@@ -64,14 +64,6 @@ export default function ManagerPage() {
     return () => { cancelled = true; };
   }, [fechaInicio, fechaFin, zonaFilter, refreshKey]);
 
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") setRefreshKey((k) => k + 1);
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, []);
-
   if (loading) return (
     <div className="flex items-center justify-center py-20">
       <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
