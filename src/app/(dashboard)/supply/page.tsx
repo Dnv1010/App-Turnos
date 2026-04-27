@@ -253,17 +253,6 @@ export default function SupplyDashboardPage() {
       .catch(() => {});
   }, [profile]);
 
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        void cargarTurnos();
-        void cargarReportes();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [cargarTurnos, cargarReportes]);
-
   const exportarCSV = () => {
     if (!data) return;
     const headers = [

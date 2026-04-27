@@ -62,14 +62,6 @@ export default function AdminPage() {
     return () => { cancelled = true; };
   }, [inicioAplicado, finAplicado, refreshKey]);
 
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") setRefreshKey((k) => k + 1);
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, []);
-
   function aplicarFiltro() {
     setInicioAplicado(inicio);
     setFinAplicado(fin);
