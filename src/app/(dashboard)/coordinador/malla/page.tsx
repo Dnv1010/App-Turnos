@@ -25,6 +25,7 @@ interface Tecnico {
   id: string;
   nombre: string;
   email?: string;
+  cargo?: string;
 }
 
 export default function CoordinadorMallaPage() {
@@ -61,7 +62,8 @@ export default function CoordinadorMallaPage() {
     if (!profile?.zona) return;
     const res = await fetch(`/api/usuarios?zona=${profile?.zona}&role=TECNICO`);
     const data = await parseResponseJson<{ tecnicos?: Tecnico[] }>(res);
-    setTecnicos(data?.tecnicos || []);
+    const raw = data?.tecnicos || [];
+    setTecnicos(raw.filter((t) => (t.cargo || "TECNICO") !== "ALMACENISTA"));
   }, [profile?.zona]);
 
   const cargarMalla = useCallback(async (userId: string, autoPrecarga = true) => {

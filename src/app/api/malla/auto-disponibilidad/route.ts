@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
         targets.some((t) => {
           if (t.role !== "TECNICO" || t.zona !== profile.zona) return true;
           if (profile.role === "SUPPLY" && t.cargo !== "ALMACENISTA") return true;
+          if (profile.role === "COORDINADOR" && t.cargo === "ALMACENISTA") return true;
           return false;
         });
       if (invalido) {
