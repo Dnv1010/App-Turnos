@@ -5,54 +5,9 @@ import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { computeHorasAlCerrarTurnoCoordinador } from "@/lib/turnoCoordinadorCompute";
-import {
-  appendTurnoCoordinadorSheetRow,
-  deleteTurnoCoordinadorSheetRow,
-  replaceTurnoCoordinadorSheetRow,
-} from "@/lib/sheetsTurnoCoordinador";
-import { dateKeyColombia } from "@/lib/bia/calc-engine";
 
 const ROLES_FICHAJE = new Set<string>(["COORDINADOR", "COORDINADOR_INTERIOR"]);
 const ROLES_ADMIN = new Set<string>(["MANAGER", "ADMIN"]);
-
-function timeColombia(d: Date): string {
-  const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
-  const hh = String(colombia.getUTCHours()).padStart(2, "0");
-  const mm = String(colombia.getUTCMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
-}
-
-function sheetPayloadFromTurno(t: {
-  fecha: Date;
-  horaEntrada: Date;
-  horaSalida: Date | null;
-  horasOrdinarias: number;
-  heDiurna: number;
-  heNocturna: number;
-  heDominical: number;
-  heNoctDominical: number;
-  recNocturno: number;
-  recDominical: number;
-  recNoctDominical: number;
-  user: { nombre: string; cedula: string | null };
-}) {
-  if (!t.horaSalida) return null;
-  return {
-    nombre: t.user.nombre,
-    cedula: t.user.cedula,
-    fecha: t.fecha,
-    horaEntrada: t.horaEntrada,
-    horaSalida: t.horaSalida,
-    horasOrdinarias: t.horasOrdinarias,
-    heDiurna: t.heDiurna,
-    heNocturna: t.heNocturna,
-    heDominical: t.heDominical,
-    heNoctDominical: t.heNoctDominical,
-    recNocturno: t.recNocturno,
-    recDominical: t.recDominical,
-    recNoctDominical: t.recNoctDominical,
-  };
-}
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -117,9 +72,6 @@ export async function PATCH(req: NextRequest, context: Ctx) {
       },
     });
 
-    const sp = sheetPayloadFromTurno(actualizado);
-    if (sp) void appendTurnoCoordinadorSheetRow(sp);
-
     return NextResponse.json({ turno: actualizado });
   }
 
@@ -142,12 +94,6 @@ export async function PATCH(req: NextRequest, context: Ctx) {
       : turno.codigoOrden;
 
   const nota = body.nota !== undefined ? (body.nota === null ? null : String(body.nota)) : turno.nota;
-
-  const hadSalida = !!turno.horaSalida;
-  const prevSheet =
-    hadSalida && turno.user.cedula
-      ? { cedula: turno.user.cedula, fecha: turno.fecha, horaEntrada: turno.horaEntrada }
-      : null;
 
   let horasBlock: Record<string, number> = {
     horasOrdinarias: 0,
@@ -177,17 +123,6 @@ export async function PATCH(req: NextRequest, context: Ctx) {
     },
   });
 
-  if (actualizado.horaSalida) {
-    const sp = sheetPayloadFromTurno(actualizado);
-    if (sp) void replaceTurnoCoordinadorSheetRow(prevSheet, sp);
-  } else if (prevSheet?.cedula) {
-    void deleteTurnoCoordinadorSheetRow(
-      prevSheet.cedula,
-      dateKeyColombia(prevSheet.fecha),
-      timeColombia(prevSheet.horaEntrada)
-    );
-  }
-
   return NextResponse.json({ turno: actualizado });
 }
 
@@ -210,14 +145,6 @@ export async function DELETE(_req: NextRequest, context: Ctx) {
   });
 
   if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
-
-  if (turno.horaSalida && turno.user.cedula) {
-    await deleteTurnoCoordinadorSheetRow(
-      turno.user.cedula,
-      dateKeyColombia(turno.fecha),
-      timeColombia(turno.horaEntrada)
-    );
-  }
 
   await prisma.turnoCoordinador.delete({ where: { id } });
 

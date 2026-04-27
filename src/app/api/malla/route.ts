@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
-import { appendRow, deleteRowByValues } from "@/lib/google-sheets";
 
 export async function GET(req: NextRequest) {
   try {
@@ -137,34 +136,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "fecha debe ser YYYY-MM-DD" }, { status: 400 });
     }
     const fechaDate = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
-
-    const targetUser = await prisma.user.findUnique({
-      where: { id: userIdStr },
-      select: { nombre: true, cedula: true },
-    });
-
-    const existing = await prisma.mallaTurno.findUnique({
-      where: { userId_fecha: { userId: userIdStr, fecha: fechaDate } },
-      select: { tipo: true },
-    });
-    const wasDisponible = existing?.tipo === "DISPONIBLE";
-
-    if (targetUser) {
-      if (wasDisponible && tipoValido !== "DISPONIBLE") {
-        deleteRowByValues("Disponibilidades", [
-          { index: 0, value: targetUser.nombre },
-          { index: 2, value: fechaStr },
-        ]).catch(console.error);
-      }
-      if (tipoValido === "DISPONIBLE" && !wasDisponible) {
-        appendRow("Disponibilidades", [
-          targetUser.nombre,
-          targetUser.cedula ?? "",
-          fechaStr,
-          80000,
-        ]).catch(console.error);
-      }
-    }
 
     const updateData: {
       valor: string;

@@ -5,10 +5,6 @@ import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { Role, Zona } from "@prisma/client";
-import {
-  appendDisponibilidadCoordinadorSheet,
-  deleteDisponibilidadCoordinadorSheet,
-} from "@/lib/sheetsDisponibilidadCoordinador";
 
 const ROLES_OK = new Set<string>(["MANAGER", "ADMIN"]);
 
@@ -168,9 +164,6 @@ export async function POST(req: NextRequest) {
         valor: "Disponible",
       },
     });
-
-    void deleteDisponibilidadCoordinadorSheet(targetUser.cedula ?? "", f);
-    void appendDisponibilidadCoordinadorSheet(targetUser.cedula ?? "", targetUser.nombre, f);
   }
 
   return NextResponse.json({ ok: true, asignados: fechas.length });
@@ -216,8 +209,6 @@ export async function DELETE(req: NextRequest) {
         tipo: "DISPONIBLE",
       },
     });
-
-    void deleteDisponibilidadCoordinadorSheet(targetUser.cedula ?? "", f);
   }
 
   return NextResponse.json({ ok: true });
