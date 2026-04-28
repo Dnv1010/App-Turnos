@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
-import type { EstadoAprobacion, Prisma, Zona } from "@prisma/client";
+import type { ApprovalStatus, Prisma, Zone } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   try {
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
     const whereUser: Prisma.UserWhereInput = { isActive: true, role: "TECNICO" };
     if (profile.role === "COORDINADOR") {
-      whereUser.zona = profile.zona as Zona;
+      whereUser.zone = profile.zone as Zone;
     } else if (profile.role === "TECNICO") {
       whereUser.id = profile.id;
     }
@@ -45,43 +45,43 @@ export async function GET(req: NextRequest) {
     const userIds = usuarios.map((u) => u.id);
     if (userIds.length === 0) return NextResponse.json([]);
 
-    const estadoWhere: { estadoAprobacion?: EstadoAprobacion } = {};
+    const estadoWhere: { approvalStatus?: ApprovalStatus } = {};
     if (estadoParam === "PENDIENTE" || estadoParam === "APROBADA" || estadoParam === "NO_APROBADA") {
-      estadoWhere.estadoAprobacion = estadoParam;
+      estadoWhere.approvalStatus = estadoParam;
     }
 
-    const fotos = await prisma.fotoRegistro.findMany({
+    const fotos = await prisma.tripRecord.findMany({
       where: {
-        tipo: "FORANEO",
+        type: "FORANEO",
         createdAt: { gte: fechaInicio, lte: fechaFin },
         userId: { in: userIds },
         ...estadoWhere,
       },
-      include: { user: { select: { id: true, nombre: true, cedula: true, zona: true } } },
+      include: { user: { select: { id: true, fullName: true, documentNumber: true, zone: true } } },
       orderBy: { createdAt: "desc" },
     });
 
     const lista = fotos.map((f) => ({
       id: f.id,
-      nombre: f.user.nombre,
-      cedula: f.user.cedula,
-      zona: f.user.zona,
-      fecha: f.createdAt.toISOString(),
-      kmInicial: f.kmInicial,
-      kmFinal: f.kmFinal,
+      fullName: f.user.fullName,
+      documentNumber: f.user.documentNumber,
+      zone: f.user.zone,
+      createdAt: f.createdAt.toISOString(),
+      startKm: f.startKm,
+      endKm: f.endKm,
       kmRecorridos:
-        f.kmInicial != null && f.kmFinal != null ? Math.max(0, f.kmFinal - f.kmInicial) : null,
+        f.startKm != null && f.endKm != null ? Math.max(0, f.endKm - f.startKm) : null,
       driveUrl: f.driveUrl,
       driveUrlFinal: f.driveUrlFinal,
-      latInicial: f.latInicial ?? null,
-      lngInicial: f.lngInicial ?? null,
-      latFinal: f.latFinal ?? null,
-      lngFinal: f.lngFinal ?? null,
-      observaciones: f.observaciones,
-      estadoAprobacion: f.estadoAprobacion,
-      aprobadoPor: f.aprobadoPor,
-      fechaAprobacion: f.fechaAprobacion?.toISOString() ?? null,
-      notaAprobacion: f.notaAprobacion,
+      startLat: f.startLat ?? null,
+      startLng: f.startLng ?? null,
+      endLat: f.endLat ?? null,
+      endLng: f.endLng ?? null,
+      notes: f.notes,
+      approvalStatus: f.approvalStatus,
+      approvedBy: f.approvedBy,
+      approvedAt: f.approvedAt?.toISOString() ?? null,
+      approvalNote: f.approvalNote,
     }));
 
     return NextResponse.json(lista);

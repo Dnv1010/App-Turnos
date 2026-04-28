@@ -8,12 +8,12 @@ import { getZonaLabel } from "@/lib/roleLabels";
 
 interface Tecnico {
   id: string;
-  cedula: string;
-  nombre: string;
+  documentNumber: string;
+  fullName: string;
   email: string;
   role: string;
-  zona: string;
-  cargo?: string;
+  zone: string;
+  jobTitle?: string;
   isActive: boolean;
 }
 
@@ -40,13 +40,13 @@ export default function SupplyEquipoPage() {
       const res = await fetch(`/api/usuarios?zona=ALL&role=TECNICO`);
       const data = await parseResponseJson<{ tecnicos?: Tecnico[] }>(res);
       const raw = data?.tecnicos || [];
-      setList(raw.filter((t) => (t.cargo || "TECNICO") === "ALMACENISTA"));
+      setList(raw.filter((t) => (t.jobTitle || "TECNICO") === "ALMACENISTA"));
     } catch { setList([]); }
     finally { setLoading(false); }
   }, [profile]);
 
   const listFiltrada =
-    filtroZona === "ALL" ? list : list.filter((t) => t.zona === filtroZona);
+    filtroZona === "ALL" ? list : list.filter((t) => t.zone === filtroZona);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -58,9 +58,9 @@ export default function SupplyEquipoPage() {
   };
 
   const openEdit = (t: Tecnico) => {
-    setEditingId(t.id); setCedula(t.cedula); setNombre(t.nombre); setEmail(t.email); setPin("");
+    setEditingId(t.id); setCedula(t.documentNumber); setNombre(t.fullName); setEmail(t.email); setPin("");
     setShowPin(false);
-    setZonaSeleccionada((t.zona as "BOGOTA" | "COSTA" | "INTERIOR") || "BOGOTA");
+    setZonaSeleccionada((t.zone as "BOGOTA" | "COSTA" | "INTERIOR") || "BOGOTA");
     setError(null); setModal("edit");
   };
 
@@ -77,12 +77,12 @@ export default function SupplyEquipoPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cedula: cedula.trim(),
-          nombre: nombre.trim(),
+          documentNumber: cedula.trim(),
+          fullName: nombre.trim(),
           email: email.trim().toLowerCase(),
           pin,
-          cargo: "ALMACENISTA",
-          zona: zonaSeleccionada,
+          jobTitle: "ALMACENISTA",
+          zone: zonaSeleccionada,
         }),
       });
       const data = await parseResponseJson<{ error?: string }>(res);
@@ -104,11 +104,11 @@ export default function SupplyEquipoPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          nombre: nombre.trim(),
+          fullName: nombre.trim(),
           email: email.trim().toLowerCase(),
           ...(pin ? { pin } : {}),
-          cargo: "ALMACENISTA",
-          zona: zonaSeleccionada,
+          jobTitle: "ALMACENISTA",
+          zone: zonaSeleccionada,
         }),
       });
       const data = await parseResponseJson<{ error?: string }>(res);
@@ -120,7 +120,7 @@ export default function SupplyEquipoPage() {
   };
 
   const handleDelete = async (t: Tecnico) => {
-    if (!confirm(`¿Desactivar a ${t.nombre}? No podrá iniciar sesión.`)) return;
+    if (!confirm(`¿Desactivar a ${t.fullName}? No podrá iniciar sesión.`)) return;
     try {
       const res = await fetch(`/api/usuarios/${t.id}`, { method: "DELETE" });
       if (!res.ok) {
@@ -175,20 +175,20 @@ export default function SupplyEquipoPage() {
               <tbody>
                 {listFiltrada.map((t) => (
                   <tr key={t.id} className="border-b border-gray-100 dark:border-[#2A3555] hover:bg-gray-50 dark:hover:bg-[#243052]">
-                    <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">{t.cedula}</td>
+                    <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">{t.documentNumber}</td>
                     <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">
-                      {t.nombre}
+                      {t.fullName}
                       <span className="text-xs px-1.5 py-0.5 rounded font-medium ml-1 bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300">
-                        {getZonaLabel(t.zona)}
+                        {getZonaLabel(t.zone)}
                       </span>
                       <span
                         className={`text-xs px-1.5 py-0.5 rounded font-medium ml-1 ${
-                          (t.cargo || "TECNICO") === "ALMACENISTA"
+                          (t.jobTitle || "TECNICO") === "ALMACENISTA"
                             ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
                             : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                         }`}
                       >
-                        {(t.cargo || "TECNICO") === "ALMACENISTA" ? "Almacenista" : "Técnico"}
+                        {(t.jobTitle || "TECNICO") === "ALMACENISTA" ? "Almacenista" : "Técnico"}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-600 dark:text-[#A0AEC0]">{t.email}</td>

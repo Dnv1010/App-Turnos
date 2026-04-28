@@ -55,31 +55,31 @@ export async function GET(req: NextRequest) {
 
   const [turnos, foraneos, disponibilidades, turnosCoordinador] = await Promise.all([
     userIds.length
-      ? prisma.turno.findMany({
+      ? prisma.shift.findMany({
           where: whereTurnosDisponiblesParaReporte(fechaInicio, fechaFin, userIds),
-          include: { user: { select: { nombre: true, cedula: true, zona: true } } },
-          orderBy: [{ fecha: "asc" }, { horaEntrada: "asc" }],
+          include: { user: { select: { fullName: true, documentNumber: true, zone: true } } },
+          orderBy: [{ date: "asc" }, { clockInAt: "asc" }],
         })
       : [],
     userIds.length
-      ? prisma.fotoRegistro.findMany({
+      ? prisma.tripRecord.findMany({
           where: whereForaneosDisponiblesParaReporte(fechaInicio, fechaFin, userIds),
-          include: { user: { select: { nombre: true, cedula: true, zona: true } } },
+          include: { user: { select: { fullName: true, documentNumber: true, zone: true } } },
           orderBy: { createdAt: "asc" },
         })
       : [],
     userIds.length || coordUserIds.length
-      ? prisma.mallaTurno.findMany({
+      ? prisma.shiftSchedule.findMany({
           where: whereDisp,
-          include: { user: { select: { nombre: true, cedula: true, zona: true, role: true } } },
-          orderBy: [{ user: { nombre: "asc" } }, { fecha: "asc" }],
+          include: { user: { select: { fullName: true, documentNumber: true, zone: true, role: true } } },
+          orderBy: [{ user: { fullName: "asc" } }, { date: "asc" }],
         })
       : [],
     coordUserIds.length
-      ? prisma.turnoCoordinador.findMany({
+      ? prisma.coordinatorShift.findMany({
           where: whereTurnosCoordinadorDisponiblesParaReporte(fechaInicio, fechaFin, coordUserIds),
-          include: { user: { select: { nombre: true, cedula: true, zona: true, role: true } } },
-          orderBy: [{ fecha: "asc" }, { horaEntrada: "asc" }],
+          include: { user: { select: { fullName: true, documentNumber: true, zone: true, role: true } } },
+          orderBy: [{ date: "asc" }, { clockInAt: "asc" }],
         })
       : [],
   ]);
@@ -87,47 +87,47 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     turnos: turnos.map((t) => ({
       id: t.id,
-      fecha: t.fecha.toISOString(),
-      horaEntrada: t.horaEntrada.toISOString(),
-      horaSalida: t.horaSalida?.toISOString() ?? null,
-      heDiurna: t.heDiurna,
-      heNocturna: t.heNocturna,
-      heDominical: t.heDominical,
-      heNoctDominical: t.heNoctDominical,
-      recNocturno: t.recNocturno,
-      recDominical: t.recDominical,
-      recNoctDominical: t.recNoctDominical,
-      horasOrdinarias: t.horasOrdinarias,
+      date: t.date.toISOString(),
+      clockInAt: t.clockInAt.toISOString(),
+      clockOutAt: t.clockOutAt?.toISOString() ?? null,
+      daytimeOvertimeHours: t.daytimeOvertimeHours,
+      nighttimeOvertimeHours: t.nighttimeOvertimeHours,
+      sundayOvertimeHours: t.sundayOvertimeHours,
+      nightSundayOvertimeHours: t.nightSundayOvertimeHours,
+      nightSurchargeHours: t.nightSurchargeHours,
+      sundaySurchargeHours: t.sundaySurchargeHours,
+      nightSundaySurchargeHours: t.nightSundaySurchargeHours,
+      regularHours: t.regularHours,
       user: t.user,
     })),
     foraneos: foraneos.map((f) => ({
       id: f.id,
       createdAt: f.createdAt.toISOString(),
-      kmInicial: f.kmInicial,
-      kmFinal: f.kmFinal,
+      startKm: f.startKm,
+      endKm: f.endKm,
       user: f.user,
     })),
     disponibilidades: disponibilidades.map((m) => ({
       id: m.id,
-      fecha: m.fecha.toISOString(),
-      valor: m.valor,
-      valorCop: valorDisponibilidadMallaPorRol(m.user.role),
+      date: m.date.toISOString(),
+      shiftCode: m.shiftCode,
+      amount: valorDisponibilidadMallaPorRol(m.user.role),
       user: m.user,
     })),
     turnosCoordinador: turnosCoordinador.map((t) => ({
       id: t.id,
-      fecha: t.fecha.toISOString(),
-      horaEntrada: t.horaEntrada.toISOString(),
-      horaSalida: t.horaSalida?.toISOString() ?? null,
-      codigoOrden: t.codigoOrden,
-      heDiurna: t.heDiurna,
-      heNocturna: t.heNocturna,
-      heDominical: t.heDominical,
-      heNoctDominical: t.heNoctDominical,
-      recNocturno: t.recNocturno,
-      recDominical: t.recDominical,
-      recNoctDominical: t.recNoctDominical,
-      horasOrdinarias: t.horasOrdinarias,
+      date: t.date.toISOString(),
+      clockInAt: t.clockInAt.toISOString(),
+      clockOutAt: t.clockOutAt?.toISOString() ?? null,
+      orderCode: t.orderCode,
+      daytimeOvertimeHours: t.daytimeOvertimeHours,
+      nighttimeOvertimeHours: t.nighttimeOvertimeHours,
+      sundayOvertimeHours: t.sundayOvertimeHours,
+      nightSundayOvertimeHours: t.nightSundayOvertimeHours,
+      nightSurchargeHours: t.nightSurchargeHours,
+      sundaySurchargeHours: t.sundaySurchargeHours,
+      nightSundaySurchargeHours: t.nightSundaySurchargeHours,
+      regularHours: t.regularHours,
       user: t.user,
     })),
   });

@@ -20,9 +20,9 @@ export async function DELETE(_req: NextRequest, context: Ctx) {
 
   const { id } = await context.params;
 
-  const reporte = await prisma.reporte.findUnique({
+  const reporte = await prisma.report.findUnique({
     where: { id },
-    select: { id: true, zona: true, creadoPor: true },
+    select: { id: true, zone: true, createdBy: true },
   });
 
   if (!reporte) {
@@ -33,6 +33,6 @@ export async function DELETE(_req: NextRequest, context: Ctx) {
     return NextResponse.json({ error: "Sin permiso para eliminar este reporte" }, { status: 403 });
   }
 
-  await prisma.reporte.delete({ where: { id } });
+  await prisma.report.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

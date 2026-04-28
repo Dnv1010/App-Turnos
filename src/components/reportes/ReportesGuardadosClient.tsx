@@ -13,51 +13,51 @@ const TARIFA_KM = 1100;
 
 type PreviewTurno = {
   id: string;
-  fecha: string;
-  horaEntrada: string;
-  horaSalida: string | null;
-  heDiurna: number;
-  heNocturna: number;
-  heDominical: number;
-  heNoctDominical: number;
-  recNocturno: number;
-  recDominical: number;
-  recNoctDominical: number;
-  horasOrdinarias: number;
-  user: { nombre: string; cedula: string | null; zona: string };
+  date: string;
+  clockInAt: string;
+  clockOutAt: string | null;
+  daytimeOvertimeHours: number;
+  nighttimeOvertimeHours: number;
+  sundayOvertimeHours: number;
+  nightSundayOvertimeHours: number;
+  nightSurchargeHours: number;
+  sundaySurchargeHours: number;
+  nightSundaySurchargeHours: number;
+  regularHours: number;
+  user: { fullName: string; documentNumber: string | null; zone: string };
 };
 
 type PreviewForaneo = {
   id: string;
   createdAt: string;
-  kmInicial: number | null;
-  kmFinal: number | null;
-  user: { nombre: string; cedula: string | null; zona: string };
+  startKm: number | null;
+  endKm: number | null;
+  user: { fullName: string; documentNumber: string | null; zone: string };
 };
 
 type PreviewDisponibilidad = {
   id: string;
-  fecha: string;
-  valor: string;
-  valorCop?: number;
-  user: { nombre: string; cedula: string | null; zona: string; role: string };
+  date: string;
+  shiftCode: string;
+  amount?: number;
+  user: { fullName: string; documentNumber: string | null; zone: string; role: string };
 };
 
 type PreviewTurnoCoordinador = {
   id: string;
-  fecha: string;
-  horaEntrada: string;
-  horaSalida: string | null;
-  codigoOrden: string;
-  heDiurna: number;
-  heNocturna: number;
-  heDominical: number;
-  heNoctDominical: number;
-  recNocturno: number;
-  recDominical: number;
-  recNoctDominical: number;
-  horasOrdinarias: number;
-  user: { nombre: string; cedula: string | null; zona: string; role: string };
+  date: string;
+  clockInAt: string;
+  clockOutAt: string | null;
+  orderCode: string;
+  daytimeOvertimeHours: number;
+  nighttimeOvertimeHours: number;
+  sundayOvertimeHours: number;
+  nightSundayOvertimeHours: number;
+  nightSurchargeHours: number;
+  sundaySurchargeHours: number;
+  nightSundaySurchargeHours: number;
+  regularHours: number;
+  user: { fullName: string; documentNumber: string | null; zone: string; role: string };
 };
 
 type PreviewData = {
@@ -69,12 +69,12 @@ type PreviewData = {
 
 type ReporteListItem = {
   id: string;
-  nombre: string;
-  fechaInicio: string;
-  fechaFin: string;
-  zona: string | null;
+  name: string;
+  startDate: string;
+  endDate: string;
+  zone: string | null;
   createdAt: string;
-  creadoPorUser: { nombre: string };
+  createdByUser: { fullName: string };
   _count: {
     turnosIncluidos: number;
     foraneosIncluidos: number;
@@ -85,37 +85,37 @@ type ReporteListItem = {
 
 function totalHE(t: PreviewTurno): number {
   return (
-    (t.heDiurna ?? 0) +
-    (t.heNocturna ?? 0) +
-    (t.heDominical ?? 0) +
-    (t.heNoctDominical ?? 0)
+    (t.daytimeOvertimeHours ?? 0) +
+    (t.nighttimeOvertimeHours ?? 0) +
+    (t.sundayOvertimeHours ?? 0) +
+    (t.nightSundayOvertimeHours ?? 0)
   );
 }
 
 function totalRecargos(t: PreviewTurno): number {
-  return (t.recNocturno ?? 0) + (t.recDominical ?? 0) + (t.recNoctDominical ?? 0);
+  return (t.nightSurchargeHours ?? 0) + (t.sundaySurchargeHours ?? 0) + (t.nightSundaySurchargeHours ?? 0);
 }
 
 function totalHECoord(t: PreviewTurnoCoordinador): number {
   return (
-    (t.heDiurna ?? 0) +
-    (t.heNocturna ?? 0) +
-    (t.heDominical ?? 0) +
-    (t.heNoctDominical ?? 0)
+    (t.daytimeOvertimeHours ?? 0) +
+    (t.nighttimeOvertimeHours ?? 0) +
+    (t.sundayOvertimeHours ?? 0) +
+    (t.nightSundayOvertimeHours ?? 0)
   );
 }
 
 function totalRecargosCoord(t: PreviewTurnoCoordinador): number {
-  return (t.recNocturno ?? 0) + (t.recDominical ?? 0) + (t.recNoctDominical ?? 0);
+  return (t.nightSurchargeHours ?? 0) + (t.sundaySurchargeHours ?? 0) + (t.nightSundaySurchargeHours ?? 0);
 }
 
 function totalHorasTrabajoCoord(t: PreviewTurnoCoordinador): number {
-  return (t.horasOrdinarias ?? 0) + totalHECoord(t);
+  return (t.regularHours ?? 0) + totalHECoord(t);
 }
 
 function kmForaneo(f: PreviewForaneo): number {
-  if (f.kmInicial != null && f.kmFinal != null && f.kmFinal > f.kmInicial) {
-    return f.kmFinal - f.kmInicial;
+  if (f.startKm != null && f.endKm != null && f.endKm > f.startKm) {
+    return f.endKm - f.startKm;
   }
   return 0;
 }
@@ -203,7 +203,7 @@ export default function ReportesGuardadosClient() {
     preview.disponibilidades.forEach((d) => {
       if (selDisp.has(d.id)) {
         diasDisp += 1;
-        montoDisp += d.valorCop ?? VALOR_DISPONIBILIDAD_TECNICO;
+        montoDisp += d.amount ?? VALOR_DISPONIBILIDAD_TECNICO;
       }
     });
     (preview.turnosCoordinador ?? []).forEach((t) => {
@@ -256,10 +256,10 @@ export default function ReportesGuardadosClient() {
     setSaving(true);
     try {
       const body = {
-        nombre: nombre.trim() || nombreSugerido(desde, hasta),
-        fechaInicio: desde,
-        fechaFin: hasta,
-        zona: isCoord ? undefined : zonaFiltro,
+        name: nombre.trim() || nombreSugerido(desde, hasta),
+        startDate: desde,
+        endDate: hasta,
+        zone: isCoord ? undefined : zonaFiltro,
         turnoIds: [...selTurnos],
         foraneoIds: [...selForaneos],
         disponibilidadIds: [...selDisp],
@@ -495,8 +495,8 @@ export default function ReportesGuardadosClient() {
                               }}
                             />
                           </td>
-                          <td className="p-2">{t.user.nombre}</td>
-                          <td className="p-2">{format(parseISO(t.fecha), "dd/MM/yyyy")}</td>
+                          <td className="p-2">{t.user.fullName}</td>
+                          <td className="p-2">{format(parseISO(t.date), "dd/MM/yyyy")}</td>
                           <td className="p-2 text-right font-mono">{totalHE(t).toFixed(2)}</td>
                           <td className="p-2 text-right font-mono">{totalRecargos(t).toFixed(2)}</td>
                         </tr>
@@ -571,31 +571,31 @@ export default function ReportesGuardadosClient() {
                               }}
                             />
                           </td>
-                          <td className="p-2 font-mono text-xs">{t.user.cedula ?? "—"}</td>
-                          <td className="p-2">{t.user.nombre}</td>
+                          <td className="p-2 font-mono text-xs">{t.user.documentNumber ?? "—"}</td>
+                          <td className="p-2">{t.user.fullName}</td>
                           <td className="p-2">{getRoleLabel(t.user.role)}</td>
                           <td className="p-2 capitalize">
-                            {format(parseISO(t.fecha.split("T")[0]), "LLLL", { locale: es })}
+                            {format(parseISO(t.date.split("T")[0]), "LLLL", { locale: es })}
                           </td>
-                          <td className="p-2">{format(parseISO(t.fecha.split("T")[0]), "d", { locale: es })}</td>
-                          <td className="p-2">{format(parseISO(t.fecha.split("T")[0]), "dd/MM/yyyy", { locale: es })}</td>
-                          <td className="p-2 font-mono">{t.codigoOrden}</td>
+                          <td className="p-2">{format(parseISO(t.date.split("T")[0]), "d", { locale: es })}</td>
+                          <td className="p-2">{format(parseISO(t.date.split("T")[0]), "dd/MM/yyyy", { locale: es })}</td>
+                          <td className="p-2 font-mono">{t.orderCode}</td>
                           <td className="p-2 whitespace-nowrap">
-                            {new Date(t.horaEntrada).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            {new Date(t.clockInAt).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                           </td>
                           <td className="p-2 whitespace-nowrap">
-                            {t.horaSalida
-                              ? new Date(t.horaSalida).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+                            {t.clockOutAt
+                              ? new Date(t.clockOutAt).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
                               : "—"}
                           </td>
                           <td className="p-2 text-right font-mono">{totalHorasTrabajoCoord(t).toFixed(2)}</td>
-                          <td className="p-2 text-right font-mono">{(t.heDiurna ?? 0).toFixed(2)}</td>
-                          <td className="p-2 text-right font-mono">{(t.heNocturna ?? 0).toFixed(2)}</td>
-                          <td className="p-2 text-right font-mono">{(t.heDominical ?? 0).toFixed(2)}</td>
-                          <td className="p-2 text-right font-mono">{(t.heNoctDominical ?? 0).toFixed(2)}</td>
-                          <td className="p-2 text-right font-mono">{(t.recNocturno ?? 0).toFixed(2)}</td>
-                          <td className="p-2 text-right font-mono">{(t.recDominical ?? 0).toFixed(2)}</td>
-                          <td className="p-2 text-right font-mono">{(t.recNoctDominical ?? 0).toFixed(2)}</td>
+                          <td className="p-2 text-right font-mono">{(t.daytimeOvertimeHours ?? 0).toFixed(2)}</td>
+                          <td className="p-2 text-right font-mono">{(t.nighttimeOvertimeHours ?? 0).toFixed(2)}</td>
+                          <td className="p-2 text-right font-mono">{(t.sundayOvertimeHours ?? 0).toFixed(2)}</td>
+                          <td className="p-2 text-right font-mono">{(t.nightSundayOvertimeHours ?? 0).toFixed(2)}</td>
+                          <td className="p-2 text-right font-mono">{(t.nightSurchargeHours ?? 0).toFixed(2)}</td>
+                          <td className="p-2 text-right font-mono">{(t.sundaySurchargeHours ?? 0).toFixed(2)}</td>
+                          <td className="p-2 text-right font-mono">{(t.nightSundaySurchargeHours ?? 0).toFixed(2)}</td>
                         </tr>
                       ))
                     )}
@@ -648,7 +648,7 @@ export default function ReportesGuardadosClient() {
                               }}
                             />
                           </td>
-                          <td className="p-2">{f.user.nombre}</td>
+                          <td className="p-2">{f.user.fullName}</td>
                           <td className="p-2">{new Date(f.createdAt).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
                           <td className="p-2 text-right font-mono">{kmForaneo(f).toFixed(2)}</td>
                         </tr>
@@ -713,15 +713,15 @@ export default function ReportesGuardadosClient() {
                               }}
                             />
                           </td>
-                          <td className="p-2 font-mono text-xs">{d.user.cedula ?? "—"}</td>
-                          <td className="p-2">{d.user.nombre}</td>
+                          <td className="p-2 font-mono text-xs">{d.user.documentNumber ?? "—"}</td>
+                          <td className="p-2">{d.user.fullName}</td>
                           <td className="p-2 text-xs">{getRoleLabel(d.user.role)}</td>
-                          <td className="p-2">{format(parseISO(d.fecha.substring(0, 10)), "dd/MM/yyyy")}</td>
-                          <td className="p-2 max-w-[200px] truncate" title={d.valor}>
-                            {d.valor}
+                          <td className="p-2">{format(parseISO(d.date.substring(0, 10)), "dd/MM/yyyy")}</td>
+                          <td className="p-2 max-w-[200px] truncate" title={d.shiftCode}>
+                            {d.shiftCode}
                           </td>
                           <td className="p-2 text-right">
-                            ${(d.valorCop ?? VALOR_DISPONIBILIDAD_TECNICO).toLocaleString("es-CO")}
+                            ${(d.amount ?? VALOR_DISPONIBILIDAD_TECNICO).toLocaleString("es-CO")}
                           </td>
                         </tr>
                       ))
@@ -814,17 +814,17 @@ export default function ReportesGuardadosClient() {
               <tbody>
                 {reportes.map((r) => (
                   <tr key={r.id} className="border-t border-gray-100 dark:border-[#2A3555] hover:bg-gray-50/80 dark:hover:bg-[#243052]">
-                    <td className="p-2 font-medium text-gray-900 dark:text-white">{r.nombre}</td>
+                    <td className="p-2 font-medium text-gray-900 dark:text-white">{r.name}</td>
                     <td className="p-2 whitespace-nowrap">
-                      {format(parseISO(r.fechaInicio), "dd/MM/yy")} – {format(parseISO(r.fechaFin), "dd/MM/yy")}
+                      {format(parseISO(r.startDate), "dd/MM/yy")} – {format(parseISO(r.endDate), "dd/MM/yy")}
                     </td>
-                    <td className="p-2">{r.zona ? getZonaLabel(r.zona) : "Todas"}</td>
+                    <td className="p-2">{r.zone ? getZonaLabel(r.zone) : "Todas"}</td>
                     <td className="p-2 text-right">{r._count.turnosIncluidos}</td>
                     <td className="p-2 text-right">{r._count.turnosCoordinadorIncluidos ?? 0}</td>
                     <td className="p-2 text-right">{r._count.foraneosIncluidos}</td>
                     <td className="p-2 text-right">{r._count.disponibilidadesIncluidas ?? 0}</td>
                     <td className="p-2 whitespace-nowrap">{new Date(r.createdAt).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
-                    <td className="p-2">{r.creadoPorUser.nombre}</td>
+                    <td className="p-2">{r.createdByUser.fullName}</td>
                     <td className="p-2">
                       <div className="flex flex-wrap gap-1 items-center">
                         <button
@@ -838,7 +838,7 @@ export default function ReportesGuardadosClient() {
                         <button
                           type="button"
                           title="Descargar CSV"
-                          onClick={() => void descargarCSV(r.id, r.nombre)}
+                          onClick={() => void descargarCSV(r.id, r.name)}
                           className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-gray-700 dark:text-[#CBD5E1] hover:bg-gray-100 dark:hover:bg-[#243052] text-xs font-medium"
                         >
                           <HiDocumentText className="h-4 w-4" />

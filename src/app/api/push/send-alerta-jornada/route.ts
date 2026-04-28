@@ -65,13 +65,13 @@ export async function POST(req: NextRequest) {
 
   const tecnico = await prisma.user.findUnique({
     where: { id: userId },
-    select: { nombre: true, zona: true, cargo: true },
+    select: { fullName: true, zone: true, jobTitle: true },
   });
   if (!tecnico) {
     return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
   }
 
-  const cuerpo = mensajeCuerpoOperador15min(primerNombreOperador(tecnico.nombre));
+  const cuerpo = mensajeCuerpoOperador15min(primerNombreOperador(tecnico.fullName));
 
   const payloadOperador = JSON.stringify({
     title: TITULO,
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
 
   const payloadLider = JSON.stringify({
     title: "👥 Alerta jornada equipo",
-    body: `${primerNombreOperador(tecnico.nombre)} está por completar su jornada (faltan 15 min). Zona: ${tecnico.zona}.`,
+    body: `${primerNombreOperador(tecnico.fullName)} está por completar su jornada (faltan 15 min). Zona: ${tecnico.zone}.`,
     icon: "/icon-192.png",
     url: "/coordinador",
     tag: "jornada-alerta-lider",
@@ -103,22 +103,22 @@ export async function POST(req: NextRequest) {
    */
   const lideres = await prisma.user.findMany({
     where: {
-      zona: tecnico.zona,
+      zone: tecnico.zone,
       role: { in: [Role.COORDINADOR, Role.COORDINADOR_INTERIOR, Role.SUPPLY] },
       isActive: true,
     },
     select: {
       id: true,
-      nombre: true,
-      filtroEquipo: true,
+      fullName: true,
+      teamFilter: true,
       pushSubscriptions: true,
     },
   });
 
-  const tecnicoCargo = tecnico.cargo ?? "TECNICO";
+  const tecnicoCargo = tecnico.jobTitle ?? "TECNICO";
 
   for (const l of lideres) {
-    const filtro = l.filtroEquipo || "TODOS";
+    const filtro = l.teamFilter || "TODOS";
     if (filtro !== "TODOS" && filtro !== tecnicoCargo) continue;
     const rL = await sendPayload(l.pushSubscriptions, payloadLider);
     totalEnviados += rL.enviados;

@@ -11,29 +11,29 @@ import { getRoleLabel, getZonaLabel } from "@/lib/roleLabels";
 
 interface Usuario {
   id: string;
-  cedula: string;
-  nombre: string;
+  documentNumber: string;
+  fullName: string;
   email: string;
   role: string;
-  zona: string;
+  zone: string;
   isActive: boolean;
   createdAt?: string;
 }
 
 interface TurnoRow {
   id: string;
-  fecha: string;
-  horaEntrada: string;
-  horaSalida: string | null;
-  horasOrdinarias: number;
-  heDiurna: number;
-  heNocturna: number;
-  heDominical: number;
-  heNoctDominical: number;
-  recNocturno: number;
-  recDominical: number;
-  recNoctDominical: number;
-  observaciones: string | null;
+  date: string;
+  clockInAt: string;
+  clockOutAt: string | null;
+  regularHours: number;
+  daytimeOvertimeHours: number;
+  nighttimeOvertimeHours: number;
+  sundayOvertimeHours: number;
+  nightSundayOvertimeHours: number;
+  nightSurchargeHours: number;
+  sundaySurchargeHours: number;
+  nightSundaySurchargeHours: number;
+  notes: string | null;
 }
 
 type RolAprobacion = "TECNICO" | "COORDINADOR" | "COORDINADOR_INTERIOR" | "MANAGER" | "SUPPLY";
@@ -46,15 +46,15 @@ function FilaSolicitudPendiente({
   onApproved: () => void;
 }) {
   const [role, setRole] = useState<RolAprobacion>("TECNICO");
-  const [zona, setZona] = useState(u.zona || "BOGOTA");
-  const [cedula, setCedula] = useState(u.cedula);
+  const [zona, setZona] = useState(u.zone || "BOGOTA");
+  const [cedula, setCedula] = useState(u.documentNumber);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    setCedula(u.cedula);
-    setZona(u.zona || "BOGOTA");
+    setCedula(u.documentNumber);
+    setZona(u.zone || "BOGOTA");
     setRole("TECNICO");
-  }, [u.id, u.cedula, u.zona]);
+  }, [u.id, u.documentNumber, u.zone]);
 
   const fechaReg = u.createdAt
     ? format(new Date(u.createdAt), "d MMM yyyy HH:mm", { locale: es })
@@ -72,8 +72,8 @@ function FilaSolicitudPendiente({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           role,
-          zona,
-          cedula: cedula.trim(),
+          zone: zona,
+          documentNumber: cedula.trim(),
           isActive: true,
         }),
       });
@@ -90,7 +90,7 @@ function FilaSolicitudPendiente({
   };
 
   const rechazar = async () => {
-    if (!confirm(`¿Rechazar y eliminar la solicitud de ${u.nombre}?`)) return;
+    if (!confirm(`¿Rechazar y eliminar la solicitud de ${u.fullName}?`)) return;
     setBusy(true);
     try {
       const res = await fetch(`/api/admin/usuarios/${u.id}`, {
@@ -114,7 +114,7 @@ function FilaSolicitudPendiente({
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
         <div>
           <span className="text-gray-500 dark:text-[#A0AEC0]">Nombre: </span>
-          <span className="font-medium text-gray-900 dark:text-white">{u.nombre}</span>
+          <span className="font-medium text-gray-900 dark:text-white">{u.fullName}</span>
         </div>
         <div>
           <span className="text-gray-500 dark:text-[#A0AEC0]">Email: </span>
@@ -182,12 +182,12 @@ export default function UsuariosPage() {
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState<Usuario | null>(null);
   const [form, setForm] = useState({
-    cedula: "",
-    nombre: "",
+    documentNumber: "",
+    fullName: "",
     email: "",
     pin: "",
     role: "TECNICO",
-    zona: "BOGOTA",
+    zone: "BOGOTA",
     isActive: true,
   });
   const [saving, setSaving] = useState(false);
@@ -220,19 +220,19 @@ export default function UsuariosPage() {
 
   const abrirCrear = () => {
     setEditando(null);
-    setForm({ cedula: "", nombre: "", email: "", pin: "", role: "TECNICO", zona: "BOGOTA", isActive: true });
+    setForm({ documentNumber: "", fullName: "", email: "", pin: "", role: "TECNICO", zone: "BOGOTA", isActive: true });
     setModal(true);
   };
 
   const abrirEditar = (u: Usuario) => {
     setEditando(u);
     setForm({
-      cedula: u.cedula,
-      nombre: u.nombre,
+      documentNumber: u.documentNumber,
+      fullName: u.fullName,
       email: u.email,
       pin: "",
       role: u.role,
-      zona: u.zona,
+      zone: u.zone,
       isActive: u.isActive,
     });
     setModal(true);
@@ -243,11 +243,11 @@ export default function UsuariosPage() {
     try {
       if (editando) {
         const body: Record<string, unknown> = {
-          nombre: form.nombre,
+          fullName: form.fullName,
           email: form.email,
-          cedula: form.cedula,
+          documentNumber: form.documentNumber,
           role: form.role,
-          zona: form.zona,
+          zone: form.zone,
           isActive: form.isActive,
         };
         if (form.pin.trim() !== "") body.pin = form.pin;
@@ -265,12 +265,12 @@ export default function UsuariosPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            cedula: form.cedula,
-            nombre: form.nombre,
+            documentNumber: form.documentNumber,
+            fullName: form.fullName,
             email: form.email,
             pin: form.pin,
             role: form.role,
-            zona: form.zona,
+            zone: form.zone,
             isActive: form.isActive,
           }),
         });
@@ -317,7 +317,7 @@ export default function UsuariosPage() {
   };
 
   const eliminarUsuario = async (u: Usuario) => {
-    if (!confirm(`¿Desactivar al usuario ${u.nombre}? Se marcará como inactivo.`)) return;
+    if (!confirm(`¿Desactivar al usuario ${u.fullName}? Se marcará como inactivo.`)) return;
     try {
       const res = await fetch(`/api/admin/usuarios/${u.id}`, { method: "DELETE" });
       if (res.ok) cargarUsuarios();
@@ -342,8 +342,8 @@ export default function UsuariosPage() {
   };
 
   const columns = [
-    { key: "cedula", label: "Cédula", sortable: true },
-    { key: "nombre", label: "Nombre", sortable: true },
+    { key: "documentNumber", label: "Cédula", sortable: true },
+    { key: "fullName", label: "Nombre", sortable: true },
     { key: "email", label: "Email", sortable: true },
     {
       key: "role",
@@ -363,19 +363,19 @@ export default function UsuariosPage() {
       },
     },
     {
-      key: "zona",
+      key: "zone",
       label: "Zona",
       render: (u: Usuario) => (
         <span
           className={
-            u.zona === "BOGOTA"
+            u.zone === "BOGOTA"
               ? "badge-blue"
-              : u.zona === "INTERIOR"
+              : u.zone === "INTERIOR"
                 ? "badge-zona-interior"
                 : "badge-green"
           }
         >
-          {getZonaLabel(u.zona)}
+          {getZonaLabel(u.zone)}
         </span>
       ),
     },
@@ -513,9 +513,9 @@ export default function UsuariosPage() {
                 </label>
                 <input
                   type="text"
-                  value={form.cedula}
+                  value={form.documentNumber}
                   onChange={(e) =>
-                    setForm({ ...form, cedula: e.target.value })
+                    setForm({ ...form, documentNumber: e.target.value })
                   }
                   className="input-field"
                   required
@@ -528,9 +528,9 @@ export default function UsuariosPage() {
                 </label>
                 <input
                   type="text"
-                  value={form.nombre}
+                  value={form.fullName}
                   onChange={(e) =>
-                    setForm({ ...form, nombre: e.target.value })
+                    setForm({ ...form, fullName: e.target.value })
                   }
                   className="input-field"
                   required
@@ -607,9 +607,9 @@ export default function UsuariosPage() {
                     Zona
                   </label>
                   <select
-                    value={form.zona}
+                    value={form.zone}
                     onChange={(e) =>
-                      setForm({ ...form, zona: e.target.value })
+                      setForm({ ...form, zone: e.target.value })
                     }
                     className="input-field"
                   >
@@ -629,9 +629,9 @@ export default function UsuariosPage() {
                 onClick={guardar}
                 disabled={
                   saving ||
-                  !form.nombre ||
+                  !form.fullName ||
                   !form.email ||
-                  (!editando && (!form.cedula || form.pin.length !== 4))
+                  (!editando && (!form.documentNumber || form.pin.length !== 4))
                 }
                 className="btn-primary"
               >
@@ -652,10 +652,10 @@ export default function UsuariosPage() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-[#3A4565]">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white text-lg">
-                  Turnos de {verTurnosUsuario.nombre}
+                  Turnos de {verTurnosUsuario.fullName}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-[#A0AEC0]">
-                  {getRoleLabel(verTurnosUsuario.role)} — {getZonaLabel(verTurnosUsuario.zona)} — {verTurnosUsuario.cedula}
+                  {getRoleLabel(verTurnosUsuario.role)} — {getZonaLabel(verTurnosUsuario.zone)} — {verTurnosUsuario.documentNumber}
                 </p>
               </div>
               <button
@@ -680,10 +680,10 @@ export default function UsuariosPage() {
                   columns={
                     [
                       {
-                        key: "fecha",
+                        key: "date",
                         label: "Fecha",
                         render: (t: TurnoRow) =>
-                          new Date(t.fecha).toLocaleDateString("es-CO", {
+                          new Date(t.date).toLocaleDateString("es-CO", {
                             timeZone: "UTC",
                             day: "2-digit",
                             month: "short",
@@ -691,21 +691,21 @@ export default function UsuariosPage() {
                           }),
                       },
                       {
-                        key: "horaEntrada",
+                        key: "clockInAt",
                         label: "Entrada",
                         render: (t: TurnoRow) =>
-                          new Date(t.horaEntrada).toLocaleTimeString("es-CO", {
+                          new Date(t.clockInAt).toLocaleTimeString("es-CO", {
                             timeZone: "America/Bogota",
                             hour: "2-digit",
                             minute: "2-digit",
                           }),
                       },
                       {
-                        key: "horaSalida",
+                        key: "clockOutAt",
                         label: "Salida",
                         render: (t: TurnoRow) =>
-                          t.horaSalida
-                            ? new Date(t.horaSalida).toLocaleTimeString("es-CO", {
+                          t.clockOutAt
+                            ? new Date(t.clockOutAt).toLocaleTimeString("es-CO", {
                                 timeZone: "America/Bogota",
                                 hour: "2-digit",
                                 minute: "2-digit",
@@ -713,39 +713,39 @@ export default function UsuariosPage() {
                             : "—",
                       },
                       {
-                        key: "horasOrdinarias",
+                        key: "regularHours",
                         label: "Ord.",
-                        render: (t: TurnoRow) => t.horasOrdinarias ?? "—",
+                        render: (t: TurnoRow) => t.regularHours ?? "—",
                       },
                       {
-                        key: "heDiurna",
+                        key: "daytimeOvertimeHours",
                         label: "HE Día",
-                        render: (t: TurnoRow) => t.heDiurna || "—",
+                        render: (t: TurnoRow) => t.daytimeOvertimeHours || "—",
                       },
                       {
-                        key: "heNocturna",
+                        key: "nighttimeOvertimeHours",
                         label: "HE Noc",
-                        render: (t: TurnoRow) => t.heNocturna || "—",
+                        render: (t: TurnoRow) => t.nighttimeOvertimeHours || "—",
                       },
                       {
-                        key: "heDominical",
+                        key: "sundayOvertimeHours",
                         label: "HE Dom",
-                        render: (t: TurnoRow) => t.heDominical || "—",
+                        render: (t: TurnoRow) => t.sundayOvertimeHours || "—",
                       },
                       {
-                        key: "recNocturno",
+                        key: "nightSurchargeHours",
                         label: "Rec Noc",
-                        render: (t: TurnoRow) => t.recNocturno || "—",
+                        render: (t: TurnoRow) => t.nightSurchargeHours || "—",
                       },
                       {
-                        key: "recDominical",
+                        key: "sundaySurchargeHours",
                         label: "Rec Dom",
-                        render: (t: TurnoRow) => t.recDominical || "—",
+                        render: (t: TurnoRow) => t.sundaySurchargeHours || "—",
                       },
                       {
-                        key: "observaciones",
+                        key: "notes",
                         label: "Obs.",
-                        render: (t: TurnoRow) => t.observaciones || "—",
+                        render: (t: TurnoRow) => t.notes || "—",
                       },
                     ] as never
                   }

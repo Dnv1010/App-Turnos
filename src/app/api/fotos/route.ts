@@ -24,13 +24,13 @@ export async function POST(req: NextRequest) {
     let body: {
       userId?: string;
       base64Data?: string;
-      tipo?: string;
+      type?: string;
       turnoId?: string;
-      observaciones?: string;
-      kmInicial?: number;
-      kmFinal?: number;
-      latInicial?: number;
-      lngInicial?: number;
+      notes?: string;
+      startKm?: number;
+      endKm?: number;
+      startLat?: number;
+      startLng?: number;
     };
 
     try {
@@ -39,14 +39,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 });
     }
 
-    const { userId, base64Data, tipo, turnoId, observaciones, kmInicial, kmFinal, latInicial, lngInicial } = body ?? {};
+    const { userId, base64Data, type, turnoId, notes, startKm, endKm, startLat, startLng } = body ?? {};
 
     const uid = userId || profile.id;
 
     // Validación para foráneos
-    if (tipo === "FORANEO") {
-      const activo = await prisma.fotoRegistro.findFirst({
-        where: { userId: uid, tipo: "FORANEO", kmFinal: null },
+    if (type === "FORANEO") {
+      const activo = await prisma.tripRecord.findFirst({
+        where: { userId: uid, type: "FORANEO", endKm: null },
       });
 
       if (activo) {
@@ -56,8 +56,8 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const latI = latInicial != null ? parseFloat(String(latInicial)) : NaN;
-      const lngI = lngInicial != null ? parseFloat(String(lngInicial)) : NaN;
+      const latI = startLat != null ? parseFloat(String(startLat)) : NaN;
+      const lngI = startLng != null ? parseFloat(String(startLng)) : NaN;
 
       if (Number.isNaN(latI) || Number.isNaN(lngI)) {
         return NextResponse.json(
@@ -79,10 +79,10 @@ export async function POST(req: NextRequest) {
         console.log("[Fotos] base64Data prefix:", base64Data?.substring(0, 30));
 
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-        const fileName = `turno_${tipo || "FICHAJE"}_${uid}_${timestamp}.jpg`;
+        const fileName = `turno_${type || "FICHAJE"}_${uid}_${timestamp}.jpg`;
 
         // Determinar bucket según tipo
-        const bucket = tipo === "FORANEO" ? "fotos-foraneos" : "fotos-turnos";
+        const bucket = type === "FORANEO" ? "fotos-foraneos" : "fotos-turnos";
 
         const result = await uploadToStorage(base64Data, fileName, bucket);
         fileId = result.fileId;
@@ -97,18 +97,18 @@ export async function POST(req: NextRequest) {
     }
 
     // Crear registro en BD
-    const registro = await prisma.fotoRegistro.create({
+    const registro = await prisma.tripRecord.create({
       data: {
         userId: uid,
-        tipo: tipo || "FICHAJE",
+        type: type || "FICHAJE",
         driveFileId: fileId,  // Mantener nombre de campo por compatibilidad
         driveUrl: fileUrl,    // Mantener nombre de campo por compatibilidad
         base64Fallback,
-        observaciones: observaciones || (turnoId ? `Turno: ${turnoId}` : null),
-        kmInicial: kmInicial != null ? parseFloat(String(kmInicial)) : null,
-        kmFinal: tipo === "FORANEO" ? null : (kmFinal != null ? parseFloat(String(kmFinal)) : null),
-        latInicial: latInicial != null ? parseFloat(String(latInicial)) : null,
-        lngInicial: lngInicial != null ? parseFloat(String(lngInicial)) : null,
+        notes: notes || (turnoId ? `Turno: ${turnoId}` : null),
+        startKm: startKm != null ? parseFloat(String(startKm)) : null,
+        endKm: type === "FORANEO" ? null : (endKm != null ? parseFloat(String(endKm)) : null),
+        startLat: startLat != null ? parseFloat(String(startLat)) : null,
+        startLng: startLng != null ? parseFloat(String(startLng)) : null,
       },
     });
 
@@ -146,8 +146,8 @@ export async function GET(req: NextRequest) {
 
   // Buscar foráneo activo
   if (activoForaneo) {
-    const activo = await prisma.fotoRegistro.findFirst({
-      where: { userId, tipo: "FORANEO", kmFinal: null },
+    const activo = await prisma.tripRecord.findFirst({
+      where: { userId, type: "FORANEO", endKm: null },
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(activo ?? null);
@@ -167,7 +167,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const fotos = await prisma.fotoRegistro.findMany({
+  const fotos = await prisma.tripRecord.findMany({
     where,
     orderBy: { createdAt: "desc" },
     take: 100,

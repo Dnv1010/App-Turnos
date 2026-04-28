@@ -4,20 +4,20 @@ import { prisma } from "@/lib/prisma";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
 import bcrypt from "bcryptjs";
-import { Cargo, Zona } from "@prisma/client";
+import { JobTitle, Zone } from "@prisma/client";
 
 const FILTROS_EQUIPO = ["TODOS", "TECNICO", "ALMACENISTA"] as const;
 
 const selectUsuario = {
   id: true,
-  cedula: true,
-  nombre: true,
+  documentNumber: true,
+  fullName: true,
   email: true,
   role: true,
-  zona: true,
+  zone: true,
   isActive: true,
-  cargo: true,
-  filtroEquipo: true,
+  jobTitle: true,
+  teamFilter: true,
 } as const;
 
 export async function PATCH(
@@ -36,7 +36,7 @@ export async function PATCH(
   if (!target) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
   const body = await req.json();
-  const { nombre, email, pin, cargo, filtroEquipo, zona: bodyZona } = body;
+  const { fullName, email, pin, jobTitle, teamFilter, zone: bodyZone } = body;
 
   const isCoordSelf =
     profile.id === id &&
@@ -45,29 +45,29 @@ export async function PATCH(
       profile.role === "SUPPLY");
 
   if (isCoordSelf) {
-    if (nombre != null || email != null || pin != null || cargo != null) {
+    if (fullName != null || email != null || pin != null || jobTitle != null) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
-    if (filtroEquipo == null || typeof filtroEquipo !== "string") {
+    if (teamFilter == null || typeof teamFilter !== "string") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
-    if (!FILTROS_EQUIPO.includes(filtroEquipo as (typeof FILTROS_EQUIPO)[number])) {
-      return NextResponse.json({ error: "filtroEquipo inválido" }, { status: 400 });
+    if (!FILTROS_EQUIPO.includes(teamFilter as (typeof FILTROS_EQUIPO)[number])) {
+      return NextResponse.json({ error: "teamFilter inválido" }, { status: 400 });
     }
     const updated = await prisma.user.update({
       where: { id },
-      data: { filtroEquipo },
+      data: { teamFilter },
       select: selectUsuario,
     });
     return NextResponse.json(updated);
   }
 
   if (profile.role === "COORDINADOR") {
-    if (target.role !== "TECNICO" || target.zona !== profile.zona) {
+    if (target.role !== "TECNICO" || target.zone !== profile.zone) {
       return NextResponse.json({ error: "Solo puedes editar operadores de tu zona" }, { status: 403 });
     }
   } else if (profile.role === "SUPPLY") {
-    if (target.role !== "TECNICO" || target.cargo !== "ALMACENISTA") {
+    if (target.role !== "TECNICO" || target.jobTitle !== "ALMACENISTA") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
   } else if (profile.role !== "ADMIN" && profile.role !== "MANAGER") {
@@ -75,14 +75,14 @@ export async function PATCH(
   }
 
   const data: {
-    nombre?: string;
+    fullName?: string;
     email?: string;
     password?: string;
-    cargo?: Cargo;
-    filtroEquipo?: string;
-    zona?: Zona;
+    jobTitle?: JobTitle;
+    teamFilter?: string;
+    zone?: Zone;
   } = {};
-  if (nombre != null) data.nombre = nombre;
+  if (fullName != null) data.fullName = fullName;
   if (email != null) {
     const lower = (email as string).toLowerCase();
     const existing = await prisma.user.findFirst({ where: { email: lower, NOT: { id } } });
@@ -91,26 +91,26 @@ export async function PATCH(
   }
   if (pin != null && String(pin).trim() !== "")
     data.password = await bcrypt.hash(String(pin).trim(), 10);
-  if (cargo != null) {
-    if (typeof cargo !== "string" || !Object.values(Cargo).includes(cargo as Cargo)) {
-      return NextResponse.json({ error: "cargo inválido" }, { status: 400 });
+  if (jobTitle != null) {
+    if (typeof jobTitle !== "string" || !Object.values(JobTitle).includes(jobTitle as JobTitle)) {
+      return NextResponse.json({ error: "jobTitle inválido" }, { status: 400 });
     }
-    if (profile.role === "SUPPLY" && (cargo as Cargo) !== Cargo.ALMACENISTA) {
-      return NextResponse.json({ error: "Solo puedes mantener cargo Almacenista" }, { status: 400 });
+    if (profile.role === "SUPPLY" && (jobTitle as JobTitle) !== JobTitle.ALMACENISTA) {
+      return NextResponse.json({ error: "Solo puedes mantener jobTitle Almacenista" }, { status: 400 });
     }
-    data.cargo = cargo as Cargo;
+    data.jobTitle = jobTitle as JobTitle;
   }
-  if (filtroEquipo != null) {
-    if (typeof filtroEquipo !== "string" || !FILTROS_EQUIPO.includes(filtroEquipo as (typeof FILTROS_EQUIPO)[number])) {
-      return NextResponse.json({ error: "filtroEquipo inválido" }, { status: 400 });
+  if (teamFilter != null) {
+    if (typeof teamFilter !== "string" || !FILTROS_EQUIPO.includes(teamFilter as (typeof FILTROS_EQUIPO)[number])) {
+      return NextResponse.json({ error: "teamFilter inválido" }, { status: 400 });
     }
-    data.filtroEquipo = filtroEquipo;
+    data.teamFilter = teamFilter;
   }
-  if (bodyZona != null && profile.role === "SUPPLY") {
-    if (typeof bodyZona !== "string" || !Object.values(Zona).includes(bodyZona as Zona)) {
-      return NextResponse.json({ error: "zona inválida" }, { status: 400 });
+  if (bodyZone != null && profile.role === "SUPPLY") {
+    if (typeof bodyZone !== "string" || !Object.values(Zone).includes(bodyZone as Zone)) {
+      return NextResponse.json({ error: "zone inválida" }, { status: 400 });
     }
-    data.zona = bodyZona as Zona;
+    data.zone = bodyZone as Zone;
   }
 
   const updated = await prisma.user.update({
@@ -142,11 +142,11 @@ export async function DELETE(
   }
 
   if (profile.role === "COORDINADOR") {
-    if (target.zona !== profile.zona) {
+    if (target.zone !== profile.zone) {
       return NextResponse.json({ error: "Solo puedes desactivar operadores de tu zona" }, { status: 403 });
     }
   } else if (profile.role === "SUPPLY") {
-    if (target.cargo !== "ALMACENISTA") {
+    if (target.jobTitle !== "ALMACENISTA") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
   } else if (profile.role !== "ADMIN") {

@@ -6,9 +6,9 @@ async function main() {
   const email = "alejandro.artunduaga@bia.app";
   const u = await prisma.user.update({
     where: { email },
-    data: { zona: "INTERIOR" },
+    data: { zone: "INTERIOR" },
   });
-  console.log("OK:", u.email, u.zona);
+  console.log("OK:", u.email, u.zone);
 }
 
 main()

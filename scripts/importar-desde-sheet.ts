@@ -1,4 +1,4 @@
-import { PrismaClient, type TipoDia } from "@prisma/client";
+import { PrismaClient, type DayType } from "@prisma/client";
 import { google } from "googleapis";
 import * as dotenv from "dotenv";
 import {
@@ -150,7 +150,7 @@ async function importarMalla() {
     skip = 0,
     err = 0;
 
-  const tipoMap: Record<string, TipoDia> = {
+  const tipoMap: Record<string, DayType> = {
     TRABAJO: "TRABAJO",
     DESCANSO: "DESCANSO",
     DISPONIBLE: "DISPONIBLE",
@@ -179,29 +179,29 @@ async function importarMalla() {
         skip++;
         continue;
       }
-      const user = await prisma.user.findUnique({ where: { cedula } });
+      const user = await prisma.user.findUnique({ where: { documentNumber: cedula } });
       if (!user) {
         console.warn(`   ????  C?dula no encontrada: ${cedula}`);
         skip++;
         continue;
       }
       const fechaDate = new Date(`${fechaNorm}T00:00:00.000Z`);
-      const tipoPrisma: TipoDia = tipoMap[tipo] ?? "TRABAJO";
-      await prisma.mallaTurno.upsert({
-        where: { userId_fecha: { userId: user.id, fecha: fechaDate } },
+      const tipoPrisma: DayType = tipoMap[tipo] ?? "TRABAJO";
+      await prisma.shiftSchedule.upsert({
+        where: { userId_date: { userId: user.id, date: fechaDate } },
         create: {
           userId: user.id,
-          fecha: fechaDate,
-          valor: valor || tipoPrisma,
-          tipo: tipoPrisma,
-          horaInicio: horaInicio || null,
-          horaFin: horaFin || null,
+          date: fechaDate,
+          shiftCode: valor || tipoPrisma,
+          dayType: tipoPrisma,
+          startTime: horaInicio || null,
+          endTime: horaFin || null,
         },
         update: {
-          valor: valor || tipoPrisma,
-          tipo: tipoPrisma,
-          horaInicio: horaInicio || null,
-          horaFin: horaFin || null,
+          shiftCode: valor || tipoPrisma,
+          dayType: tipoPrisma,
+          startTime: horaInicio || null,
+          endTime: horaFin || null,
         },
       });
       ok++;
@@ -274,10 +274,10 @@ async function importarTurnos() {
   }
 
   const users = await prisma.user.findMany({
-    where: { cedula: { in: Array.from(cedulas) } },
-    select: { id: true, cedula: true, nombre: true },
+    where: { documentNumber: { in: Array.from(cedulas) } },
+    select: { id: true, documentNumber: true, fullName: true },
   });
-  const userByCedula = new Map(users.map((u) => [u.cedula, u]));
+  const userByCedula = new Map(users.map((u) => [u.documentNumber, u]));
 
   const resolved = candidatos
     .map((c) => {
@@ -285,7 +285,7 @@ async function importarTurnos() {
       if (!user) return null;
       return { ...c, user };
     })
-    .filter((x): x is Cand & { user: { id: string; cedula: string; nombre: string } } => x !== null)
+    .filter((x): x is Cand & { user: { id: string; documentNumber: string; fullName: string } } => x !== null)
     .sort((a, b) => {
       if (a.user.id !== b.user.id) return a.user.id.localeCompare(b.user.id);
       return a.fechaNorm.localeCompare(b.fechaNorm);
@@ -301,28 +301,28 @@ async function importarTurnos() {
   const inicioGlob = getInicioSemana(minF);
   const finGlob = getFinSemana(maxF);
 
-  const festivosRows = await prisma.festivo.findMany({
-    where: { fecha: { gte: inicioGlob, lte: finGlob } },
+  const festivosRows = await prisma.holiday.findMany({
+    where: { date: { gte: inicioGlob, lte: finGlob } },
   });
   const holidaySet = new Set<string>();
-  for (const fv of festivosRows) agregarClavesFestivo(fv.fecha, holidaySet);
+  for (const fv of festivosRows) agregarClavesFestivo(fv.date, holidaySet);
 
   const userIds = Array.from(new Set(resolved.map((r) => r.user.id)));
-  const mallaRows = await prisma.mallaTurno.findMany({
+  const mallaRows = await prisma.shiftSchedule.findMany({
     where: {
       userId: { in: userIds },
-      fecha: { gte: minF, lte: maxF },
+      date: { gte: minF, lte: maxF },
     },
   });
   const mallaKey = (uid: string, ymd: string) => `${uid}|${ymd}`;
   const mallaMap = new Map<string, MallaRow>();
   for (const m of mallaRows) {
-    const ymd = m.fecha.toISOString().split("T")[0];
+    const ymd = m.date.toISOString().split("T")[0];
     mallaMap.set(mallaKey(m.userId, ymd), {
-      tipo: m.tipo,
-      valor: m.valor,
-      horaInicio: m.horaInicio,
-      horaFin: m.horaFin,
+      tipo: m.dayType,
+      valor: m.shiftCode,
+      horaInicio: m.startTime,
+      horaFin: m.endTime,
     });
   }
 
@@ -337,11 +337,11 @@ async function importarTurnos() {
     const { user, fechaDate, fechaNorm, horaEntrada, horaSalida, ubicE, ubicS } = row;
 
     try {
-      const existe = await prisma.turno.findFirst({
-        where: { userId: user.id, fecha: fechaDate },
+      const existe = await prisma.shift.findFirst({
+        where: { userId: user.id, date: fechaDate },
       });
       if (existe) {
-        console.log(`   ? Ya existe: ${user.nombre} ${fechaNorm}`);
+        console.log(`   ? Ya existe: ${user.fullName} ${fechaNorm}`);
         skip++;
         continue;
       }
@@ -350,18 +350,18 @@ async function importarTurnos() {
       const finSemana = getFinSemana(fechaDate);
       const weekKey = `${user.id}|${inicioSemana.toISOString()}`;
 
-      const dbSemana = await prisma.turno.findMany({
+      const dbSemana = await prisma.shift.findMany({
         where: {
           userId: user.id,
-          fecha: { gte: inicioSemana, lte: finSemana },
-          horaSalida: { not: null },
+          date: { gte: inicioSemana, lte: finSemana },
+          clockOutAt: { not: null },
         },
-        select: { fecha: true, horasOrdinarias: true },
+        select: { date: true, regularHours: true },
       });
 
       const batchSlice = batchOrdByWeek.get(weekKey) ?? [];
       const combined = [
-        ...dbSemana.map((t) => ({ fecha: t.fecha, horasOrdinarias: t.horasOrdinarias ?? 0 })),
+        ...dbSemana.map((t) => ({ fecha: t.date, horasOrdinarias: t.regularHours ?? 0 })),
         ...batchSlice,
       ];
       const weeklyOrdHours = sumWeeklyOrdHoursMonSat(combined);
@@ -383,17 +383,24 @@ async function importarTurnos() {
       const coordE = parsearCoordenada(ubicE);
       const coordS = parsearCoordenada(ubicS);
 
-      await prisma.turno.create({
+      await prisma.shift.create({
         data: {
           userId: user.id,
-          fecha: fechaDate,
-          horaEntrada,
-          horaSalida,
-          latEntrada: coordE ? coordE[0] : null,
-          lngEntrada: coordE ? coordE[1] : null,
-          latSalida: coordS ? coordS[0] : null,
-          lngSalida: coordS ? coordS[1] : null,
-          ...horasData,
+          date: fechaDate,
+          clockInAt: horaEntrada,
+          clockOutAt: horaSalida,
+          clockInLat: coordE ? coordE[0] : null,
+          clockInLng: coordE ? coordE[1] : null,
+          clockOutLat: coordS ? coordS[0] : null,
+          clockOutLng: coordS ? coordS[1] : null,
+          regularHours: horasData.horasOrdinarias,
+          daytimeOvertimeHours: horasData.heDiurna,
+          nighttimeOvertimeHours: horasData.heNocturna,
+          sundayOvertimeHours: horasData.heDominical,
+          nightSundayOvertimeHours: horasData.heNoctDominical,
+          nightSurchargeHours: horasData.recNocturno,
+          sundaySurchargeHours: horasData.recDominical,
+          nightSundaySurchargeHours: horasData.recNoctDominical,
         },
       });
 
@@ -402,7 +409,7 @@ async function importarTurnos() {
         batchOrdByWeek.set(weekKey, next);
       }
 
-      console.log(`   ??? ${user.nombre} ??? ${fechaNorm}`);
+      console.log(`   ??? ${user.fullName} ??? ${fechaNorm}`);
       ok++;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -431,7 +438,7 @@ async function importarForaneos() {
 
     try {
       const fechaNorm = normalizarFecha(fechaRaw);
-      const user = await prisma.user.findUnique({ where: { cedula } });
+      const user = await prisma.user.findUnique({ where: { documentNumber: cedula } });
       if (!user) { console.warn(`   ⚠️  Cédula no encontrada: ${cedula}`); skip++; continue; }
 
       const kmInicial = parseFloat(kmInicialStr);
@@ -445,34 +452,34 @@ async function importarForaneos() {
       const fechaStart = new Date(`${fechaNorm}T00:00:00.000Z`);
       const fechaEnd = new Date(`${fechaNorm}T23:59:59.999Z`);
 
-      const existe = await prisma.fotoRegistro.findFirst({
+      const existe = await prisma.tripRecord.findFirst({
         where: {
           userId: user.id,
-          tipo: "FORANEO",
+          type: "FORANEO",
           createdAt: { gte: fechaStart, lte: fechaEnd },
         },
       });
       if (existe) {
-        console.log(`   ⏭ Ya existe: ${user.nombre} ${fechaNorm}`);
+        console.log(`   ⏭ Ya existe: ${user.fullName} ${fechaNorm}`);
         skip++;
         continue;
       }
 
-      await prisma.fotoRegistro.create({
+      await prisma.tripRecord.create({
         data: {
           userId: user.id,
-          tipo: "FORANEO",
-          kmInicial,
-          kmFinal,
-          latInicial: 0,
-          lngInicial: 0,
-          observaciones,
-          estadoAprobacion: "APROBADA",
+          type: "FORANEO",
+          startKm: kmInicial,
+          endKm: kmFinal,
+          startLat: 0,
+          startLng: 0,
+          notes: observaciones,
+          approvalStatus: "APROBADA",
           createdAt,
         }
       });
 
-      console.log(`   ✅ ${user.nombre} — ${fechaNorm} (km ${kmInicial} → ${kmFinal})`);
+      console.log(`   ✅ ${user.fullName} — ${fechaNorm} (km ${kmInicial} → ${kmFinal})`);
       ok++;
     } catch(e: unknown) {
       console.error(`   ❌ ${cedula} ${fechaRaw}:`, e instanceof Error ? e.message : e);
@@ -499,7 +506,7 @@ async function importarDisponibilidad() {
       const fechaNorm = normalizarFecha(fechaRaw);
       if (!fechaNorm) { skip++; continue; }
 
-      const user = await prisma.user.findUnique({ where: { cedula } });
+      const user = await prisma.user.findUnique({ where: { documentNumber: cedula } });
       if (!user) {
         console.warn(`   ⚠️  Cédula no encontrada: ${cedula}`);
         skip++;
@@ -510,13 +517,13 @@ async function importarDisponibilidad() {
       const monto = montoStr ? parseFloat(montoStr) : 80000;
       if (isNaN(monto)) { console.warn(`   ⚠️  Monto inválido: ${cedula} ${fechaRaw}`); skip++; continue; }
 
-      await prisma.disponibilidad.upsert({
-        where: { userId_fecha: { userId: user.id, fecha: fechaDate } },
-        create: { userId: user.id, fecha: fechaDate, monto },
-        update: { monto },
+      await prisma.availability.upsert({
+        where: { userId_date: { userId: user.id, date: fechaDate } },
+        create: { userId: user.id, date: fechaDate, amount: monto },
+        update: { amount: monto },
       });
 
-      console.log(`   ✅ ${user.nombre} — ${fechaNorm} ($${monto})`);
+      console.log(`   ✅ ${user.fullName} — ${fechaNorm} ($${monto})`);
       ok++;
     } catch (e: unknown) {
       console.error(`   ❌ ${cedula} ${fechaRaw}:`, e instanceof Error ? e.message : e);
@@ -583,10 +590,10 @@ async function importarTurnosCoordinador() {
   }
 
   const users = await prisma.user.findMany({
-    where: { cedula: { in: Array.from(cedulas) } },
-    select: { id: true, cedula: true, nombre: true },
+    where: { documentNumber: { in: Array.from(cedulas) } },
+    select: { id: true, documentNumber: true, fullName: true },
   });
-  const userByCedula = new Map(users.map((u) => [u.cedula, u]));
+  const userByCedula = new Map(users.map((u) => [u.documentNumber, u]));
 
   const resolved = candidatos
     .map((c) => {
@@ -594,7 +601,7 @@ async function importarTurnosCoordinador() {
       if (!user) return null;
       return { ...c, user };
     })
-    .filter((x): x is Cand & { user: { id: string; cedula: string; nombre: string } } => x !== null)
+    .filter((x): x is Cand & { user: { id: string; documentNumber: string; fullName: string } } => x !== null)
     .sort((a, b) => {
       if (a.user.id !== b.user.id) return a.user.id.localeCompare(b.user.id);
       return a.fechaNorm.localeCompare(b.fechaNorm);
@@ -610,25 +617,25 @@ async function importarTurnosCoordinador() {
   const inicioGlob = getInicioSemana(minF);
   const finGlob = getFinSemana(maxF);
 
-  const festivosRows = await prisma.festivo.findMany({
-    where: { fecha: { gte: inicioGlob, lte: finGlob } },
+  const festivosRows = await prisma.holiday.findMany({
+    where: { date: { gte: inicioGlob, lte: finGlob } },
   });
   const holidaySet = new Set<string>();
-  for (const fv of festivosRows) agregarClavesFestivo(fv.fecha, holidaySet);
+  for (const fv of festivosRows) agregarClavesFestivo(fv.date, holidaySet);
 
   const userIds = Array.from(new Set(resolved.map((r) => r.user.id)));
-  const mallaRows = await prisma.mallaTurno.findMany({
-    where: { userId: { in: userIds }, fecha: { gte: minF, lte: maxF } },
+  const mallaRows = await prisma.shiftSchedule.findMany({
+    where: { userId: { in: userIds }, date: { gte: minF, lte: maxF } },
   });
   const mallaKey = (uid: string, ymd: string) => `${uid}|${ymd}`;
   const mallaMap = new Map<string, MallaRow>();
   for (const m of mallaRows) {
-    const ymd = m.fecha.toISOString().split("T")[0];
+    const ymd = m.date.toISOString().split("T")[0];
     mallaMap.set(mallaKey(m.userId, ymd), {
-      tipo: m.tipo,
-      valor: m.valor,
-      horaInicio: m.horaInicio,
-      horaFin: m.horaFin,
+      tipo: m.dayType,
+      valor: m.shiftCode,
+      horaInicio: m.startTime,
+      horaFin: m.endTime,
     });
   }
 
@@ -640,11 +647,11 @@ async function importarTurnosCoordinador() {
     const { user, fechaDate, fechaNorm, horaEntrada, horaSalida, codigoOrden, nota, ubicE, ubicS } = row;
 
     try {
-      const existe = await prisma.turnoCoordinador.findFirst({
-        where: { userId: user.id, fecha: fechaDate },
+      const existe = await prisma.coordinatorShift.findFirst({
+        where: { userId: user.id, date: fechaDate },
       });
       if (existe) {
-        console.log(`   ⏭ Ya existe: ${user.nombre} ${fechaNorm}`);
+        console.log(`   ⏭ Ya existe: ${user.fullName} ${fechaNorm}`);
         skip++;
         continue;
       }
@@ -653,18 +660,18 @@ async function importarTurnosCoordinador() {
       const finSemana = getFinSemana(fechaDate);
       const weekKey = `${user.id}|${inicioSemana.toISOString()}`;
 
-      const dbSemana = await prisma.turnoCoordinador.findMany({
+      const dbSemana = await prisma.coordinatorShift.findMany({
         where: {
           userId: user.id,
-          fecha: { gte: inicioSemana, lte: finSemana },
-          horaSalida: { not: null },
+          date: { gte: inicioSemana, lte: finSemana },
+          clockOutAt: { not: null },
         },
-        select: { fecha: true, horasOrdinarias: true },
+        select: { date: true, regularHours: true },
       });
 
       const batchSlice = batchOrdByWeek.get(weekKey) ?? [];
       const combined = [
-        ...dbSemana.map((t) => ({ fecha: t.fecha, horasOrdinarias: t.horasOrdinarias ?? 0 })),
+        ...dbSemana.map((t) => ({ fecha: t.date, horasOrdinarias: t.regularHours ?? 0 })),
         ...batchSlice,
       ];
       const weeklyOrdHours = sumWeeklyOrdHoursMonSat(combined);
@@ -686,19 +693,26 @@ async function importarTurnosCoordinador() {
       const coordE = parsearCoordenada(ubicE);
       const coordS = parsearCoordenada(ubicS);
 
-      await prisma.turnoCoordinador.create({
+      await prisma.coordinatorShift.create({
         data: {
           userId: user.id,
-          fecha: fechaDate,
-          horaEntrada,
-          horaSalida,
-          codigoOrden,
-          nota,
-          latEntrada: coordE ? coordE[0] : null,
-          lngEntrada: coordE ? coordE[1] : null,
-          latSalida: coordS ? coordS[0] : null,
-          lngSalida: coordS ? coordS[1] : null,
-          ...horasData,
+          date: fechaDate,
+          clockInAt: horaEntrada,
+          clockOutAt: horaSalida,
+          orderCode: codigoOrden,
+          note: nota,
+          clockInLat: coordE ? coordE[0] : null,
+          clockInLng: coordE ? coordE[1] : null,
+          clockOutLat: coordS ? coordS[0] : null,
+          clockOutLng: coordS ? coordS[1] : null,
+          regularHours: horasData.horasOrdinarias,
+          daytimeOvertimeHours: horasData.heDiurna,
+          nighttimeOvertimeHours: horasData.heNocturna,
+          sundayOvertimeHours: horasData.heDominical,
+          nightSundayOvertimeHours: horasData.heNoctDominical,
+          nightSurchargeHours: horasData.recNocturno,
+          sundaySurchargeHours: horasData.recDominical,
+          nightSundaySurchargeHours: horasData.recNoctDominical,
         },
       });
 
@@ -707,7 +721,7 @@ async function importarTurnosCoordinador() {
         batchOrdByWeek.set(weekKey, next);
       }
 
-      console.log(`   ✅ ${user.nombre} — ${fechaNorm} [${codigoOrden}]`);
+      console.log(`   ✅ ${user.fullName} — ${fechaNorm} [${codigoOrden}]`);
       ok++;
     } catch (e: unknown) {
       console.error(`   ❌ ${row.cedula} ${fechaNorm}:`, e instanceof Error ? e.message : e);
@@ -730,10 +744,10 @@ async function importarTurnosHojaPrincipal() {
   }
 
   const users = await prisma.user.findMany({
-    where: { cedula: { in: Array.from(cedulas) } },
-    select: { id: true, cedula: true, nombre: true },
+    where: { documentNumber: { in: Array.from(cedulas) } },
+    select: { id: true, documentNumber: true, fullName: true },
   });
-  const userByCedula = new Map(users.map((u) => [u.cedula, u]));
+  const userByCedula = new Map(users.map((u) => [u.documentNumber, u]));
 
   for (let rowIdx = 0; rowIdx < filas.length; rowIdx++) {
     const f = filas[rowIdx];
@@ -762,8 +776,8 @@ async function importarTurnosHojaPrincipal() {
 
       const fechaDate = new Date(`${fechaNorm}T00:00:00.000Z`);
 
-      const existe = await prisma.turno.findFirst({
-        where: { userId: user.id, fecha: fechaDate },
+      const existe = await prisma.shift.findFirst({
+        where: { userId: user.id, date: fechaDate },
       });
       if (existe) {
         skip++;
@@ -786,24 +800,24 @@ async function importarTurnosHojaPrincipal() {
 
       const parseHoras = (v: string) => parseFloat(v.replace(",", ".")) || 0;
 
-      await prisma.turno.create({
+      await prisma.shift.create({
         data: {
           userId: user.id,
-          fecha: fechaDate,
-          horaEntrada,
-          horaSalida,
-          horasOrdinarias:  parseHoras(f["Horas Ordinarias"] || "0"),
-          heDiurna:         parseHoras(f["HE Diurna"] || "0"),
-          heNocturna:       parseHoras(f["HE Nocturna"] || "0"),
-          heDominical:      parseHoras(f["HE Dom/Fest Diurna"] || "0"),
-          heNoctDominical:  parseHoras(f["HE Dom/Fest Nocturna"] || "0"),
-          recNocturno:      parseHoras(f["Recargo Nocturno"] || "0"),
-          recDominical:     parseHoras(f["Recargo Dom/Fest Diurno"] || "0"),
-          recNoctDominical: parseHoras(f["Recargo Dom/Fest Nocturno"] || "0"),
+          date: fechaDate,
+          clockInAt: horaEntrada,
+          clockOutAt: horaSalida,
+          regularHours:               parseHoras(f["Horas Ordinarias"] || "0"),
+          daytimeOvertimeHours:       parseHoras(f["HE Diurna"] || "0"),
+          nighttimeOvertimeHours:     parseHoras(f["HE Nocturna"] || "0"),
+          sundayOvertimeHours:        parseHoras(f["HE Dom/Fest Diurna"] || "0"),
+          nightSundayOvertimeHours:   parseHoras(f["HE Dom/Fest Nocturna"] || "0"),
+          nightSurchargeHours:        parseHoras(f["Recargo Nocturno"] || "0"),
+          sundaySurchargeHours:       parseHoras(f["Recargo Dom/Fest Diurno"] || "0"),
+          nightSundaySurchargeHours:  parseHoras(f["Recargo Dom/Fest Nocturno"] || "0"),
         },
       });
 
-      console.log(`   ✅ ${user.nombre} — ${fechaNorm}`);
+      console.log(`   ✅ ${user.fullName} — ${fechaNorm}`);
       ok++;
     } catch (e: unknown) {
       console.error(`   ❌ ${cedula} ${fechaRaw}:`, e instanceof Error ? e.message : e);
@@ -842,10 +856,10 @@ async function diagnosticarFaltantes() {
     if (c) cedulas.add(c);
   }
   const users = await prisma.user.findMany({
-    where: { cedula: { in: Array.from(cedulas) } },
-    select: { id: true, cedula: true, nombre: true },
+    where: { documentNumber: { in: Array.from(cedulas) } },
+    select: { id: true, documentNumber: true, fullName: true },
   });
-  const userByCedula = new Map(users.map((u) => [u.cedula, u]));
+  const userByCedula = new Map(users.map((u) => [u.documentNumber, u]));
 
   let faltantes = 0;
   for (let i = 0; i < filas.length; i++) {
@@ -861,9 +875,9 @@ async function diagnosticarFaltantes() {
     const user = userByCedula.get(cedula);
     if (!user) { console.log(`   ⚠️  Fila ${i + 2}: cédula ${cedula} no en DB`); continue; }
     const fechaDate = new Date(`${fechaNorm}T00:00:00.000Z`);
-    const existe = await prisma.turno.findFirst({ where: { userId: user.id, fecha: fechaDate } });
+    const existe = await prisma.shift.findFirst({ where: { userId: user.id, date: fechaDate } });
     if (!existe) {
-      console.log(`   ❌ FALTANTE fila ${i + 2}: ${user.nombre} (${cedula}) — ${fechaNorm} | entrada="${f["Entrada"]}" salida="${f["Salida"]}"`);
+      console.log(`   ❌ FALTANTE fila ${i + 2}: ${user.fullName} (${cedula}) — ${fechaNorm} | entrada="${f["Entrada"]}" salida="${f["Salida"]}"`);
       faltantes++;
     }
   }

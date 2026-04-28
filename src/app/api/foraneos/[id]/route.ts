@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
-import type { EstadoAprobacion, Zona } from "@prisma/client";
+import type { ApprovalStatus, Zone } from "@prisma/client";
 
 function canEditForaneoRole(role: string) {
   return role === "COORDINADOR" || role === "ADMIN" || role === "MANAGER";
@@ -24,36 +24,36 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     const foraneoId = params.id;
     const body = await req.json();
-    const { kmInicial, kmFinal, observaciones, estadoAprobacion, notaAprobacion } = body;
+    const { startKm, endKm, notes, approvalStatus, approvalNote } = body;
 
-    const foto = await prisma.fotoRegistro.findUnique({
+    const foto = await prisma.tripRecord.findUnique({
       where: { id: foraneoId },
-      include: { user: { select: { zona: true } } },
+      include: { user: { select: { zone: true } } },
     });
     if (!foto) return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
 
-    if (foto.tipo !== "FORANEO") {
+    if (foto.type !== "FORANEO") {
       return NextResponse.json({ error: "No es un registro foráneo" }, { status: 400 });
     }
 
     if (
       profile.role === "COORDINADOR" &&
-      foto.user.zona !== (profile.zona as Zona)
+      foto.user.zone !== (profile.zone as Zone)
     ) {
       return NextResponse.json({ error: "No autorizado para esta zona" }, { status: 403 });
     }
 
     // Aprobación / rechazo
-    if (estadoAprobacion === "APROBADA" || estadoAprobacion === "NO_APROBADA") {
-      const updated = await prisma.fotoRegistro.update({
+    if (approvalStatus === "APROBADA" || approvalStatus === "NO_APROBADA") {
+      const updated = await prisma.tripRecord.update({
         where: { id: foraneoId },
         data: {
-          estadoAprobacion: estadoAprobacion as EstadoAprobacion,
-          aprobadoPor: profile.id,
-          fechaAprobacion: new Date(),
-          notaAprobacion: typeof notaAprobacion === "string" && notaAprobacion.trim() ? notaAprobacion.trim() : null,
+          approvalStatus: approvalStatus as ApprovalStatus,
+          approvedBy: profile.id,
+          approvedAt: new Date(),
+          approvalNote: typeof approvalNote === "string" && approvalNote.trim() ? approvalNote.trim() : null,
         },
-        include: { user: { select: { nombre: true, cedula: true } } },
+        include: { user: { select: { fullName: true, documentNumber: true } } },
       });
 
       try {
@@ -71,20 +71,20 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
 
     const updateData: Record<string, unknown> = {};
-    if (kmInicial !== undefined) {
-      const v = parseFloat(String(kmInicial));
-      if (!Number.isNaN(v)) updateData.kmInicial = v;
+    if (startKm !== undefined) {
+      const v = parseFloat(String(startKm));
+      if (!Number.isNaN(v)) updateData.startKm = v;
     }
-    if (kmFinal !== undefined) {
-      const v = parseFloat(String(kmFinal));
-      if (!Number.isNaN(v)) updateData.kmFinal = v;
+    if (endKm !== undefined) {
+      const v = parseFloat(String(endKm));
+      if (!Number.isNaN(v)) updateData.endKm = v;
     }
-    if (observaciones !== undefined) updateData.observaciones = observaciones;
+    if (notes !== undefined) updateData.notes = notes;
 
-    const updated = await prisma.fotoRegistro.update({
+    const updated = await prisma.tripRecord.update({
       where: { id: foraneoId },
       data: updateData,
-      include: { user: { select: { nombre: true, cedula: true } } },
+      include: { user: { select: { fullName: true, documentNumber: true } } },
     });
 
     try {
@@ -117,20 +117,20 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     }
 
     const foraneoId = params.id;
-    const foto = await prisma.fotoRegistro.findUnique({
+    const foto = await prisma.tripRecord.findUnique({
       where: { id: foraneoId },
-      include: { user: { select: { zona: true } } },
+      include: { user: { select: { zone: true } } },
     });
     if (!foto) return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
 
     if (
       profile.role === "COORDINADOR" &&
-      foto.user.zona !== (profile.zona as Zona)
+      foto.user.zone !== (profile.zone as Zone)
     ) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
-    await prisma.fotoRegistro.delete({ where: { id: foraneoId } });
+    await prisma.tripRecord.delete({ where: { id: foraneoId } });
 
     try {
       const origin = new URL(req.url).origin;

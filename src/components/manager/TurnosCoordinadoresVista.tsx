@@ -11,15 +11,15 @@ import { getRoleLabel, getZonaLabel } from "@/lib/roleLabels";
 
 function totalHE(t: TurnoCoordinadorRow): number {
   return (
-    (t.heDiurna ?? 0) +
-    (t.heNocturna ?? 0) +
-    (t.heDominical ?? 0) +
-    (t.heNoctDominical ?? 0)
+    (t.daytimeOvertimeHours ?? 0) +
+    (t.nighttimeOvertimeHours ?? 0) +
+    (t.sundayOvertimeHours ?? 0) +
+    (t.nightSundayOvertimeHours ?? 0)
   );
 }
 
 function totalRec(t: TurnoCoordinadorRow): number {
-  return (t.recNocturno ?? 0) + (t.recDominical ?? 0) + (t.recNoctDominical ?? 0);
+  return (t.nightSurchargeHours ?? 0) + (t.sundaySurchargeHours ?? 0) + (t.nightSundaySurchargeHours ?? 0);
 }
 
 function toDatetimeLocalValue(iso: string): string {
@@ -90,7 +90,7 @@ export default function TurnosCoordinadoresVista() {
         const list = data?.turnos ?? [];
         const m = new Map<string, string>();
         list.forEach((t) => {
-          if (t.userId && t.user?.nombre) m.set(t.userId, t.user.nombre);
+          if (t.userId && t.user?.fullName) m.set(t.userId, t.user.fullName);
         });
         setUsuariosPick(
           [...m.entries()]
@@ -108,10 +108,10 @@ export default function TurnosCoordinadoresVista() {
 
   function abrirEditar(t: TurnoCoordinadorRow) {
     setEditRow(t);
-    setFormEntrada(toDatetimeLocalValue(t.horaEntrada));
-    setFormSalida(t.horaSalida ? toDatetimeLocalValue(t.horaSalida) : "");
-    setFormCodigo(t.codigoOrden);
-    setFormNota((t as TurnoCoordinadorRow & { nota?: string | null }).nota ?? "");
+    setFormEntrada(toDatetimeLocalValue(t.clockInAt));
+    setFormSalida(t.clockOutAt ? toDatetimeLocalValue(t.clockOutAt) : "");
+    setFormCodigo(t.orderCode);
+    setFormNota((t as TurnoCoordinadorRow & { note?: string | null }).note ?? "");
   }
 
   async function guardarEdicion() {
@@ -120,14 +120,14 @@ export default function TurnosCoordinadoresVista() {
     setError(null);
     try {
       const body: Record<string, unknown> = {
-        horaEntrada: new Date(formEntrada).toISOString(),
-        codigoOrden: formCodigo.trim(),
-        nota: formNota.trim() || null,
+        clockInAt: new Date(formEntrada).toISOString(),
+        orderCode: formCodigo.trim(),
+        note: formNota.trim() || null,
       };
       if (formSalida.trim()) {
-        body.horaSalida = new Date(formSalida).toISOString();
+        body.clockOutAt = new Date(formSalida).toISOString();
       } else {
-        body.horaSalida = null;
+        body.clockOutAt = null;
       }
       const res = await fetch(`/api/turnos-coordinador/${editRow.id}`, {
         method: "PATCH",
@@ -286,24 +286,24 @@ export default function TurnosCoordinadoresVista() {
                         </div>
                       </td>
                     )}
-                    <td className="p-2 text-gray-900 dark:text-white">{t.user?.nombre ?? "—"}</td>
-                    <td className="p-2 font-mono text-xs text-gray-800 dark:text-[#CBD5E1]">{t.user?.cedula ?? "—"}</td>
+                    <td className="p-2 text-gray-900 dark:text-white">{t.user?.fullName ?? "—"}</td>
+                    <td className="p-2 font-mono text-xs text-gray-800 dark:text-[#CBD5E1]">{t.user?.documentNumber ?? "—"}</td>
                     <td className="p-2 text-gray-800 dark:text-[#CBD5E1]">{t.user?.role ? getRoleLabel(t.user.role) : "—"}</td>
-                    <td className="p-2 text-gray-800 dark:text-[#CBD5E1]">{t.user?.zona ? getZonaLabel(t.user.zona) : "—"}</td>
-                    <td className="p-2 whitespace-nowrap text-gray-800 dark:text-white">{formatFechaTurnoDdMmmYyyy(t.fecha)}</td>
-                    <td className="p-2 font-mono text-gray-800 dark:text-white">{t.codigoOrden}</td>
+                    <td className="p-2 text-gray-800 dark:text-[#CBD5E1]">{t.user?.zone ? getZonaLabel(t.user.zone) : "—"}</td>
+                    <td className="p-2 whitespace-nowrap text-gray-800 dark:text-white">{formatFechaTurnoDdMmmYyyy(t.date)}</td>
+                    <td className="p-2 font-mono text-gray-800 dark:text-white">{t.orderCode}</td>
                     <td className="p-2 whitespace-nowrap text-gray-800 dark:text-white">
-                      {new Date(t.horaEntrada).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      {new Date(t.clockInAt).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </td>
                     <td className="p-2 whitespace-nowrap text-gray-800 dark:text-white">
-                      {t.horaSalida ? (
-                        new Date(t.horaSalida).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+                      {t.clockOutAt ? (
+                        new Date(t.clockOutAt).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
                       ) : (
                         <span className="font-medium text-amber-700">Abierto</span>
                       )}
                     </td>
                     <td className="p-2 text-right font-mono text-gray-800 dark:text-white">
-                      {t.horaSalida ? ((t.horasOrdinarias ?? 0) + totalHE(t)).toFixed(2) : "—"}
+                      {t.clockOutAt ? ((t.regularHours ?? 0) + totalHE(t)).toFixed(2) : "—"}
                     </td>
                     <td className="p-2 text-right font-mono text-gray-800 dark:text-white">{totalHE(t).toFixed(2)}</td>
                     <td className="p-2 text-right font-mono text-gray-800 dark:text-white">{totalRec(t).toFixed(2)}</td>
@@ -319,7 +319,7 @@ export default function TurnosCoordinadoresVista() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white dark:bg-[#1A2340] p-6 shadow-xl dark:shadow-black/40 border border-gray-200 dark:border-[#3A4565]">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Editar turno coordinador</h3>
-            <p className="mt-1 text-sm text-gray-600 dark:text-[#A0AEC0]">{editRow.user?.nombre}</p>
+            <p className="mt-1 text-sm text-gray-600 dark:text-[#A0AEC0]">{editRow.user?.fullName}</p>
             <div className="mt-4 space-y-3">
               <div>
                 <label className="text-xs font-medium text-gray-500 dark:text-[#A0AEC0]">Hora entrada</label>
@@ -383,7 +383,7 @@ export default function TurnosCoordinadoresVista() {
           <div className="w-full max-w-md rounded-xl bg-white dark:bg-[#1A2340] p-6 shadow-xl dark:shadow-black/40 border border-gray-200 dark:border-[#3A4565]">
             <h3 className="font-semibold text-gray-900 dark:text-white">¿Eliminar turno?</h3>
             <p className="mt-2 text-sm text-gray-600 dark:text-[#A0AEC0]">
-              ¿Eliminar este turno de <strong>{deleteRow.user?.nombre}</strong>? Esta acción no se puede
+              ¿Eliminar este turno de <strong>{deleteRow.user?.fullName}</strong>? Esta acción no se puede
               deshacer.
             </p>
             <div className="mt-6 flex justify-end gap-2">

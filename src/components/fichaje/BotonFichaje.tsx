@@ -27,7 +27,7 @@ const CameraCapture = dynamic(() => import("@/components/fotos/CameraCapture"), 
 
 interface BotonFichajeProps {
   userId: string;
-  turnoActivo?: { id: string; horaEntrada: string } | null;
+  turnoActivo?: { id: string; clockInAt: string } | null;
   onFichaje: () => void;
   /** Se llama después de abrir o cerrar un turno para recargar datos de la página (p. ej. detalle de turnos). */
   onTurnoFinalizado?: () => void;
@@ -49,7 +49,7 @@ export default function BotonFichaje({
   const [bloqueoMalla, setBloqueoMalla] = useState<{
     mensaje: string;
     estado: string;
-    fecha: string;
+    date: string;
   } | null>(null);
   const [ubicacion, setUbicacion] = useState<{ lat: number; lng: number } | null>(null);
   const [step, setStep] = useState<Step>("idle");
@@ -108,8 +108,8 @@ export default function BotonFichaje({
         body: JSON.stringify({
           userId,
           base64Data,
-          tipo: isCerrandoTurno ? "SALIDA" : "ENTRADA",
-          observaciones: `Fichaje ${isCerrandoTurno ? "salida" : "entrada"} - ${new Date().toLocaleString("es-CO")}`,
+          type: isCerrandoTurno ? "SALIDA" : "ENTRADA",
+          notes: `Fichaje ${isCerrandoTurno ? "salida" : "entrada"} - ${new Date().toLocaleString("es-CO")}`,
         }),
       });
       const fotoData = await parseJsonFromResponse(fotoRes);
@@ -140,7 +140,7 @@ export default function BotonFichaje({
             setBloqueoMalla({
               mensaje: data.error as string,
               estado: data.estadoMalla as string,
-              fecha: data.fechaMalla as string,
+              date: data.fechaMalla as string,
             });
             setCapturedPhoto(null);
             setStep("idle");
@@ -253,7 +253,7 @@ export default function BotonFichaje({
 
       {estaEnTurno && turnoActivo && step === "idle" && (
         <p className="text-sm text-gray-500 dark:text-[#A0AEC0]">
-          Turno iniciado: {new Date(turnoActivo.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })}
+          Turno iniciado: {new Date(turnoActivo.clockInAt).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })}
         </p>
       )}
       {ubicacion && step === "idle" && (
@@ -271,7 +271,7 @@ export default function BotonFichaje({
             <div className="flex-1">
               <h3 className="text-base font-bold text-amber-900 dark:text-amber-100 mb-1">No puedes abrir turno</h3>
               <p className="text-sm text-amber-800 dark:text-amber-200 mb-3">
-                El día <strong>{bloqueoMalla.fecha}</strong> estás en <strong>&quot;{bloqueoMalla.estado}&quot;</strong> según
+                El día <strong>{bloqueoMalla.date}</strong> estás en <strong>&quot;{bloqueoMalla.estado}&quot;</strong> según
                 la malla de turnos.
               </p>
               <p className="text-sm text-amber-700 font-medium">

@@ -21,9 +21,9 @@ export async function POST(req: NextRequest) {
     const { turnoId } = await req.json();
     if (!turnoId) return NextResponse.json({ error: "turnoId requerido" }, { status: 400 });
 
-    await prisma.turno.updateMany({
+    await prisma.shift.updateMany({
       where: { id: turnoId, userId: profile.id },
-      data: { jornadaAlertaPushSentAt: new Date() },
+      data: { workdayAlertSentAt: new Date() },
     });
 
     return NextResponse.json({ ok: true });

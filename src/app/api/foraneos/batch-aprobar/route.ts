@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
-import type { EstadoAprobacion, Prisma, Zona } from "@prisma/client";
+import type { ApprovalStatus, Prisma, Zone } from "@prisma/client";
 
 function canAprobarRole(role: string) {
   return role === "COORDINADOR" || role === "MANAGER" || role === "ADMIN";
@@ -22,32 +22,32 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
-    let body: { ids?: string[]; estadoAprobacion?: string; notaAprobacion?: string | null };
+    let body: { ids?: string[]; approvalStatus?: string; approvalNote?: string | null };
     try {
       body = await req.json();
     } catch {
       return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
     }
 
-    const { ids, estadoAprobacion, notaAprobacion } = body;
+    const { ids, approvalStatus, approvalNote } = body;
     if (!Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json({ error: "ids requerido (array no vacío)" }, { status: 400 });
     }
-    if (estadoAprobacion !== "APROBADA" && estadoAprobacion !== "NO_APROBADA") {
-      return NextResponse.json({ error: "estadoAprobacion debe ser APROBADA o NO_APROBADA" }, { status: 400 });
+    if (approvalStatus !== "APROBADA" && approvalStatus !== "NO_APROBADA") {
+      return NextResponse.json({ error: "approvalStatus debe ser APROBADA o NO_APROBADA" }, { status: 400 });
     }
 
-    const estado = estadoAprobacion as EstadoAprobacion;
+    const estado = approvalStatus as ApprovalStatus;
 
-    const where: Prisma.FotoRegistroWhereInput = {
+    const where: Prisma.TripRecordWhereInput = {
       id: { in: ids },
-      tipo: "FORANEO",
+      type: "FORANEO",
       ...(profile.role === "COORDINADOR"
-        ? { user: { zona: profile.zona as Zona } }
+        ? { user: { zone: profile.zone as Zone } }
         : {}),
     };
 
-    const countMatch = await prisma.fotoRegistro.count({ where });
+    const countMatch = await prisma.tripRecord.count({ where });
     if (countMatch !== ids.length) {
       return NextResponse.json(
         { error: "Algunos registros no existen o no tienes permiso en esta zona" },
@@ -58,13 +58,13 @@ export async function PATCH(req: NextRequest) {
     const now = new Date();
     const actorId = profile.id;
 
-    const { count } = await prisma.fotoRegistro.updateMany({
+    const { count } = await prisma.tripRecord.updateMany({
       where,
       data: {
-        estadoAprobacion: estado,
-        aprobadoPor: actorId,
-        fechaAprobacion: now,
-        notaAprobacion: notaAprobacion?.trim() ? notaAprobacion.trim() : null,
+        approvalStatus: estado,
+        approvedBy: actorId,
+        approvedAt: now,
+        approvalNote: approvalNote?.trim() ? approvalNote.trim() : null,
       },
     });
 

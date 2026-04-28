@@ -8,17 +8,17 @@ import { VALOR_DISPONIBILIDAD_COORDINADOR } from "@/lib/reporteDisponibilidadVal
 
 type DispoRow = {
   id: string;
-  fecha: string;
-  valor: string;
-  user: { nombre: string; cedula: string | null; zona: string; role: string };
+  date: string;
+  shiftCode: string;
+  user: { fullName: string; documentNumber: string | null; zone: string; role: string };
 };
 
 type DispoTablaRow = {
   id: string;
-  fecha: string;
-  monto: number;
+  date: string;
+  amount: number;
   userId: string;
-  user: { nombre: string; cedula: string | null; zona: string; role: string };
+  user: { fullName: string; documentNumber: string | null; zone: string; role: string };
 };
 
 export default function CoordinadorDisponibilidadTab() {
@@ -62,7 +62,7 @@ export default function CoordinadorDisponibilidadTab() {
   const fechasSet = useMemo(() => {
     const s = new Set<string>();
     items.forEach((d) => {
-      const key = d.fecha.split("T")[0];
+      const key = d.date.split("T")[0];
       if (key) s.add(key);
     });
     return s;
@@ -134,8 +134,8 @@ export default function CoordinadorDisponibilidadTab() {
               <ul className="text-sm text-gray-700 dark:text-[#CBD5E1] space-y-1 max-h-40 overflow-y-auto">
                 {items.map((d) => (
                   <li key={d.id}>
-                    {format(parseISO(d.fecha.split("T")[0]), "EEEE d MMM", { locale: es })} —{" "}
-                    {d.valor}
+                    {format(parseISO(d.date.split("T")[0]), "EEEE d MMM", { locale: es })} —{" "}
+                    {d.shiftCode}
                   </li>
                 ))}
               </ul>
@@ -159,10 +159,10 @@ export default function CoordinadorDisponibilidadTab() {
                     {itemsTabla.map((d) => (
                       <tr key={d.id} className="border-b border-blue-100 dark:border-[#1A3060] last:border-0">
                         <td className="py-1 pr-4">
-                          {format(parseISO(d.fecha.split("T")[0]), "EEEE d MMM", { locale: es })}
+                          {format(parseISO(d.date.split("T")[0]), "EEEE d MMM", { locale: es })}
                         </td>
                         <td className="py-1 text-right font-semibold text-blue-700 dark:text-[#60A5FA]">
-                          ${d.monto.toLocaleString("es-CO")}
+                          ${d.amount.toLocaleString("es-CO")}
                         </td>
                       </tr>
                     ))}

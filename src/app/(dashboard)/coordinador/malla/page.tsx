@@ -14,18 +14,18 @@ type TipoDia = "TRABAJO" | "DESCANSO" | "DISPONIBLE" | "DIA_FAMILIA" | "INCAPACI
 
 interface MallaItem {
   userId: string;
-  fecha: string;
-  valor: string;
-  tipo?: TipoDia;
-  horaInicio?: string;
-  horaFin?: string;
+  date: string;
+  shiftCode: string;
+  dayType?: TipoDia;
+  startTime?: string;
+  endTime?: string;
 }
 
 interface Tecnico {
   id: string;
-  nombre: string;
+  fullName: string;
   email?: string;
-  cargo?: string;
+  jobTitle?: string;
 }
 
 export default function CoordinadorMallaPage() {
@@ -51,20 +51,20 @@ export default function CoordinadorMallaPage() {
   const [festivosSet, setFestivosSet] = useState<Set<string>>(new Set());
   const [autoDispLoading, setAutoDispLoading] = useState(false);
   const [autoDispPreview, setAutoDispPreview] = useState<{
-    asignaciones: { userId: string; nombre: string; fecha: string; ultimaPrev: string | null }[];
-    ordenInicial: { userId: string; nombre: string; ultima: string | null }[];
+    asignaciones: { userId: string; fullName: string; date: string; ultimaPrev: string | null }[];
+    ordenInicial: { userId: string; fullName: string; ultima: string | null }[];
   } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const primaryTecnico = selectedTecnicos.size > 0 ? Array.from(selectedTecnicos)[0] : null;
 
   const cargarTecnicos = useCallback(async () => {
-    if (!profile?.zona) return;
-    const res = await fetch(`/api/usuarios?zona=${profile?.zona}&role=TECNICO`);
+    if (!profile?.zone) return;
+    const res = await fetch(`/api/usuarios?zona=${profile?.zone}&role=TECNICO`);
     const data = await parseResponseJson<{ tecnicos?: Tecnico[] }>(res);
     const raw = data?.tecnicos || [];
-    setTecnicos(raw.filter((t) => (t.cargo || "TECNICO") !== "ALMACENISTA"));
-  }, [profile?.zona]);
+    setTecnicos(raw.filter((t) => (t.jobTitle || "TECNICO") !== "ALMACENISTA"));
+  }, [profile?.zone]);
 
   const cargarMalla = useCallback(async (userId: string, autoPrecarga = true) => {
     if (!userId || !mes) return;
@@ -136,12 +136,12 @@ export default function CoordinadorMallaPage() {
 
   const getItem = (fecha: Date) => {
     const key = dateKey(fecha);
-    return malla.find((m) => (typeof m.fecha === "string" ? m.fecha : format(new Date(m.fecha), "yyyy-MM-dd")) === key);
+    return malla.find((m) => (typeof m.date === "string" ? m.date : format(new Date(m.date), "yyyy-MM-dd")) === key);
   };
-  const getValor = (fecha: Date) => getItem(fecha)?.valor ?? "";
+  const getValor = (fecha: Date) => getItem(fecha)?.shiftCode ?? "";
 
   const getMallaStyle = (valor: string, item?: MallaItem | null): CSSProperties => {
-    const tipo = item?.tipo;
+    const tipo = item?.dayType;
     const v = (valor || "").toLowerCase();
     const d = isDark;
     if (!valor) return d ? { backgroundColor: "#374151", color: "#9ca3af" } : { backgroundColor: "#f9fafb", color: "#6b7280" };
@@ -222,8 +222,8 @@ export default function CoordinadorMallaPage() {
       });
       const data = await parseResponseJson<{
         ok?: boolean;
-        asignaciones?: { userId: string; nombre: string; fecha: string; ultimaPrev: string | null }[];
-        ordenInicial?: { userId: string; nombre: string; ultima: string | null }[];
+        asignaciones?: { userId: string; fullName: string; date: string; ultimaPrev: string | null }[];
+        ordenInicial?: { userId: string; fullName: string; ultima: string | null }[];
         mensaje?: string;
         error?: string;
       }>(res);
@@ -274,11 +274,11 @@ export default function CoordinadorMallaPage() {
     setSaving(true);
     try {
       const fechaStr = dateKey(fecha);
-      const body: Record<string, unknown> = { userId: uid, fecha: fechaStr };
-      if (tipo !== undefined) body.tipo = tipo;
-      if (horaInicio !== undefined) body.horaInicio = horaInicio;
-      if (horaFin !== undefined) body.horaFin = horaFin;
-      if (valor !== undefined) body.valor = valor;
+      const body: Record<string, unknown> = { userId: uid, date: fechaStr };
+      if (tipo !== undefined) body.dayType = tipo;
+      if (horaInicio !== undefined) body.startTime = horaInicio;
+      if (horaFin !== undefined) body.endTime = horaFin;
+      if (valor !== undefined) body.shiftCode = valor;
       const res = await fetch("/api/malla", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -292,16 +292,16 @@ export default function CoordinadorMallaPage() {
       setEditHoraFin("17:00");
       const key = dateKey(fecha);
       setMalla((prev) => {
-        const filtered = prev.filter((m) => m.fecha !== key);
+        const filtered = prev.filter((m) => m.date !== key);
         return [
           ...filtered,
           {
             userId: uid,
-            fecha: key,
-            valor,
-            tipo: tipo ?? "TRABAJO",
-            horaInicio: horaInicio ?? undefined,
-            horaFin: horaFin ?? undefined,
+            date: key,
+            shiftCode: valor,
+            dayType: tipo ?? "TRABAJO",
+            startTime: horaInicio ?? undefined,
+            endTime: horaFin ?? undefined,
           },
         ];
       });
@@ -320,8 +320,8 @@ export default function CoordinadorMallaPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userIds: Array.from(selectedTecnicos),
-          fechas: Array.from(selectedDays),
-          valor,
+          dates: Array.from(selectedDays),
+          shiftCode: valor,
         }),
       });
       const data = await parseResponseJson<{ ok?: boolean; registros?: number; error?: string }>(res);
@@ -345,7 +345,7 @@ export default function CoordinadorMallaPage() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Malla de Turnos</h2>
-      <p className="text-gray-500 dark:text-bia-muted">Zona {profile?.zona}</p>
+      <p className="text-gray-500 dark:text-bia-muted">Zona {profile?.zone}</p>
 
       <div className="card flex flex-wrap gap-4 items-end">
         <div className="relative min-w-[220px]" ref={dropdownRef}>
@@ -376,7 +376,7 @@ export default function CoordinadorMallaPage() {
                 <label key={t.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-[#243052] cursor-pointer">
                   <input type="checkbox" checked={selectedTecnicos.has(t.id)} onChange={() => toggleTecnico(t.id)} className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-[#3A4565] dark:bg-[#1E2A45]" />
                   <div className="min-w-0">
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{t.nombre}</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{t.fullName}</span>
                     {t.email && <span className="text-xs text-gray-400 dark:text-bia-placeholder ml-2">{t.email}</span>}
                   </div>
                 </label>
@@ -387,7 +387,7 @@ export default function CoordinadorMallaPage() {
             <div className="flex flex-wrap gap-1 mt-2">
               {tecnicos.filter((t) => selectedTecnicos.has(t.id)).map((t) => (
                 <span key={t.id} className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-bia-teal-light px-2 py-1 rounded-full">
-                  {t.nombre}
+                  {t.fullName}
                   <button type="button" onClick={() => toggleTecnico(t.id)} className="hover:text-blue-900 dark:hover:text-blue-100">×</button>
                 </span>
               ))}
@@ -467,7 +467,7 @@ export default function CoordinadorMallaPage() {
                       } else {
                         const item = getItem(day);
                         setEditDay(day);
-                        if (item?.tipo) setEditTipo(item.tipo);
+                        if (item?.dayType) setEditTipo(item.dayType);
                         else if (valor === "descanso") setEditTipo("DESCANSO");
                         else if (valor === "disponible") setEditTipo("DISPONIBLE");
                         else if (/familia|día de la familia/i.test(valor)) setEditTipo("DIA_FAMILIA");
@@ -475,8 +475,8 @@ export default function CoordinadorMallaPage() {
                         else if (/vacacion/i.test(valor)) setEditTipo("VACACIONES");
                         else if (/medio/i.test(valor) && /cumple/i.test(valor)) setEditTipo("MEDIO_CUMPLE");
                         else setEditTipo("TRABAJO");
-                        setEditHoraInicio(item?.horaInicio || "08:00");
-                        setEditHoraFin(item?.horaFin || "17:00");
+                        setEditHoraInicio(item?.startTime || "08:00");
+                        setEditHoraFin(item?.endTime || "17:00");
                       }
                     }}
                     className={`w-full text-left text-xs rounded px-2 py-1 break-words border-2 transition-colors ${isSelected ? "border-blue-600 dark:border-bia-teal ring-2 ring-blue-400 dark:ring-bia-teal" : "border-transparent"}`}
@@ -586,7 +586,7 @@ export default function CoordinadorMallaPage() {
               <ol className="text-xs space-y-1 list-decimal list-inside text-gray-700 dark:text-gray-300">
                 {autoDispPreview.ordenInicial.map((o) => (
                   <li key={o.userId}>
-                    <span className="font-medium">{o.nombre}</span>
+                    <span className="font-medium">{o.fullName}</span>
                     <span className="text-gray-500 dark:text-bia-muted ml-2">
                       {o.ultima ? `(última: ${o.ultima})` : "(nunca)"}
                     </span>
@@ -611,19 +611,19 @@ export default function CoordinadorMallaPage() {
                   </thead>
                   <tbody>
                     {autoDispPreview.asignaciones.map((a, i) => {
-                      const [y, m, d] = a.fecha.split("-").map(Number);
+                      const [y, m, d] = a.date.split("-").map(Number);
                       const dt = new Date(Date.UTC(y, m - 1, d));
                       const diaSemana = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"][dt.getUTCDay()];
-                      const esFestivo = festivosSet.has(a.fecha);
+                      const esFestivo = festivosSet.has(a.date);
                       return (
                         <tr key={i} className="border-t border-gray-100 dark:border-[#3A4565]">
-                          <td className="px-3 py-2 text-gray-900 dark:text-white">{a.fecha}</td>
+                          <td className="px-3 py-2 text-gray-900 dark:text-white">{a.date}</td>
                           <td className="px-3 py-2">
                             <span className={esFestivo ? "text-red-600 dark:text-red-400 font-semibold" : "text-gray-700 dark:text-gray-300"}>
                               {diaSemana}{esFestivo ? " (festivo)" : ""}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-gray-900 dark:text-white font-medium">{a.nombre}</td>
+                          <td className="px-3 py-2 text-gray-900 dark:text-white font-medium">{a.fullName}</td>
                           <td className="px-3 py-2 text-gray-500 dark:text-bia-muted">{a.ultimaPrev ?? "nunca"}</td>
                         </tr>
                       );

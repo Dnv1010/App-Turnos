@@ -56,13 +56,13 @@ export async function GET(req: NextRequest) {
     whereUser.role = "TECNICO";
   }
   if (profile.role === "COORDINADOR") {
-    whereUser.zona = profile.zona;
+    whereUser.zone = profile.zone;
   } else if (profile.role === "SUPPLY") {
-    if (zona && zona !== "ALL") whereUser.zona = zona;
+    if (zona && zona !== "ALL") whereUser.zone = zona;
   } else if (profile.role === "TECNICO") {
     whereUser.id = profile.id;
   } else if (zona && zona !== "ALL") {
-    whereUser.zona = zona;
+    whereUser.zone = zona;
   }
 
   const [yi, mi, di] = inicio.split("-").map(Number);
@@ -73,28 +73,28 @@ export async function GET(req: NextRequest) {
   const usuarios = await prisma.user.findMany({
     where: whereUser,
     select: {
-      id: true, nombre: true, cedula: true, email: true, zona: true, role: true,
-      turnos: {
+      id: true, fullName: true, documentNumber: true, email: true, zone: true, role: true,
+      shifts: {
         where: {
-          fecha: { gte: fechaInicio, lte: fechaFin },
-          horaSalida: { not: null },
+          date: { gte: fechaInicio, lte: fechaFin },
+          clockOutAt: { not: null },
           OR: [
-            { observaciones: null },
-            { observaciones: { not: { startsWith: "Cancelado" } } },
+            { notes: null },
+            { notes: { not: { startsWith: "Cancelado" } } },
           ],
         },
-        orderBy: { fecha: "asc" },
+        orderBy: { date: "asc" },
       },
-      mallaTurnos: {
+      shiftSchedules: {
         where: {
-          fecha: { gte: fechaInicio, lte: fechaFin },
-          tipo: "DISPONIBLE",
+          date: { gte: fechaInicio, lte: fechaFin },
+          dayType: "DISPONIBLE",
         },
       },
-      fotoRegistros: {
+      tripRecords: {
         where: {
           createdAt: { gte: fechaInicio, lte: fechaFin },
-          OR: [{ tipo: { not: "FORANEO" } }, { tipo: "FORANEO", estadoAprobacion: "APROBADA" }],
+          OR: [{ type: { not: "FORANEO" } }, { type: "FORANEO", approvalStatus: "APROBADA" }],
         },
         orderBy: { createdAt: "desc" },
       },
@@ -102,44 +102,44 @@ export async function GET(req: NextRequest) {
   });
 
   const userIds = usuarios.map((u) => u.id);
-  const mallaDB = await prisma.mallaTurno.findMany({
+  const mallaDB = await prisma.shiftSchedule.findMany({
     where: {
       userId: { in: userIds },
-      fecha: { gte: fechaInicio, lte: fechaFin },
+      date: { gte: fechaInicio, lte: fechaFin },
     },
   });
   const mallaMap = new Map<string, string>();
   for (const m of mallaDB) {
-    mallaMap.set(`${m.userId}|${dateKeyColombia(m.fecha)}`, m.valor);
+    mallaMap.set(`${m.userId}|${dateKeyColombia(m.date)}`, m.shiftCode);
   }
 
-  const festivos = await prisma.festivo.findMany({
-    where: { fecha: { gte: fechaInicio, lte: fechaFin } },
+  const festivos = await prisma.holiday.findMany({
+    where: { date: { gte: fechaInicio, lte: fechaFin } },
   });
-  const holidaySet = new Set(festivos.map((f) => dateKeyColombia(f.fecha)));
+  const holidaySet = new Set(festivos.map((f) => dateKeyColombia(f.date)));
 
-  const alertasMalla: Array<{ userId: string; nombre: string; mensaje: string; tipo?: string }> = [];
+  const alertasMalla: Array<{ userId: string; fullName: string; mensaje: string; tipo?: string }> = [];
 
   const detalle = usuarios.map((user) => {
     const mallaGetter = (fecha: Date) => mallaMap.get(`${user.id}|${dateKeyColombia(fecha)}`) ?? null;
 
     // Pre-agrupar por semana para evitar O(n²): filter dentro de map
-    const turnosPorSemana = new Map<number, typeof user.turnos>();
-    for (const t of user.turnos) {
-      const key = getInicioSemana(t.fecha).getTime();
+    const turnosPorSemana = new Map<number, typeof user.shifts>();
+    for (const t of user.shifts) {
+      const key = getInicioSemana(t.date).getTime();
       if (!turnosPorSemana.has(key)) turnosPorSemana.set(key, []);
       turnosPorSemana.get(key)!.push(t);
     }
 
-    const turnosConMalla = user.turnos.map((t) => {
-      const mallaVal = mallaGetter(t.fecha);
-      const inicioSemana = getInicioSemana(t.fecha);
+    const turnosConMalla = user.shifts.map((t) => {
+      const mallaVal = mallaGetter(t.date);
+      const inicioSemana = getInicioSemana(t.date);
       const turnosSemana = turnosPorSemana.get(inicioSemana.getTime()) ?? [];
       const weeklyOrdParaRegla44 = sumWeeklyOrdHoursMonSat(
         turnosSemana.map((x) => ({
           id: x.id,
-          fecha: x.fecha,
-          horasOrdinarias: x.horasOrdinarias,
+          fecha: x.date,
+          horasOrdinarias: x.regularHours,
         })),
         t.id
       );
@@ -147,81 +147,91 @@ export async function GET(req: NextRequest) {
         horasOrdinariasSemana: Math.round(weeklyOrdParaRegla44 * 100) / 100,
         aplicaRegla44h: weeklyOrdParaRegla44 < 44,
       };
-      const totalHoras = (t.horaSalida!.getTime() - t.horaEntrada.getTime()) / (1000 * 60 * 60);
+      const totalHoras = (t.clockOutAt!.getTime() - t.clockInAt.getTime()) / (1000 * 60 * 60);
       const resultado = calcularTurno(
         {
-          fecha: t.fecha,
-          horaEntrada: t.horaEntrada,
-          horaSalida: t.horaSalida!,
-          esFestivo: holidaySet.has(dateKeyColombia(t.fecha)),
+          fecha: t.date,
+          horaEntrada: t.clockInAt,
+          horaSalida: t.clockOutAt!,
+          esFestivo: holidaySet.has(dateKeyColombia(t.date)),
           // FIX: usar getDayOfWeekColombia corregida que respeta midnight UTC
-          esDomingo: getDayOfWeekColombia(t.fecha) === 0,
+          esDomingo: getDayOfWeekColombia(t.date) === 0,
         },
         resumenSemanal,
         mallaVal,
         holidaySet
       );
-      const alerts = checkMallaAlerts(t.id, user.email ?? "", user.nombre, t.fecha, mallaVal, holidaySet.has(dateKeyColombia(t.fecha)), totalHoras);
-      alerts.forEach((a) => alertasMalla.push({ userId: user.id, nombre: user.nombre, mensaje: a.detalle, tipo: a.tipo }));
+      const alerts = checkMallaAlerts(t.id, user.email ?? "", user.fullName, t.date, mallaVal, holidaySet.has(dateKeyColombia(t.date)), totalHoras);
+      alerts.forEach((a) => alertasMalla.push({ userId: user.id, fullName: user.fullName, mensaje: a.detalle, tipo: a.tipo }));
 
       return {
         ...t,
         ...resultado,
-        horasOrdinarias: Math.max(0, resultado.horasOrdinarias ?? 0),
+        date: t.date,
+        clockInAt: t.clockInAt,
+        clockOutAt: t.clockOutAt,
+        regularHours: Math.max(0, resultado.horasOrdinarias ?? 0),
+        daytimeOvertimeHours: resultado.heDiurna,
+        nighttimeOvertimeHours: resultado.heNocturna,
+        sundayOvertimeHours: resultado.heDominical,
+        nightSundayOvertimeHours: resultado.heNoctDominical,
+        nightSurchargeHours: resultado.recNocturno,
+        sundaySurchargeHours: resultado.recDominical,
+        nightSundaySurchargeHours: resultado.recNoctDominical,
         malla: mallaVal ?? undefined,
       };
     });
 
-    const totalHE = turnosConMalla.reduce((sum, t) => sum + t.heDiurna + t.heNocturna + t.heDominical + t.heNoctDominical, 0);
-    const totalRecargos = turnosConMalla.reduce((sum, t) => sum + t.recNocturno + t.recDominical + t.recNoctDominical, 0);
-    const totalOrdinarias = turnosConMalla.reduce((sum, t) => sum + Math.max(0, t.horasOrdinarias ?? 0), 0);
-    const totalDisponibilidades = user.mallaTurnos.reduce(
+    const totalHE = turnosConMalla.reduce((sum, t) => sum + t.daytimeOvertimeHours + t.nighttimeOvertimeHours + t.sundayOvertimeHours + t.nightSundayOvertimeHours, 0);
+    const totalRecargos = turnosConMalla.reduce((sum, t) => sum + t.nightSurchargeHours + t.sundaySurchargeHours + t.nightSundaySurchargeHours, 0);
+    const totalOrdinarias = turnosConMalla.reduce((sum, t) => sum + Math.max(0, t.regularHours ?? 0), 0);
+    const totalDisponibilidades = user.shiftSchedules.reduce(
       (sum) => sum + valorDisponibilidadMallaPorRol(user.role), 0
     );
 
-    const fotosForaneo = user.fotoRegistros.filter((f) => f.tipo === "FORANEO");
+    const fotosForaneo = user.tripRecords.filter((f) => f.type === "FORANEO");
     const totalKmRecorridos = fotosForaneo.reduce((sum, f) => {
-      if (f.kmInicial != null && f.kmFinal != null && f.kmFinal > f.kmInicial) {
-        return sum + (f.kmFinal - f.kmInicial);
+      if (f.startKm != null && f.endKm != null && f.endKm > f.startKm) {
+        return sum + (f.endKm - f.startKm);
       }
       return sum;
     }, 0);
 
     const totalHorasTrabajadas = turnosConMalla.reduce((sum, t) => {
-      if (t.horaSalida) {
-        return sum + (new Date(t.horaSalida).getTime() - new Date(t.horaEntrada).getTime()) / (1000 * 60 * 60);
+      if (t.clockOutAt) {
+        return sum + (new Date(t.clockOutAt).getTime() - new Date(t.clockInAt).getTime()) / (1000 * 60 * 60);
       }
       return sum;
     }, 0);
 
     return {
-      userId: user.id, nombre: user.nombre, cedula: user.cedula, email: user.email, zona: user.zona, role: user.role,
+      userId: user.id, fullName: user.fullName, documentNumber: user.documentNumber, email: user.email, zone: user.zone, role: user.role,
       totalTurnos: turnosConMalla.length,
-      horasOrdinarias: Math.max(0, Math.round(totalOrdinarias * 100) / 100),
-      heDiurna: Math.round(turnosConMalla.reduce((s, t) => s + t.heDiurna, 0) * 100) / 100,
-      heNocturna: Math.round(turnosConMalla.reduce((s, t) => s + t.heNocturna, 0) * 100) / 100,
-      heDominical: Math.round(turnosConMalla.reduce((s, t) => s + t.heDominical, 0) * 100) / 100,
-      heNoctDominical: Math.round(turnosConMalla.reduce((s, t) => s + t.heNoctDominical, 0) * 100) / 100,
-      recNocturno: Math.round(turnosConMalla.reduce((s, t) => s + t.recNocturno, 0) * 100) / 100,
-      recDominical: Math.round(turnosConMalla.reduce((s, t) => s + t.recDominical, 0) * 100) / 100,
-      recNoctDominical: Math.round(turnosConMalla.reduce((s, t) => s + t.recNoctDominical, 0) * 100) / 100,
+      regularHours: Math.max(0, Math.round(totalOrdinarias * 100) / 100),
+      daytimeOvertimeHours: Math.round(turnosConMalla.reduce((s, t) => s + t.daytimeOvertimeHours, 0) * 100) / 100,
+      nighttimeOvertimeHours: Math.round(turnosConMalla.reduce((s, t) => s + t.nighttimeOvertimeHours, 0) * 100) / 100,
+      sundayOvertimeHours: Math.round(turnosConMalla.reduce((s, t) => s + t.sundayOvertimeHours, 0) * 100) / 100,
+      nightSundayOvertimeHours: Math.round(turnosConMalla.reduce((s, t) => s + t.nightSundayOvertimeHours, 0) * 100) / 100,
+      nightSurchargeHours: Math.round(turnosConMalla.reduce((s, t) => s + t.nightSurchargeHours, 0) * 100) / 100,
+      sundaySurchargeHours: Math.round(turnosConMalla.reduce((s, t) => s + t.sundaySurchargeHours, 0) * 100) / 100,
+      nightSundaySurchargeHours: Math.round(turnosConMalla.reduce((s, t) => s + t.nightSundaySurchargeHours, 0) * 100) / 100,
       totalHorasExtra: Math.round(totalHE * 100) / 100,
       totalRecargos: Math.round(totalRecargos * 100) / 100,
       totalHorasTrabajadas: Math.round(totalHorasTrabajadas * 100) / 100,
       totalDisponibilidades,
       totalKmRecorridos: Math.round(totalKmRecorridos * 100) / 100,
       registrosForaneo: fotosForaneo.length,
-      fotos: user.fotoRegistros.map((f) => ({
+      fotos: user.tripRecords.map((f) => ({
         id: f.id,
-        tipo: f.tipo,
+        type: f.type,
         driveUrl: f.driveUrl,
-        kmInicial: f.kmInicial,
-        kmFinal: f.kmFinal,
-        kmRecorridos: f.kmInicial != null && f.kmFinal != null ? Math.max(0, f.kmFinal - f.kmInicial) : null,
-        observaciones: f.observaciones,
-        fecha: f.createdAt,
-        estadoAprobacion: f.tipo === "FORANEO" ? f.estadoAprobacion : undefined,
-        notaAprobacion: f.tipo === "FORANEO" ? f.notaAprobacion : undefined,
+        startKm: f.startKm,
+        endKm: f.endKm,
+        kmRecorridos: f.startKm != null && f.endKm != null ? Math.max(0, f.endKm - f.startKm) : null,
+        notes: f.notes,
+        createdAt: f.createdAt,
+        approvalStatus: f.type === "FORANEO" ? f.approvalStatus : undefined,
+        approvalNote: f.type === "FORANEO" ? f.approvalNote : undefined,
       })),
       turnos: turnosConMalla,
     };
@@ -231,7 +241,7 @@ export async function GET(req: NextRequest) {
     totalTecnicos: detalle.length,
     totalHorasExtra: Math.round(detalle.reduce((s, d) => s + d.totalHorasExtra, 0) * 100) / 100,
     totalRecargos: Math.round(detalle.reduce((s, d) => s + d.totalRecargos, 0) * 100) / 100,
-    totalHorasOrdinarias: Math.max(0, Math.round(detalle.reduce((s, d) => s + d.horasOrdinarias, 0) * 100) / 100),
+    totalHorasOrdinarias: Math.max(0, Math.round(detalle.reduce((s, d) => s + d.regularHours, 0) * 100) / 100),
     totalDisponibilidades: detalle.reduce((s, d) => s + d.totalDisponibilidades, 0),
     totalKmRecorridos: Math.round(detalle.reduce((s, d) => s + d.totalKmRecorridos, 0) * 100) / 100,
     totalRegistrosForaneo: detalle.reduce((s, d) => s + d.registrosForaneo, 0),
@@ -239,24 +249,24 @@ export async function GET(req: NextRequest) {
 
   const alertasHE = detalle
     .filter((d) => d.totalHorasExtra > 40)
-    .map((d) => ({ userId: d.userId, nombre: d.nombre, mensaje: `${d.nombre} acumula ${d.totalHorasExtra}h extras en el periodo` }));
+    .map((d) => ({ userId: d.userId, fullName: d.fullName, mensaje: `${d.fullName} acumula ${d.totalHorasExtra}h extras en el periodo` }));
   const alertas = [...alertasHE, ...alertasMalla];
 
   const foraneos = detalle.flatMap((d) =>
     d.fotos
-      .filter((f) => f.tipo === "FORANEO")
+      .filter((f) => f.type === "FORANEO")
       .map((f) => ({
         id: f.id,
-        fecha: f.fecha,
-        tecnico: d.nombre,
-        cedula: d.cedula,
+        createdAt: f.createdAt,
+        tecnico: d.fullName,
+        documentNumber: d.documentNumber,
         correo: d.email,
-        tipo: f.tipo,
-        kmInicial: f.kmInicial,
-        kmFinal: f.kmFinal,
+        type: f.type,
+        startKm: f.startKm,
+        endKm: f.endKm,
         distancia: f.kmRecorridos,
-        observaciones: f.observaciones,
-        fotoUrl: f.driveUrl || "",
+        notes: f.notes,
+        photoUrl: f.driveUrl || "",
       }))
   );
 

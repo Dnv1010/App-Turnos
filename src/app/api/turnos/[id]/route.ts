@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import { Cargo } from "@prisma/client";
+import { JobTitle } from "@prisma/client";
 import { turnoEventEmitter } from "@/lib/turno-event-emitter";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
 import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
@@ -42,21 +42,21 @@ export async function PATCH(
     }
 
     const turnoId = params.id;
-    let body: { horaEntrada?: string; horaSalida?: string | null; observaciones?: string };
+    let body: { clockInAt?: string; clockOutAt?: string | null; notes?: string };
     try {
       body = await req.json();
     } catch {
       return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 });
     }
-    const { horaEntrada, horaSalida, observaciones } = body;
+    const { clockInAt, clockOutAt, notes } = body;
 
-    if (!horaEntrada || typeof horaEntrada !== "string") {
-      return NextResponse.json({ error: "horaEntrada requerida" }, { status: 400 });
+    if (!clockInAt || typeof clockInAt !== "string") {
+      return NextResponse.json({ error: "clockInAt requerida" }, { status: 400 });
     }
 
-    const turnoExistente = await prisma.turno.findUnique({
+    const turnoExistente = await prisma.shift.findUnique({
       where: { id: turnoId },
-      include: { user: { select: { id: true, zona: true, role: true, cargo: true } } },
+      include: { user: { select: { id: true, zone: true, role: true, jobTitle: true } } },
     });
     if (!turnoExistente) {
       return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
@@ -66,18 +66,18 @@ export async function PATCH(
       const u = turnoExistente.user;
       if (
         u.role !== "TECNICO" ||
-        u.zona !== profile.zona ||
-        u.cargo !== Cargo.ALMACENISTA
+        u.zone !== profile.zone ||
+        u.jobTitle !== JobTitle.ALMACENISTA
       ) {
         return NextResponse.json({ error: "No autorizado" }, { status: 403 });
       }
     }
 
     // Convertir hora Colombia (sin tz) a UTC sumando 5h
-    const newEntrada = new Date(new Date(horaEntrada).getTime() + 5 * 60 * 60 * 1000);
+    const newEntrada = new Date(new Date(clockInAt).getTime() + 5 * 60 * 60 * 1000);
     const newSalida =
-      horaSalida != null && horaSalida !== ""
-        ? new Date(new Date(horaSalida).getTime() + 5 * 60 * 60 * 1000)
+      clockOutAt != null && clockOutAt !== ""
+        ? new Date(new Date(clockOutAt).getTime() + 5 * 60 * 60 * 1000)
         : null;
 
     // Fecha Colombia desde la entrada
@@ -90,29 +90,38 @@ export async function PATCH(
     const weekEnd = endOfWeek(fecha, { weekStartsOn: 1 });
 
     const [mallaDiaRow, festivosSemana, turnosSemana] = await Promise.all([
-      prisma.mallaTurno.findUnique({
-        where: { userId_fecha: { userId: turnoExistente.userId, fecha } },
+      prisma.shiftSchedule.findUnique({
+        where: { userId_date: { userId: turnoExistente.userId, date: fecha } },
       }),
-      prisma.festivo.findMany({
-        where: { fecha: { gte: weekStart, lte: weekEnd } },
+      prisma.holiday.findMany({
+        where: { date: { gte: weekStart, lte: weekEnd } },
       }),
-      prisma.turno.findMany({
+      prisma.shift.findMany({
         where: {
           userId: turnoExistente.userId,
-          fecha: { gte: weekStart, lte: weekEnd },
+          date: { gte: weekStart, lte: weekEnd },
           id: { not: turnoId },
-          horaSalida: { not: null },
+          clockOutAt: { not: null },
         },
-        select: { fecha: true, horasOrdinarias: true },
+        select: { date: true, regularHours: true },
       }),
     ]);
 
-    const holidaySet = new Set(festivosSemana.map((f) => dateKeyColombia(f.fecha)));
+    const holidaySet = new Set(festivosSemana.map((f) => dateKeyColombia(f.date)));
     const esFestivo = holidaySet.has(dateKeyColombia(fecha));
-    const weeklyOrdHours = sumWeeklyOrdHoursMonSat(turnosSemana);
+    const weeklyOrdHours = sumWeeklyOrdHoursMonSat(
+      turnosSemana.map((t) => ({ fecha: t.date, horasOrdinarias: t.regularHours ?? 0 }))
+    );
 
     type MallaRow = { tipo?: string | null; valor: string; horaInicio?: string | null; horaFin?: string | null };
-    const row = mallaDiaRow as MallaRow | null;
+    const row = mallaDiaRow
+      ? ({
+          tipo: mallaDiaRow.dayType,
+          valor: mallaDiaRow.shiftCode,
+          horaInicio: mallaDiaRow.startTime,
+          horaFin: mallaDiaRow.endTime,
+        } as MallaRow)
+      : null;
     const dowColombia = getDayOfWeekColombia(fecha);
 
     const mallaDia = row
@@ -154,23 +163,30 @@ export async function PATCH(
       horasData = resultadoToTurnoData(resultado);
     }
 
-    const editorLabel = profile.nombre ?? profile.role;
+    const editorLabel = profile.fullName ?? profile.role;
     const fechaEdicion = new Date().toISOString().split("T")[0];
-    const notaFinal = observaciones
-      ? `${observaciones} [Editado ${fechaEdicion} por ${editorLabel}]`
+    const notaFinal = notes
+      ? `${notes} [Editado ${fechaEdicion} por ${editorLabel}]`
       : `[Editado ${fechaEdicion} por ${editorLabel}]`;
 
-    const turnoActualizado = await prisma.turno.update({
+    const turnoActualizado = await prisma.shift.update({
       where: { id: turnoId },
       data: {
-        fecha,
-        diaSemana: getDiaSemana(fecha),
-        horaEntrada: newEntrada,
-        horaSalida: newSalida,
-        observaciones: notaFinal,
-        ...horasData,
+        date: fecha,
+        weekday: getDiaSemana(fecha),
+        clockInAt: newEntrada,
+        clockOutAt: newSalida,
+        notes: notaFinal,
+        regularHours: horasData.horasOrdinarias,
+        daytimeOvertimeHours: horasData.heDiurna,
+        nighttimeOvertimeHours: horasData.heNocturna,
+        sundayOvertimeHours: horasData.heDominical,
+        nightSundayOvertimeHours: horasData.heNoctDominical,
+        nightSurchargeHours: horasData.recNocturno,
+        sundaySurchargeHours: horasData.recDominical,
+        nightSundaySurchargeHours: horasData.recNoctDominical,
       },
-      include: { user: { select: { nombre: true, zona: true } } },
+      include: { user: { select: { fullName: true, zone: true } } },
     });
 
     try {
@@ -191,7 +207,7 @@ export async function PATCH(
       id: turnoId,
       usuarioTecnico: turnoExistente.userId,
       fecha: fecha.toISOString().split("T")[0],
-      zona: turnoExistente.user.zona,
+      zona: turnoExistente.user.zone,
       timestamp: new Date().toISOString(),
     });
 
@@ -245,9 +261,9 @@ export async function DELETE(
 
     const turnoId = params.id;
 
-    const turnoAnterior = await prisma.turno.findUnique({
+    const turnoAnterior = await prisma.shift.findUnique({
       where: { id: turnoId },
-      include: { user: { select: { zona: true, role: true, cargo: true } } },
+      include: { user: { select: { zone: true, role: true, jobTitle: true } } },
     });
 
     if (!turnoAnterior) {
@@ -258,14 +274,14 @@ export async function DELETE(
       const u = turnoAnterior.user;
       if (
         u.role !== "TECNICO" ||
-        u.zona !== profile.zona ||
-        u.cargo !== Cargo.ALMACENISTA
+        u.zone !== profile.zone ||
+        u.jobTitle !== JobTitle.ALMACENISTA
       ) {
         return NextResponse.json({ error: "No autorizado" }, { status: 403 });
       }
     }
 
-    await prisma.turno.delete({
+    await prisma.shift.delete({
       where: { id: turnoId },
     });
 
@@ -288,8 +304,8 @@ export async function DELETE(
     turnoEventEmitter.emit("turno-eliminado", {
       id: turnoId,
       usuarioTecnico: turnoAnterior.userId,
-      fecha: turnoAnterior.fecha.toISOString().split("T")[0],
-      zona: turnoAnterior.user.zona,
+      fecha: turnoAnterior.date.toISOString().split("T")[0],
+      zona: turnoAnterior.user.zone,
       timestamp: new Date().toISOString(),
     });
 

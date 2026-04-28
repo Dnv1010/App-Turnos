@@ -12,13 +12,13 @@ function dateKey(d: Date): string {
   return d.toISOString().split("T")[0];
 }
 
-async function checkCoordinadorZona(turnoUserId: string, userProfile: { zona?: string | null; role: string }) {
+async function checkCoordinadorZona(turnoUserId: string, userProfile: { zone?: string | null; role: string }) {
   if (userProfile.role !== "COORDINADOR") return true;
   const user = await prisma.user.findUnique({
     where: { id: turnoUserId },
-    select: { zona: true, role: true },
+    select: { zone: true, role: true },
   });
-  return user?.role === "TECNICO" && user?.zona === userProfile.zona;
+  return user?.role === "TECNICO" && user?.zone === userProfile.zone;
 }
 
 export async function GET(
@@ -33,9 +33,9 @@ export async function GET(
   if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
   const { id } = await params;
-  const turno = await prisma.turno.findUnique({
+  const turno = await prisma.shift.findUnique({
     where: { id },
-    include: { user: { select: { cedula: true, nombre: true, email: true, zona: true } } },
+    include: { user: { select: { documentNumber: true, fullName: true, email: true, zone: true } } },
   });
   if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
 
@@ -69,28 +69,28 @@ export async function PATCH(
     }
 
     // ——— FotoRegistro (foráneo: finalizar con foto + km, o editar km/obs) ———
-    const fotoRec = await prisma.fotoRegistro.findUnique({ where: { id } });
+    const fotoRec = await prisma.tripRecord.findUnique({ where: { id } });
     if (fotoRec) {
       if (profile.role !== "TECNICO" || fotoRec.userId !== profile.id) {
         return NextResponse.json({ error: "No autorizado" }, { status: 403 });
       }
 
       const base64Data = body.base64Data as string | undefined;
-      const hasFinalize = base64Data != null && base64Data !== "" && body.kmFinal != null && body.kmFinal !== "";
+      const hasFinalize = base64Data != null && base64Data !== "" && body.endKm != null && body.endKm !== "";
 
       if (hasFinalize) {
-        if (fotoRec.tipo !== "FORANEO" || fotoRec.kmFinal != null) {
+        if (fotoRec.type !== "FORANEO" || fotoRec.endKm != null) {
           return NextResponse.json({ error: "Foráneo ya finalizado o no es un registro foráneo activo" }, { status: 400 });
         }
-        const kmFinalNum = parseFloat(String(body.kmFinal));
-        if (Number.isNaN(kmFinalNum) || fotoRec.kmInicial == null || kmFinalNum <= fotoRec.kmInicial) {
+        const kmFinalNum = parseFloat(String(body.endKm));
+        if (Number.isNaN(kmFinalNum) || fotoRec.startKm == null || kmFinalNum <= fotoRec.startKm) {
           return NextResponse.json({ error: "Km final inválido" }, { status: 400 });
         }
 
-        const latFinal = body.latFinal;
-        const lngFinal = body.lngFinal;
-        const latN = latFinal != null ? parseFloat(String(latFinal)) : NaN;
-        const lngN = lngFinal != null ? parseFloat(String(lngFinal)) : NaN;
+        const endLatRaw = body.endLat;
+        const endLngRaw = body.endLng;
+        const latN = endLatRaw != null ? parseFloat(String(endLatRaw)) : NaN;
+        const lngN = endLngRaw != null ? parseFloat(String(endLngRaw)) : NaN;
         if (Number.isNaN(latN) || Number.isNaN(lngN)) {
           return NextResponse.json(
             { error: "Ubicación GPS requerida para finalizar el foráneo (latitud y longitud válidas)." },
@@ -111,42 +111,42 @@ export async function PATCH(
           return NextResponse.json({ error: "No se pudo subir la foto final a Storage" }, { status: 500 });
         }
 
-        const actualizado = await prisma.fotoRegistro.update({
+        const actualizado = await prisma.tripRecord.update({
           where: { id },
           data: {
-            kmFinal: kmFinalNum,
+            endKm: kmFinalNum,
             driveFileIdFinal: fileIdFinal,  // Mantener nombre de campo
             driveUrlFinal: fileUrlFinal,    // Mantener nombre de campo
-            latFinal: latN,
-            lngFinal: lngN,
+            endLat: latN,
+            endLng: lngN,
           },
         });
         return NextResponse.json({ ok: true, registro: actualizado });
       }
 
       const data: {
-        kmInicial?: number | null;
-        kmFinal?: number | null;
-        observaciones?: string | null;
+        startKm?: number | null;
+        endKm?: number | null;
+        notes?: string | null;
       } = {};
-      if ("kmInicial" in body) {
-        data.kmInicial =
-          body.kmInicial != null && body.kmInicial !== ""
-            ? parseFloat(String(body.kmInicial))
+      if ("startKm" in body) {
+        data.startKm =
+          body.startKm != null && body.startKm !== ""
+            ? parseFloat(String(body.startKm))
             : null;
       }
-      if ("kmFinal" in body) {
-        data.kmFinal =
-          body.kmFinal != null && body.kmFinal !== "" ? parseFloat(String(body.kmFinal)) : null;
+      if ("endKm" in body) {
+        data.endKm =
+          body.endKm != null && body.endKm !== "" ? parseFloat(String(body.endKm)) : null;
       }
-      if ("observaciones" in body) {
-        data.observaciones = (body.observaciones as string) || null;
+      if ("notes" in body) {
+        data.notes = (body.notes as string) || null;
       }
       if (Object.keys(data).length === 0) {
         return NextResponse.json({ error: "Sin campos para actualizar" }, { status: 400 });
       }
 
-      const actualizado = await prisma.fotoRegistro.update({
+      const actualizado = await prisma.tripRecord.update({
         where: { id },
         data,
       });
@@ -154,7 +154,7 @@ export async function PATCH(
     }
 
     // ——— Turno (coordinador / admin / manager) ———
-    const turno = await prisma.turno.findUnique({
+    const turno = await prisma.shift.findUnique({
       where: { id },
       include: { user: true },
     });
@@ -164,16 +164,16 @@ export async function PATCH(
       (profile.role === "COORDINADOR" && await checkCoordinadorZona(turno.userId, profile));
     if (!canEdit) return NextResponse.json({ error: "Solo coordinador o superior puede editar este turno" }, { status: 403 });
 
-    if (turno.observaciones?.startsWith("Cancelado")) {
+    if (turno.notes?.startsWith("Cancelado")) {
       return NextResponse.json({ error: "No se puede editar un turno cancelado" }, { status: 400 });
     }
 
-    const horaEntradaISO = body.horaEntrada as string | undefined;
-    const horaSalidaISO = body.horaSalida as string | undefined;
-    const notes = body.observaciones as string | undefined;
+    const horaEntradaISO = body.clockInAt as string | undefined;
+    const horaSalidaISO = body.clockOutAt as string | undefined;
+    const notesBody = body.notes as string | undefined;
 
-    const newEntrada = horaEntradaISO ? new Date(horaEntradaISO) : turno.horaEntrada;
-    const newSalida = horaSalidaISO ? new Date(horaSalidaISO) : turno.horaSalida;
+    const newEntrada = horaEntradaISO ? new Date(horaEntradaISO) : turno.clockInAt;
+    const newSalida = horaSalidaISO ? new Date(horaSalidaISO) : turno.clockOutAt;
 
     // Calcular fecha en Colombia (UTC-5)
     const ahoraColombia = new Date(newEntrada.getTime() - 5 * 60 * 60 * 1000);
@@ -184,12 +184,12 @@ export async function PATCH(
     ));
 
     if (!newSalida) {
-      await prisma.turno.update({
+      await prisma.shift.update({
         where: { id },
         data: {
-          horaEntrada: newEntrada,
-          fecha,
-          observaciones: notes ? `${notes} [Editado ${new Date().toISOString()}]` : turno.observaciones,
+          clockInAt: newEntrada,
+          date: fecha,
+          notes: notesBody ? `${notesBody} [Editado ${new Date().toISOString()}]` : turno.notes,
         },
       });
       return NextResponse.json({ ok: true, msg: "Hora de inicio actualizada" });
@@ -199,33 +199,42 @@ export async function PATCH(
     const finSemana = getFinSemana(fecha);
 
     const [mallaDiaRow, festivosSemana, turnosSemana] = await Promise.all([
-      prisma.mallaTurno.findUnique({
-        where: { userId_fecha: { userId: turno.userId, fecha } },
+      prisma.shiftSchedule.findUnique({
+        where: { userId_date: { userId: turno.userId, date: fecha } },
       }),
-      prisma.festivo.findMany({
-        where: { fecha: { gte: inicioSemana, lte: finSemana } },
+      prisma.holiday.findMany({
+        where: { date: { gte: inicioSemana, lte: finSemana } },
       }),
-      prisma.turno.findMany({
+      prisma.shift.findMany({
         where: {
           userId: turno.userId,
-          fecha: { gte: inicioSemana, lte: finSemana },
-          horaSalida: { not: null },
+          date: { gte: inicioSemana, lte: finSemana },
+          clockOutAt: { not: null },
           id: { not: id },
           OR: [
-            { observaciones: null },
-            { observaciones: { not: { startsWith: "Cancelado" } } },
+            { notes: null },
+            { notes: { not: { startsWith: "Cancelado" } } },
           ],
         },
-        select: { fecha: true, horasOrdinarias: true },
+        select: { date: true, regularHours: true },
       }),
     ]);
 
-    const holidaySet = new Set(festivosSemana.map((f) => dateKey(f.fecha)));
+    const holidaySet = new Set(festivosSemana.map((f) => dateKey(f.date)));
     const esFestivo = holidaySet.has(dateKey(fecha));
-    const weeklyOrdHours = sumWeeklyOrdHoursMonSat(turnosSemana);
+    const weeklyOrdHours = sumWeeklyOrdHoursMonSat(
+      turnosSemana.map((t) => ({ fecha: t.date, horasOrdinarias: t.regularHours ?? 0 }))
+    );
 
     type MallaRow = { tipo?: string | null; valor: string; horaInicio?: string | null; horaFin?: string | null };
-    const row = mallaDiaRow as MallaRow | null;
+    const row = mallaDiaRow
+      ? ({
+          tipo: mallaDiaRow.dayType,
+          valor: mallaDiaRow.shiftCode,
+          horaInicio: mallaDiaRow.startTime,
+          horaFin: mallaDiaRow.endTime,
+        } as MallaRow)
+      : null;
     const mallaDia = row
       ? {
           tipo: esFestivo ? "FESTIVO" : (row.tipo ?? "TRABAJO"),
@@ -252,21 +261,38 @@ export async function PATCH(
     );
     const resultadoDb = resultadoToTurnoData(resultado);
 
-    await prisma.turno.update({
+    await prisma.shift.update({
       where: { id },
       data: {
-        fecha,
-        horaEntrada: newEntrada,
-        horaSalida: newSalida,
-        observaciones: notes ? `${notes} [Editado ${new Date().toISOString()}]` : turno.observaciones,
-        ...resultadoDb,
+        date: fecha,
+        clockInAt: newEntrada,
+        clockOutAt: newSalida,
+        notes: notesBody ? `${notesBody} [Editado ${new Date().toISOString()}]` : turno.notes,
+        regularHours: resultadoDb.horasOrdinarias,
+        daytimeOvertimeHours: resultadoDb.heDiurna,
+        nighttimeOvertimeHours: resultadoDb.heNocturna,
+        sundayOvertimeHours: resultadoDb.heDominical,
+        nightSundayOvertimeHours: resultadoDb.heNoctDominical,
+        nightSurchargeHours: resultadoDb.recNocturno,
+        sundaySurchargeHours: resultadoDb.recDominical,
+        nightSundaySurchargeHours: resultadoDb.recNoctDominical,
       },
     });
 
     return NextResponse.json({
       ok: true,
       msg: `Turno actualizado. Ord: ${resultadoDb.horasOrdinarias}h, HE: ${resultadoDb.heDiurna + resultadoDb.heNocturna}h`,
-      turno: { ...resultadoDb, fecha: dateKey(fecha) },
+      turno: {
+        regularHours: resultadoDb.horasOrdinarias,
+        daytimeOvertimeHours: resultadoDb.heDiurna,
+        nighttimeOvertimeHours: resultadoDb.heNocturna,
+        sundayOvertimeHours: resultadoDb.heDominical,
+        nightSundayOvertimeHours: resultadoDb.heNoctDominical,
+        nightSurchargeHours: resultadoDb.recNocturno,
+        sundaySurchargeHours: resultadoDb.recDominical,
+        nightSundaySurchargeHours: resultadoDb.recNoctDominical,
+        date: dateKey(fecha),
+      },
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Error al editar";
@@ -287,17 +313,17 @@ export async function DELETE(
   if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
   const { id } = await params;
-  const turno = await prisma.turno.findUnique({ where: { id } });
+  const turno = await prisma.shift.findUnique({ where: { id } });
   if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
 
   const canDelete = profile.role === "ADMIN" || profile.role === "MANAGER" ||
     (profile.role === "COORDINADOR" && await checkCoordinadorZona(turno.userId, profile));
   if (!canDelete) return NextResponse.json({ error: "No autorizado para cancelar este turno" }, { status: 403 });
 
-  await prisma.turno.update({
+  await prisma.shift.update({
     where: { id },
     data: {
-      observaciones: `Cancelado por coordinador ${new Date().toISOString()}`,
+      notes: `Cancelado por coordinador ${new Date().toISOString()}`,
     },
   });
   return NextResponse.json({ ok: true, msg: "Turno cancelado" });

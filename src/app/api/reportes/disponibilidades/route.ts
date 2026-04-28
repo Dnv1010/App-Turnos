@@ -36,11 +36,11 @@ export async function GET(req: NextRequest) {
     if (profile.role === "TECNICO") {
       whereUser.id = profile.id;
     } else if (profile.role === "COORDINADOR") {
-      whereUser.zona = profile.zona;
+      whereUser.zone = profile.zone;
     } else if (profile.role === "SUPPLY") {
-      if (zona && zona !== "ALL") whereUser.zona = zona;
+      if (zona && zona !== "ALL") whereUser.zone = zona;
     } else if (zona && zona !== "ALL") {
-      whereUser.zona = zona;
+      whereUser.zone = zona;
     }
 
     const usuarios = await prisma.user.findMany({
@@ -50,23 +50,23 @@ export async function GET(req: NextRequest) {
     const userIds = usuarios.map((u) => u.id);
     if (userIds.length === 0) return NextResponse.json([]);
 
-    const mallaDisponibles = await prisma.mallaTurno.findMany({
+    const mallaDisponibles = await prisma.shiftSchedule.findMany({
       where: {
-        tipo: "DISPONIBLE",
-        fecha: { gte: fechaInicio, lte: fechaFin },
+        dayType: "DISPONIBLE",
+        date: { gte: fechaInicio, lte: fechaFin },
         userId: { in: userIds },
       },
       // FIX: incluir role del user para calcular valor correcto por rol
-      include: { user: { select: { id: true, nombre: true, cedula: true, role: true } } },
-      orderBy: [{ userId: "asc" }, { fecha: "asc" }],
+      include: { user: { select: { id: true, fullName: true, documentNumber: true, role: true } } },
+      orderBy: [{ userId: "asc" }, { date: "asc" }],
     });
 
     const lista = mallaDisponibles.map((m) => ({
-      nombre: m.user.nombre,
-      cedula: m.user.cedula,
-      fecha: m.fecha.toISOString().split("T")[0],
+      fullName: m.user.fullName,
+      documentNumber: m.user.documentNumber,
+      date: m.date.toISOString().split("T")[0],
       // FIX: calcular valor según rol — TECNICO: 80.000, COORDINADOR/COORDINADOR_INTERIOR: 110.000
-      valor: valorDisponibilidadMallaPorRol(m.user.role),
+      amount: valorDisponibilidadMallaPorRol(m.user.role),
     }));
 
     return NextResponse.json(lista);

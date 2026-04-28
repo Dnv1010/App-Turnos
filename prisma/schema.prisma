@@ -10,239 +10,227 @@ datasource db {
 
 model User {
   id                String             @id @default(cuid())
-  cedula            String             @unique
-  nombre            String
+  documentNumber    String             @unique @map("cedula")
+  fullName          String             @map("nombre")
   email             String             @unique
   password          String
   role              Role               @default(TECNICO)
-  zona              Zona               @default(BOGOTA)
-  cargo             Cargo              @default(TECNICO)
-  filtroEquipo      String             @default("TODOS")
-  isActive          Boolean            @default(true)
-  fotoUrl           String?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  accounts          Account[]
-  disponibilidades  Disponibilidad[]
-  fotoRegistros     FotoRegistro[]
-  mallaTurnos       MallaTurno[]
+  zone              Zone               @default(BOGOTA) @map("zona")
+  jobTitle          JobTitle           @default(TECNICO) @map("cargo")
+  teamFilter        String             @default("TODOS") @map("filtroEquipo")
+  isActive          Boolean            @default(true) @map("isActive")
+  photoUrl          String?            @map("fotoUrl")
+  createdAt         DateTime           @default(now()) @map("createdAt")
+  updatedAt         DateTime           @updatedAt @map("updatedAt")
+  availabilities    Availability[]
+  tripRecords       TripRecord[]
+  shiftSchedules    ShiftSchedule[]
   pushSubscriptions PushSubscription[]
-  reportesCreados   Reporte[]          @relation("ReportesCreados")
-  sessions          Session[]
-  turnos            Turno[]
-  turnosCoordinador TurnoCoordinador[]
+  reportsCreated    Report[]           @relation("ReportesCreados")
+  shifts            Shift[]
+  coordinatorShifts CoordinatorShift[]
+
+  @@map("User")
 }
 
-model Turno {
-  id                      String         @id @default(cuid())
-  userId                  String
-  fecha                   DateTime       @db.Date
-  diaSemana               String?
-  horaEntrada             DateTime
-  horaSalida              DateTime?
-  latEntrada              Float?
-  lngEntrada              Float?
-  latSalida               Float?
-  lngSalida               Float?
-  startPhotoUrl           String?
-  endPhotoUrl             String?
-  horasOrdinarias         Float          @default(0)
-  heDiurna                Float          @default(0)
-  heNocturna              Float          @default(0)
-  heDominical             Float          @default(0)
-  heNoctDominical         Float          @default(0)
-  recNocturno             Float          @default(0)
-  recDominical            Float          @default(0)
-  recNoctDominical        Float          @default(0)
-  observaciones           String?
-  jornadaAlertaPushSentAt DateTime?
-  createdAt               DateTime       @default(now())
-  updatedAt               DateTime       @updatedAt
-  reportes                ReporteTurno[]
-  user                    User           @relation(fields: [userId], references: [id])
+model Shift {
+  id                         String        @id @default(cuid())
+  userId                     String        @map("userId")
+  date                       DateTime      @db.Date @map("fecha")
+  weekday                    String?       @map("diaSemana")
+  clockInAt                  DateTime      @map("horaEntrada")
+  clockOutAt                 DateTime?     @map("horaSalida")
+  clockInLat                 Float?        @map("latEntrada")
+  clockInLng                 Float?        @map("lngEntrada")
+  clockOutLat                Float?        @map("latSalida")
+  clockOutLng                Float?        @map("lngSalida")
+  startPhotoUrl              String?       @map("startPhotoUrl")
+  endPhotoUrl                String?       @map("endPhotoUrl")
+  regularHours               Float         @default(0) @map("horasOrdinarias")
+  daytimeOvertimeHours       Float         @default(0) @map("heDiurna")
+  nighttimeOvertimeHours     Float         @default(0) @map("heNocturna")
+  sundayOvertimeHours        Float         @default(0) @map("heDominical")
+  nightSundayOvertimeHours   Float         @default(0) @map("heNoctDominical")
+  nightSurchargeHours        Float         @default(0) @map("recNocturno")
+  sundaySurchargeHours       Float         @default(0) @map("recDominical")
+  nightSundaySurchargeHours  Float         @default(0) @map("recNoctDominical")
+  notes                      String?       @map("observaciones")
+  workdayAlertSentAt         DateTime?     @map("jornadaAlertaPushSentAt")
+  createdAt                  DateTime      @default(now()) @map("createdAt")
+  updatedAt                  DateTime      @updatedAt @map("updatedAt")
+  reports                    ReportShift[]
+  user                       User          @relation(fields: [userId], references: [id])
 
-  @@index([userId, fecha])
+  @@index([userId, date])
+  @@map("Turno")
 }
 
 model PushSubscription {
   id        String   @id @default(cuid())
-  userId    String
+  userId    String   @map("userId")
   endpoint  String   @unique
   p256dh    String
   auth      String
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("createdAt")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@map("PushSubscription")
 }
 
-model MallaTurno {
-  id         String                  @id @default(cuid())
-  userId     String
-  fecha      DateTime                @db.Date
-  valor      String
-  tipo       TipoDia?                @default(TRABAJO)
-  horaInicio String?
-  horaFin    String?
-  createdAt  DateTime                @default(now())
-  user       User                    @relation(fields: [userId], references: [id])
-  reportes   ReporteDisponibilidad[]
+model ShiftSchedule {
+  id        String               @id @default(cuid())
+  userId    String               @map("userId")
+  date      DateTime             @db.Date @map("fecha")
+  shiftCode String               @map("valor")
+  dayType   DayType?             @default(TRABAJO) @map("tipo")
+  startTime String?              @map("horaInicio")
+  endTime   String?              @map("horaFin")
+  createdAt DateTime             @default(now()) @map("createdAt")
+  user      User                 @relation(fields: [userId], references: [id])
+  reports   ReportAvailability[]
 
-  @@unique([userId, fecha])
+  @@unique([userId, date])
+  @@map("MallaTurno")
 }
 
-model Festivo {
-  id     String   @id @default(cuid())
-  fecha  DateTime @unique @db.Date
-  nombre String
+model Holiday {
+  id    String   @id @default(cuid())
+  date  DateTime @unique @db.Date @map("fecha")
+  name  String   @map("nombre")
+
+  @@map("Festivo")
 }
 
-model Disponibilidad {
+model Availability {
   id        String   @id @default(cuid())
-  userId    String
-  fecha     DateTime @db.Date
-  monto     Float    @default(80000)
-  createdAt DateTime @default(now())
+  userId    String   @map("userId")
+  date      DateTime @db.Date @map("fecha")
+  amount    Float    @default(80000) @map("monto")
+  createdAt DateTime @default(now()) @map("createdAt")
   user      User     @relation(fields: [userId], references: [id])
 
-  @@unique([userId, fecha])
+  @@unique([userId, date])
+  @@map("Disponibilidad")
 }
 
-model FotoRegistro {
-  id               String           @id @default(cuid())
-  userId           String
-  tipo             String
-  driveFileId      String?
-  driveUrl         String?
-  driveFileIdFinal String?
-  driveUrlFinal    String?
-  base64Fallback   String?
-  kmInicial        Float?
-  kmFinal          Float?
-  latInicial       Float?
-  lngInicial       Float?
-  latFinal         Float?
-  lngFinal         Float?
-  observaciones    String?
-  estadoAprobacion EstadoAprobacion @default(PENDIENTE)
-  aprobadoPor      String?
-  fechaAprobacion  DateTime?
-  notaAprobacion   String?
-  createdAt        DateTime         @default(now())
-  user             User             @relation(fields: [userId], references: [id])
-  reportes         ReporteForaneo[]
+model TripRecord {
+  id              String           @id @default(cuid())
+  userId          String           @map("userId")
+  type            String           @map("tipo")
+  driveFileId     String?          @map("driveFileId")
+  driveUrl        String?          @map("driveUrl")
+  driveFileIdFinal String?         @map("driveFileIdFinal")
+  driveUrlFinal   String?          @map("driveUrlFinal")
+  base64Fallback  String?          @map("base64Fallback")
+  startKm         Float?           @map("kmInicial")
+  endKm           Float?           @map("kmFinal")
+  startLat        Float?           @map("latInicial")
+  startLng        Float?           @map("lngInicial")
+  endLat          Float?           @map("latFinal")
+  endLng          Float?           @map("lngFinal")
+  notes           String?          @map("observaciones")
+  approvalStatus  ApprovalStatus   @default(PENDIENTE) @map("estadoAprobacion")
+  approvedBy      String?          @map("aprobadoPor")
+  approvedAt      DateTime?        @map("fechaAprobacion")
+  approvalNote    String?          @map("notaAprobacion")
+  createdAt       DateTime         @default(now()) @map("createdAt")
+  user            User             @relation(fields: [userId], references: [id])
+  reports         ReportTrip[]
+
+  @@map("FotoRegistro")
 }
 
-model Reporte {
-  id                         String                    @id @default(cuid())
-  nombre                     String
-  fechaInicio                DateTime                  @db.Date
-  fechaFin                   DateTime                  @db.Date
-  creadoPor                  String
-  zona                       String?
-  createdAt                  DateTime                  @default(now())
-  creadoPorUser              User                      @relation("ReportesCreados", fields: [creadoPor], references: [id])
-  disponibilidadesIncluidas  ReporteDisponibilidad[]
-  foraneosIncluidos          ReporteForaneo[]
-  turnosIncluidos            ReporteTurno[]
-  turnosCoordinadorIncluidos ReporteTurnoCoordinador[]
+model Report {
+  id                          String                    @id @default(cuid())
+  name                        String                    @map("nombre")
+  startDate                   DateTime                  @db.Date @map("fechaInicio")
+  endDate                     DateTime                  @db.Date @map("fechaFin")
+  createdBy                   String                    @map("creadoPor")
+  zone                        String?                   @map("zona")
+  createdAt                   DateTime                  @default(now()) @map("createdAt")
+  createdByUser               User                      @relation("ReportesCreados", fields: [createdBy], references: [id])
+  availabilitiesIncluded      ReportAvailability[]
+  tripsIncluded               ReportTrip[]
+  shiftsIncluded              ReportShift[]
+  coordinatorShiftsIncluded   ReportCoordinatorShift[]
 
-  @@index([zona])
+  @@index([zone])
   @@index([createdAt])
+  @@map("Reporte")
 }
 
-model ReporteTurno {
+model ReportShift {
   id        String  @id @default(cuid())
-  reporteId String
-  turnoId   String
-  reporte   Reporte @relation(fields: [reporteId], references: [id], onDelete: Cascade)
-  turno     Turno   @relation(fields: [turnoId], references: [id])
+  reportId  String  @map("reporteId")
+  shiftId   String  @map("turnoId")
+  report    Report  @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  shift     Shift   @relation(fields: [shiftId], references: [id])
 
-  @@unique([reporteId, turnoId])
+  @@unique([reportId, shiftId])
+  @@map("ReporteTurno")
 }
 
-model ReporteForaneo {
-  id             String       @id @default(cuid())
-  reporteId      String
-  fotoRegistroId String
-  fotoRegistro   FotoRegistro @relation(fields: [fotoRegistroId], references: [id])
-  reporte        Reporte      @relation(fields: [reporteId], references: [id], onDelete: Cascade)
+model ReportTrip {
+  id            String     @id @default(cuid())
+  reportId      String     @map("reporteId")
+  tripRecordId  String     @map("fotoRegistroId")
+  tripRecord    TripRecord @relation(fields: [tripRecordId], references: [id])
+  report        Report     @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
-  @@unique([reporteId, fotoRegistroId])
+  @@unique([reportId, tripRecordId])
+  @@map("ReporteForaneo")
 }
 
-model ReporteDisponibilidad {
-  id           String     @id @default(cuid())
-  reporteId    String
-  mallaTurnoId String
-  mallaTurno   MallaTurno @relation(fields: [mallaTurnoId], references: [id])
-  reporte      Reporte    @relation(fields: [reporteId], references: [id], onDelete: Cascade)
+model ReportAvailability {
+  id              String        @id @default(cuid())
+  reportId        String        @map("reporteId")
+  shiftScheduleId String        @map("mallaTurnoId")
+  shiftSchedule   ShiftSchedule @relation(fields: [shiftScheduleId], references: [id])
+  report          Report        @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
-  @@unique([reporteId, mallaTurnoId])
+  @@unique([reportId, shiftScheduleId])
+  @@map("ReporteDisponibilidad")
 }
 
-model TurnoCoordinador {
-  id               String                    @id @default(cuid())
-  userId           String
-  fecha            DateTime                  @db.Date
-  horaEntrada      DateTime
-  horaSalida       DateTime?
-  codigoOrden      String
-  nota             String?
-  horasOrdinarias  Float                     @default(0)
-  heDiurna         Float                     @default(0)
-  heNocturna       Float                     @default(0)
-  heDominical      Float                     @default(0)
-  heNoctDominical  Float                     @default(0)
-  recNocturno      Float                     @default(0)
-  recDominical     Float                     @default(0)
-  recNoctDominical Float                     @default(0)
-  latEntrada       Float?
-  lngEntrada       Float?
-  latSalida        Float?
-  lngSalida        Float?
-  createdAt        DateTime                  @default(now())
-  updatedAt        DateTime                  @updatedAt
-  reportes         ReporteTurnoCoordinador[]
-  user             User                      @relation(fields: [userId], references: [id])
+model CoordinatorShift {
+  id                         String                    @id @default(cuid())
+  userId                     String                    @map("userId")
+  date                       DateTime                  @db.Date @map("fecha")
+  clockInAt                  DateTime                  @map("horaEntrada")
+  clockOutAt                 DateTime?                 @map("horaSalida")
+  orderCode                  String                    @map("codigoOrden")
+  note                       String?                   @map("nota")
+  regularHours               Float                     @default(0) @map("horasOrdinarias")
+  daytimeOvertimeHours       Float                     @default(0) @map("heDiurna")
+  nighttimeOvertimeHours     Float                     @default(0) @map("heNocturna")
+  sundayOvertimeHours        Float                     @default(0) @map("heDominical")
+  nightSundayOvertimeHours   Float                     @default(0) @map("heNoctDominical")
+  nightSurchargeHours        Float                     @default(0) @map("recNocturno")
+  sundaySurchargeHours       Float                     @default(0) @map("recDominical")
+  nightSundaySurchargeHours  Float                     @default(0) @map("recNoctDominical")
+  clockInLat                 Float?                    @map("latEntrada")
+  clockInLng                 Float?                    @map("lngEntrada")
+  clockOutLat                Float?                    @map("latSalida")
+  clockOutLng                Float?                    @map("lngSalida")
+  createdAt                  DateTime                  @default(now()) @map("createdAt")
+  updatedAt                  DateTime                  @updatedAt @map("updatedAt")
+  reports                    ReportCoordinatorShift[]
+  user                       User                      @relation(fields: [userId], references: [id])
 
-  @@index([userId, fecha])
+  @@index([userId, date])
+  @@map("TurnoCoordinador")
 }
 
-model ReporteTurnoCoordinador {
-  id                 String           @id @default(cuid())
-  reporteId          String
-  turnoCoordinadorId String
-  reporte            Reporte          @relation(fields: [reporteId], references: [id], onDelete: Cascade)
-  turnoCoordinador   TurnoCoordinador @relation(fields: [turnoCoordinadorId], references: [id], onDelete: Cascade)
+model ReportCoordinatorShift {
+  id                  String           @id @default(cuid())
+  reportId            String           @map("reporteId")
+  coordinatorShiftId  String           @map("turnoCoordinadorId")
+  report              Report           @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  coordinatorShift    CoordinatorShift @relation(fields: [coordinatorShiftId], references: [id], onDelete: Cascade)
 
-  @@unique([reporteId, turnoCoordinadorId])
-}
-
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([reportId, coordinatorShiftId])
+  @@map("ReporteTurnoCoordinador")
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -402,24 +390,24 @@ enum Role {
   PENDIENTE
 }
 
-enum Zona {
+enum Zone {
   BOGOTA
   COSTA
   INTERIOR
 }
 
-enum Cargo {
+enum JobTitle {
   TECNICO
   ALMACENISTA
 }
 
-enum EstadoAprobacion {
+enum ApprovalStatus {
   PENDIENTE
   APROBADA
   NO_APROBADA
 }
 
-enum TipoDia {
+enum DayType {
   TRABAJO
   DESCANSO
   DISPONIBLE

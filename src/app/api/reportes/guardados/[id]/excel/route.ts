@@ -31,34 +31,34 @@ export async function GET(_req: NextRequest, context: Ctx) {
 
   const { id } = await context.params;
 
-  const reporte = await prisma.reporte.findUnique({
+  const reporte = await prisma.report.findUnique({
     where: { id },
     include: {
-      turnosIncluidos: {
+      shiftsIncluded: {
         include: {
-          turno: {
-            include: { user: { select: { nombre: true, cedula: true } } },
+          shift: {
+            include: { user: { select: { fullName: true, documentNumber: true } } },
           },
         },
       },
-      foraneosIncluidos: {
+      tripsIncluded: {
         include: {
-          fotoRegistro: {
-            include: { user: { select: { nombre: true, cedula: true } } },
+          tripRecord: {
+            include: { user: { select: { fullName: true, documentNumber: true } } },
           },
         },
       },
-      disponibilidadesIncluidas: {
+      availabilitiesIncluded: {
         include: {
-          mallaTurno: {
-            include: { user: { select: { nombre: true, cedula: true, role: true } } },
+          shiftSchedule: {
+            include: { user: { select: { fullName: true, documentNumber: true, role: true } } },
           },
         },
       },
-      turnosCoordinadorIncluidos: {
+      coordinatorShiftsIncluded: {
         include: {
-          turnoCoordinador: {
-            include: { user: { select: { nombre: true, cedula: true, role: true } } },
+          coordinatorShift: {
+            include: { user: { select: { fullName: true, documentNumber: true, role: true } } },
           },
         },
       },
@@ -69,43 +69,62 @@ export async function GET(_req: NextRequest, context: Ctx) {
     return NextResponse.json({ error: "Reporte no encontrado" }, { status: 404 });
   }
 
-  if (!puedeGestionarReporte(auth.profile, reporte)) {
+  if (!puedeGestionarReporte(auth.profile, { zone: reporte.zone, createdBy: reporte.createdBy })) {
     return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
   }
 
-  const turnos = reporte.turnosIncluidos.map((rt) => rt.turno);
-  const fotosForaneos = reporte.foraneosIncluidos.map((rf) => ({
-    userId: rf.fotoRegistro.userId,
-    kmInicial: rf.fotoRegistro.kmInicial,
-    kmFinal: rf.fotoRegistro.kmFinal,
-    user: rf.fotoRegistro.user,
-  }));
-  const disponibilidades = reporte.disponibilidadesIncluidas.map((rd) => ({
-    fecha: rd.mallaTurno.fecha,
-    valor: rd.mallaTurno.valor,
+  const turnos = reporte.shiftsIncluded.map((rt) => ({
+    fecha: rt.shift.date,
+    horaEntrada: rt.shift.clockInAt,
+    horaSalida: rt.shift.clockOutAt,
+    horasOrdinarias: rt.shift.regularHours,
+    heDiurna: rt.shift.daytimeOvertimeHours,
+    heNocturna: rt.shift.nighttimeOvertimeHours,
+    heDominical: rt.shift.sundayOvertimeHours,
+    heNoctDominical: rt.shift.nightSundayOvertimeHours,
+    recNocturno: rt.shift.nightSurchargeHours,
+    recDominical: rt.shift.sundaySurchargeHours,
+    recNoctDominical: rt.shift.nightSundaySurchargeHours,
     user: {
-      nombre: rd.mallaTurno.user.nombre,
-      cedula: rd.mallaTurno.user.cedula,
-      role: rd.mallaTurno.user.role,
+      nombre: rt.shift.user.fullName,
+      cedula: rt.shift.user.documentNumber,
     },
   }));
-  const turnosCoordinador = reporte.turnosCoordinadorIncluidos.map((r) => ({
-    fecha: r.turnoCoordinador.fecha,
-    horaEntrada: r.turnoCoordinador.horaEntrada,
-    horaSalida: r.turnoCoordinador.horaSalida,
-    codigoOrden: r.turnoCoordinador.codigoOrden,
-    horasOrdinarias: r.turnoCoordinador.horasOrdinarias,
-    heDiurna: r.turnoCoordinador.heDiurna,
-    heNocturna: r.turnoCoordinador.heNocturna,
-    heDominical: r.turnoCoordinador.heDominical,
-    heNoctDominical: r.turnoCoordinador.heNoctDominical,
-    recNocturno: r.turnoCoordinador.recNocturno,
-    recDominical: r.turnoCoordinador.recDominical,
-    recNoctDominical: r.turnoCoordinador.recNoctDominical,
+  const fotosForaneos = reporte.tripsIncluded.map((rf) => ({
+    userId: rf.tripRecord.userId,
+    kmInicial: rf.tripRecord.startKm,
+    kmFinal: rf.tripRecord.endKm,
     user: {
-      nombre: r.turnoCoordinador.user.nombre,
-      cedula: r.turnoCoordinador.user.cedula,
-      role: r.turnoCoordinador.user.role,
+      nombre: rf.tripRecord.user.fullName,
+      cedula: rf.tripRecord.user.documentNumber,
+    },
+  }));
+  const disponibilidades = reporte.availabilitiesIncluded.map((rd) => ({
+    fecha: rd.shiftSchedule.date,
+    valor: rd.shiftSchedule.shiftCode,
+    user: {
+      nombre: rd.shiftSchedule.user.fullName,
+      cedula: rd.shiftSchedule.user.documentNumber,
+      role: rd.shiftSchedule.user.role,
+    },
+  }));
+  const turnosCoordinador = reporte.coordinatorShiftsIncluded.map((r) => ({
+    fecha: r.coordinatorShift.date,
+    horaEntrada: r.coordinatorShift.clockInAt,
+    horaSalida: r.coordinatorShift.clockOutAt,
+    codigoOrden: r.coordinatorShift.orderCode,
+    horasOrdinarias: r.coordinatorShift.regularHours,
+    heDiurna: r.coordinatorShift.daytimeOvertimeHours,
+    heNocturna: r.coordinatorShift.nighttimeOvertimeHours,
+    heDominical: r.coordinatorShift.sundayOvertimeHours,
+    heNoctDominical: r.coordinatorShift.nightSundayOvertimeHours,
+    recNocturno: r.coordinatorShift.nightSurchargeHours,
+    recDominical: r.coordinatorShift.sundaySurchargeHours,
+    recNoctDominical: r.coordinatorShift.nightSundaySurchargeHours,
+    user: {
+      nombre: r.coordinatorShift.user.fullName,
+      cedula: r.coordinatorShift.user.documentNumber,
+      role: r.coordinatorShift.user.role,
     },
   }));
 
@@ -114,7 +133,7 @@ export async function GET(_req: NextRequest, context: Ctx) {
     turnosCoordinador,
     fotosForaneos,
     disponibilidades,
-    slugNombre(reporte.nombre, reporte.id)
+    slugNombre(reporte.name, reporte.id)
   );
 
   return new NextResponse(new Uint8Array(buffer), {

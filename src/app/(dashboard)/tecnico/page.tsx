@@ -23,20 +23,20 @@ interface ForaneoResumenAPI {
 
 interface TurnoRecord {
   id: string;
-  fecha: string;
-  horaEntrada: string;
-  horaSalida: string | null;
-  horasOrdinarias: number;
-  heDiurna: number;
-  heNocturna: number;
-  heDominical: number;
-  heNoctDominical: number;
-  recNocturno: number;
-  recDominical: number;
-  recNoctDominical: number;
-  latEntrada: number | null;
-  lngEntrada: number | null;
-  diaSemana: string | null;
+  date: string;
+  clockInAt: string;
+  clockOutAt: string | null;
+  regularHours: number;
+  daytimeOvertimeHours: number;
+  nighttimeOvertimeHours: number;
+  sundayOvertimeHours: number;
+  nightSundayOvertimeHours: number;
+  nightSurchargeHours: number;
+  sundaySurchargeHours: number;
+  nightSundaySurchargeHours: number;
+  clockInLat: number | null;
+  clockInLng: number | null;
+  weekday: string | null;
 }
 
 function diaSemana(fechaStr: string): string {
@@ -51,11 +51,11 @@ export default function TecnicoDashboard() {
   const [turnos, setTurnos] = useState<TurnoRecord[]>([]);
   const [turnoActivo, setTurnoActivo] = useState<{
     id: string;
-    horaEntrada: string;
+    clockInAt: string;
     userId: string;
   } | null>(null);
   const [foraneosResumen, setForaneosResumen] = useState<{ totalKm: number; totalPagar: number }>({ totalKm: 0, totalPagar: 0 });
-  const [bloqueoMalla, setBloqueoMalla] = useState<{ estado: string; fecha: string } | null>(null);
+  const [bloqueoMalla, setBloqueoMalla] = useState<{ estado: string; date: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const ahora = new Date();
   const primerDiaMes = format(startOfMonth(ahora), "yyyy-MM-dd");
@@ -107,10 +107,10 @@ export default function TecnicoDashboard() {
       const data = await parseResponseJson<TurnoRecord[]>(turnosRes);
       const list = Array.isArray(data) ? data : [];
       setTurnos(list);
-      const abierto = list.find((t) => !t.horaSalida);
+      const abierto = list.find((t) => !t.clockOutAt);
       setTurnoActivo(
         abierto
-          ? { id: abierto.id, horaEntrada: abierto.horaEntrada, userId: profile?.id }
+          ? { id: abierto.id, clockInAt: abierto.clockInAt, userId: profile?.id }
           : null
       );
       const foraneosData = await parseResponseJson<ForaneoResumenAPI[]>(foraneosRes);
@@ -122,9 +122,9 @@ export default function TecnicoDashboard() {
       try {
         const mallaRes = await fetch("/api/malla/verificar-hoy");
         if (mallaRes.ok) {
-          const mallaData = await parseResponseJson<{ bloqueado: boolean; estado?: string; fecha?: string }>(mallaRes);
+          const mallaData = await parseResponseJson<{ bloqueado: boolean; estado?: string; date?: string }>(mallaRes);
           if (mallaData?.bloqueado) {
-            setBloqueoMalla({ estado: mallaData.estado ?? "", fecha: mallaData.fecha ?? "" });
+            setBloqueoMalla({ estado: mallaData.estado ?? "", date: mallaData.date ?? "" });
           } else {
             setBloqueoMalla(null);
           }
@@ -154,10 +154,10 @@ export default function TecnicoDashboard() {
       const data = await parseResponseJson<TurnoRecord[]>(res);
       const list = Array.isArray(data) ? data : [];
       setTurnos(list);
-      const abierto = list.find((t) => !t.horaSalida);
+      const abierto = list.find((t) => !t.clockOutAt);
       setTurnoActivo(
         abierto
-          ? { id: abierto.id, horaEntrada: abierto.horaEntrada, userId: profile?.id }
+          ? { id: abierto.id, clockInAt: abierto.clockInAt, userId: profile?.id }
           : null
       );
       const foraneosRes = await fetch(`/api/reportes/foraneos?desde=${desde}&hasta=${hasta}&userId=${profile?.id}`);
@@ -184,15 +184,15 @@ export default function TecnicoDashboard() {
     cargarDatos();
   }, [profile, router, cargarDatos]);
 
-  const totalHE = turnos.reduce((s, t) => s + t.heDiurna + t.heNocturna + t.heDominical + t.heNoctDominical, 0);
-  const totalRecargos = turnos.reduce((s, t) => s + t.recNocturno + t.recDominical + t.recNoctDominical, 0);
-  const totalOrdinarias = turnos.reduce((s, t) => s + Math.max(0, t.horasOrdinarias), 0);
+  const totalHE = turnos.reduce((s, t) => s + t.daytimeOvertimeHours + t.nighttimeOvertimeHours + t.sundayOvertimeHours + t.nightSundayOvertimeHours, 0);
+  const totalRecargos = turnos.reduce((s, t) => s + t.nightSurchargeHours + t.sundaySurchargeHours + t.nightSundaySurchargeHours, 0);
+  const totalOrdinarias = turnos.reduce((s, t) => s + Math.max(0, t.regularHours), 0);
 
   const columns = [
     {
-      key: "fecha", label: "Fecha", sortable: true,
+      key: "date", label: "Fecha", sortable: true,
       render: (t: TurnoRecord) => {
-        const fechaStr = t.fecha.split("T")[0];
+        const fechaStr = t.date.split("T")[0];
         const [y, m, d] = fechaStr.split("-").map(Number);
         return format(new Date(y, m - 1, d), "dd MMM yyyy", { locale: es });
       }
@@ -200,20 +200,20 @@ export default function TecnicoDashboard() {
     {
       key: "dia", label: "Día",
       render: (t: TurnoRecord) => {
-        if (t.diaSemana) return t.diaSemana;
-        return diaSemana(t.fecha);
+        if (t.weekday) return t.weekday;
+        return diaSemana(t.date);
       },
     },
-    { key: "horaEntrada", label: "Entrada", render: (t: TurnoRecord) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
-    { key: "horaSalida", label: "Salida", render: (t: TurnoRecord) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
-    { key: "horasOrdinarias", label: "Ord.", sortable: true, render: (t: TurnoRecord) => Math.max(0, t.horasOrdinarias) },
-    { key: "heDiurna", label: "HE Día", render: (t: TurnoRecord) => t.heDiurna > 0 ? t.heDiurna : "—" },
-    { key: "heNocturna", label: "HE Noc", render: (t: TurnoRecord) => t.heNocturna > 0 ? t.heNocturna : "—" },
-    { key: "heDominical", label: "HE Dom/Fest Día", render: (t: TurnoRecord) => t.heDominical > 0 ? t.heDominical : "—" },
-    { key: "heNoctDominical", label: "HE Dom/Fest Noc", render: (t: TurnoRecord) => t.heNoctDominical > 0 ? t.heNoctDominical : "—" },
-    { key: "recNocturno", label: "Rec. Noc", render: (t: TurnoRecord) => t.recNocturno > 0 ? t.recNocturno : "—" },
-    { key: "recDominical", label: "Rec Dom/Fest Día", render: (t: TurnoRecord) => t.recDominical > 0 ? t.recDominical : "—" },
-    { key: "recNoctDominical", label: "Rec Dom/Fest Noc", render: (t: TurnoRecord) => t.recNoctDominical > 0 ? t.recNoctDominical : "—" },
+    { key: "clockInAt", label: "Entrada", render: (t: TurnoRecord) => new Date(t.clockInAt).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
+    { key: "clockOutAt", label: "Salida", render: (t: TurnoRecord) => t.clockOutAt ? new Date(t.clockOutAt).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
+    { key: "regularHours", label: "Ord.", sortable: true, render: (t: TurnoRecord) => Math.max(0, t.regularHours) },
+    { key: "daytimeOvertimeHours", label: "HE Día", render: (t: TurnoRecord) => t.daytimeOvertimeHours > 0 ? t.daytimeOvertimeHours : "—" },
+    { key: "nighttimeOvertimeHours", label: "HE Noc", render: (t: TurnoRecord) => t.nighttimeOvertimeHours > 0 ? t.nighttimeOvertimeHours : "—" },
+    { key: "sundayOvertimeHours", label: "HE Dom/Fest Día", render: (t: TurnoRecord) => t.sundayOvertimeHours > 0 ? t.sundayOvertimeHours : "—" },
+    { key: "nightSundayOvertimeHours", label: "HE Dom/Fest Noc", render: (t: TurnoRecord) => t.nightSundayOvertimeHours > 0 ? t.nightSundayOvertimeHours : "—" },
+    { key: "nightSurchargeHours", label: "Rec. Noc", render: (t: TurnoRecord) => t.nightSurchargeHours > 0 ? t.nightSurchargeHours : "—" },
+    { key: "sundaySurchargeHours", label: "Rec Dom/Fest Día", render: (t: TurnoRecord) => t.sundaySurchargeHours > 0 ? t.sundaySurchargeHours : "—" },
+    { key: "nightSundaySurchargeHours", label: "Rec Dom/Fest Noc", render: (t: TurnoRecord) => t.nightSundaySurchargeHours > 0 ? t.nightSundaySurchargeHours : "—" },
   ];
 
   if (loading) {
@@ -255,7 +255,7 @@ export default function TecnicoDashboard() {
           <div>
             <h3 className="font-bold text-amber-900 dark:text-amber-100">Hoy estás en &quot;{bloqueoMalla.estado}&quot;</h3>
             <p className="text-sm text-amber-800 dark:text-amber-200 mt-1">
-              Según la malla de turnos, el día {bloqueoMalla.fecha} no tienes jornada laboral asignada. Si esto es un error,
+              Según la malla de turnos, el día {bloqueoMalla.date} no tienes jornada laboral asignada. Si esto es un error,
               comunícale la novedad a tu coordinador.
             </p>
           </div>
@@ -263,7 +263,7 @@ export default function TecnicoDashboard() {
       )}
       <JornadaAlertaFlow
         turnoActivo={turnoActivo}
-        operadorNombre={profile?.nombre ?? ""}
+        operadorNombre={profile?.fullName ?? ""}
         onAfterReport={cargarDatos}
       />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -272,8 +272,8 @@ export default function TecnicoDashboard() {
             horasOrdinarias: Math.max(0, Math.round(totalOrdinarias * 100) / 100),
             totalHorasExtra: Math.round(totalHE * 100) / 100,
             totalRecargos: Math.round(totalRecargos * 100) / 100,
-            heDiurna: Math.round(turnos.reduce((s, t) => s + t.heDiurna, 0) * 100) / 100,
-            heNocturna: Math.round(turnos.reduce((s, t) => s + t.heNocturna, 0) * 100) / 100,
+            heDiurna: Math.round(turnos.reduce((s, t) => s + t.daytimeOvertimeHours, 0) * 100) / 100,
+            heNocturna: Math.round(turnos.reduce((s, t) => s + t.nighttimeOvertimeHours, 0) * 100) / 100,
             foraneos: foraneosResumen,
           }} />
         </div>
@@ -281,15 +281,15 @@ export default function TecnicoDashboard() {
           <BotonFichaje
             userId={profile?.id || ""}
             turnoActivo={turnoActivo}
-            onFichaje={() => { const h=new Date().toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",hour12:true}); const n=profile?.nombre||"Operador"; const eraInicio=!turnoActivo; if(eraInicio){setModalTurno({hora:h,nombre:n,tipo:"inicio"});} else{setModalTurno({hora:h,nombre:n,tipo:"cierre"});} cargarDatos(); }}
+            onFichaje={() => { const h=new Date().toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",hour12:true}); const n=profile?.fullName||"Operador"; const eraInicio=!turnoActivo; if(eraInicio){setModalTurno({hora:h,nombre:n,tipo:"inicio"});} else{setModalTurno({hora:h,nombre:n,tipo:"cierre"});} cargarDatos(); }}
             onTurnoFinalizado={cargarDatos}
             mallaBloqueaInicio={!!bloqueoMalla}
           />
         </div>
       </div>
-      {turnoActivo && turnos[0]?.latEntrada && turnos[0]?.lngEntrada && (
+      {turnoActivo && turnos[0]?.clockInLat && turnos[0]?.clockInLng && (
         <div className="max-w-md">
-          <MapaUbicacion lat={turnos[0].latEntrada} lng={turnos[0].lngEntrada} label="Ubicacion de entrada" />
+          <MapaUbicacion lat={turnos[0].clockInLat} lng={turnos[0].clockInLng} label="Ubicacion de entrada" />
         </div>
       )}
       <div className="min-w-0">
@@ -355,23 +355,23 @@ export default function TecnicoDashboard() {
                   foraneosRows.map((f) => (
                     <tr key={f.id} className="hover:bg-gray-50 dark:hover:bg-[#243052]">
                       <td className="px-4 py-3 text-sm text-gray-800 dark:text-white whitespace-nowrap">
-                        {f.fecha.split("T")[0]}
+                        {f.createdAt.split("T")[0]}
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        {f.estadoAprobacion === "APROBADA" && (
+                        {f.approvalStatus === "APROBADA" && (
                           <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200">
                             Aprobada
                           </span>
                         )}
-                        {f.estadoAprobacion === "PENDIENTE" && (
+                        {f.approvalStatus === "PENDIENTE" && (
                           <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
                             Pendiente por autorizar
                           </span>
                         )}
-                        {f.estadoAprobacion === "NO_APROBADA" && (
+                        {f.approvalStatus === "NO_APROBADA" && (
                           <span
                             className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200"
-                            title={f.notaAprobacion ?? undefined}
+                            title={f.approvalNote ?? undefined}
                           >
                             No aprobada
                           </span>
@@ -381,8 +381,8 @@ export default function TecnicoDashboard() {
                         {f.kmRecorridos != null ? `${Number(f.kmRecorridos).toFixed(1)} km` : "—"}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-[#CBD5E1] max-w-xs">
-                        {f.notaAprobacion ? (
-                          <span title={f.notaAprobacion}>{f.notaAprobacion}</span>
+                        {f.approvalNote ? (
+                          <span title={f.approvalNote}>{f.approvalNote}</span>
                         ) : (
                           "—"
                         )}

@@ -24,10 +24,10 @@ export async function PATCH(req: NextRequest, context: Ctx) {
   let body: {
     lat?: number;
     lng?: number;
-    horaEntrada?: string;
-    horaSalida?: string | null;
-    codigoOrden?: string;
-    nota?: string | null;
+    clockInAt?: string;
+    clockOutAt?: string | null;
+    orderCode?: string;
+    note?: string | null;
   };
   try {
     body = await req.json();
@@ -35,9 +35,9 @@ export async function PATCH(req: NextRequest, context: Ctx) {
     body = {};
   }
 
-  const turno = await prisma.turnoCoordinador.findUnique({
+  const turno = await prisma.coordinatorShift.findUnique({
     where: { id },
-    include: { user: { select: { nombre: true, cedula: true, id: true } } },
+    include: { user: { select: { fullName: true, documentNumber: true, id: true } } },
   });
 
   if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
@@ -53,22 +53,29 @@ export async function PATCH(req: NextRequest, context: Ctx) {
 
   // ——— Cierre por el propio coordinador (solo GPS, salida = ahora) ———
   if (isFichaje && !isAdmin) {
-    if (turno.horaSalida) {
+    if (turno.clockOutAt) {
       return NextResponse.json({ error: "El turno ya está cerrado" }, { status: 400 });
     }
     const horaSalida = new Date();
-    const horasData = await computeHorasAlCerrarTurnoCoordinador(turno.horaEntrada, horaSalida);
+    const horasData = await computeHorasAlCerrarTurnoCoordinador(turno.clockInAt, horaSalida);
 
-    const actualizado = await prisma.turnoCoordinador.update({
+    const actualizado = await prisma.coordinatorShift.update({
       where: { id },
       data: {
-        horaSalida,
-        latSalida: body.lat ?? null,
-        lngSalida: body.lng ?? null,
-        ...horasData,
+        clockOutAt: horaSalida,
+        clockOutLat: body.lat ?? null,
+        clockOutLng: body.lng ?? null,
+        regularHours: horasData.horasOrdinarias,
+        daytimeOvertimeHours: horasData.heDiurna,
+        nighttimeOvertimeHours: horasData.heNocturna,
+        sundayOvertimeHours: horasData.heDominical,
+        nightSundayOvertimeHours: horasData.heNoctDominical,
+        nightSurchargeHours: horasData.recNocturno,
+        sundaySurchargeHours: horasData.recDominical,
+        nightSundaySurchargeHours: horasData.recNoctDominical,
       },
       include: {
-        user: { select: { nombre: true, cedula: true, zona: true, role: true } },
+        user: { select: { fullName: true, documentNumber: true, zone: true, role: true } },
       },
     });
 
@@ -80,22 +87,31 @@ export async function PATCH(req: NextRequest, context: Ctx) {
   }
 
   // ——— Edición MANAGER / ADMIN ———
-  const entrada = body.horaEntrada ? new Date(body.horaEntrada) : turno.horaEntrada;
-  let salida: Date | null =
-    body.horaSalida === undefined
-      ? turno.horaSalida
-      : body.horaSalida
-        ? new Date(body.horaSalida)
+  const entrada = body.clockInAt ? new Date(body.clockInAt) : turno.clockInAt;
+  const salida: Date | null =
+    body.clockOutAt === undefined
+      ? turno.clockOutAt
+      : body.clockOutAt
+        ? new Date(body.clockOutAt)
         : null;
 
-  const codigoOrden =
-    typeof body.codigoOrden === "string" && body.codigoOrden.trim()
-      ? body.codigoOrden.trim()
-      : turno.codigoOrden;
+  const orderCode =
+    typeof body.orderCode === "string" && body.orderCode.trim()
+      ? body.orderCode.trim()
+      : turno.orderCode;
 
-  const nota = body.nota !== undefined ? (body.nota === null ? null : String(body.nota)) : turno.nota;
+  const note = body.note !== undefined ? (body.note === null ? null : String(body.note)) : turno.note;
 
-  let horasBlock: Record<string, number> = {
+  let horasBlock: {
+    horasOrdinarias: number;
+    heDiurna: number;
+    heNocturna: number;
+    heDominical: number;
+    heNoctDominical: number;
+    recNocturno: number;
+    recDominical: number;
+    recNoctDominical: number;
+  } = {
     horasOrdinarias: 0,
     heDiurna: 0,
     heNocturna: 0,
@@ -109,17 +125,24 @@ export async function PATCH(req: NextRequest, context: Ctx) {
     horasBlock = await computeHorasAlCerrarTurnoCoordinador(entrada, salida);
   }
 
-  const actualizado = await prisma.turnoCoordinador.update({
+  const actualizado = await prisma.coordinatorShift.update({
     where: { id },
     data: {
-      horaEntrada: entrada,
-      horaSalida: salida,
-      codigoOrden,
-      nota,
-      ...horasBlock,
+      clockInAt: entrada,
+      clockOutAt: salida,
+      orderCode,
+      note,
+      regularHours: horasBlock.horasOrdinarias,
+      daytimeOvertimeHours: horasBlock.heDiurna,
+      nighttimeOvertimeHours: horasBlock.heNocturna,
+      sundayOvertimeHours: horasBlock.heDominical,
+      nightSundayOvertimeHours: horasBlock.heNoctDominical,
+      nightSurchargeHours: horasBlock.recNocturno,
+      sundaySurchargeHours: horasBlock.recDominical,
+      nightSundaySurchargeHours: horasBlock.recNoctDominical,
     },
     include: {
-      user: { select: { nombre: true, cedula: true, zona: true, role: true } },
+      user: { select: { fullName: true, documentNumber: true, zone: true, role: true } },
     },
   });
 
@@ -139,14 +162,14 @@ export async function DELETE(_req: NextRequest, context: Ctx) {
 
   const { id } = await context.params;
 
-  const turno = await prisma.turnoCoordinador.findUnique({
+  const turno = await prisma.coordinatorShift.findUnique({
     where: { id },
-    include: { user: { select: { cedula: true, nombre: true } } },
+    include: { user: { select: { documentNumber: true, fullName: true } } },
   });
 
   if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
 
-  await prisma.turnoCoordinador.delete({ where: { id } });
+  await prisma.coordinatorShift.delete({ where: { id } });
 
   return NextResponse.json({ ok: true, mensaje: "Turno eliminado" });
 }
