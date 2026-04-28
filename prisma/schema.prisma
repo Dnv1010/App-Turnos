@@ -394,17 +394,23 @@ enum Zone {
   BOGOTA
   COSTA
   INTERIOR
+
+  @@map("Zona")
 }
 
 enum JobTitle {
   TECNICO
   ALMACENISTA
+
+  @@map("Cargo")
 }
 
 enum ApprovalStatus {
   PENDIENTE
   APROBADA
   NO_APROBADA
+
+  @@map("EstadoAprobacion")
 }
 
 enum DayType {
@@ -415,4 +421,6 @@ enum DayType {
   INCAPACITADO
   VACACIONES
   MEDIO_CUMPLE
+
+  @@map("TipoDia")
 }
