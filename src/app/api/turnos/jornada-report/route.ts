@@ -17,36 +17,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Solo operadores" }, { status: 403 });
     }
 
-    let body: { turnoId?: string; ordenTrabajo?: string };
+    let body: { turnoId?: string; orderCode?: string };
     try {
       body = await req.json();
     } catch {
       return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
     }
-    const { turnoId, ordenTrabajo } = body;
-    const ot = (ordenTrabajo ?? "").trim();
+    const { turnoId, orderCode } = body;
+    const ot = (orderCode ?? "").trim();
     if (!turnoId || !ot) {
-      return NextResponse.json({ error: "turnoId y ordenTrabajo requeridos" }, { status: 400 });
+      return NextResponse.json({ error: "turnoId y orderCode requeridos" }, { status: 400 });
     }
 
-    const turno = await prisma.turno.findUnique({ where: { id: turnoId } });
+    const turno = await prisma.shift.findUnique({ where: { id: turnoId } });
     if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
     if (turno.userId !== profile.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
-    if (turno.horaSalida) {
+    if (turno.clockOutAt) {
       return NextResponse.json({ error: "El turno ya está cerrado" }, { status: 400 });
     }
 
     const colombia = new Date().toLocaleString("es-CO", { timeZone: "America/Bogota" });
     const linea = `[${colombia}] Jornada extendida: sigue laborando — Orden de trabajo: ${ot}`;
 
-    const prev = turno.observaciones?.trim() ?? "";
+    const prev = turno.notes?.trim() ?? "";
     const observaciones = prev ? `${prev}\n${linea}` : linea;
 
-    await prisma.turno.update({
+    await prisma.shift.update({
       where: { id: turnoId },
-      data: { observaciones },
+      data: { notes: observaciones },
     });
 
     try {

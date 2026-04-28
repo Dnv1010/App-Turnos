@@ -44,10 +44,10 @@ export async function authenticateWithPin(
       email_confirm: true,
       user_metadata: {
         userId: user.id,
-        nombre: user.nombre,
+        fullName: user.fullName,
         role: user.role,
-        zona: user.zona,
-        cargo: user.cargo,
+        zone: user.zone,
+        jobTitle: user.jobTitle,
       }
     })
 
@@ -60,10 +60,10 @@ export async function authenticateWithPin(
         await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
           user_metadata: {
             userId: user.id,
-            nombre: user.nombre,
+            fullName: user.fullName,
             role: user.role,
-            zona: user.zona,
-            cargo: user.cargo,
+            zone: user.zone,
+            jobTitle: user.jobTitle,
           }
         })
         supabaseUserId = existingUser.id
@@ -139,8 +139,8 @@ export async function createPendingGoogleUser(userData: {
   try {
     const user = await prisma.user.create({
       data: {
-        cedula: local.length > 80 ? local.slice(0, 80) : local,
-        nombre,
+        documentNumber: local.length > 80 ? local.slice(0, 80) : local,
+        fullName: nombre,
         email: emailNorm,
         password: "",
         role: "PENDIENTE",

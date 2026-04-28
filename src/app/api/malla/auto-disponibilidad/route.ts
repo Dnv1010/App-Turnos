@@ -59,14 +59,14 @@ export async function POST(req: NextRequest) {
     if (profile.role === "COORDINADOR" || profile.role === "SUPPLY") {
       const targets = await prisma.user.findMany({
         where: { id: { in: userIds } },
-        select: { id: true, zona: true, role: true, cargo: true },
+        select: { id: true, zone: true, role: true, jobTitle: true },
       });
       const invalido =
         targets.length !== userIds.length ||
         targets.some((t) => {
-          if (t.role !== "TECNICO" || t.zona !== profile.zona) return true;
-          if (profile.role === "SUPPLY" && t.cargo !== "ALMACENISTA") return true;
-          if (profile.role === "COORDINADOR" && t.cargo === "ALMACENISTA") return true;
+          if (t.role !== "TECNICO" || t.zone !== profile.zone) return true;
+          if (profile.role === "SUPPLY" && t.jobTitle !== "ALMACENISTA") return true;
+          if (profile.role === "COORDINADOR" && t.jobTitle === "ALMACENISTA") return true;
           return false;
         });
       if (invalido) {
@@ -78,10 +78,10 @@ export async function POST(req: NextRequest) {
     const inicioMes = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
     const finMes = new Date(Date.UTC(year, month, 0, 23, 59, 59));
 
-    const festivos = await prisma.festivo.findMany({
-      where: { fecha: { gte: inicioMes, lte: finMes } },
+    const festivos = await prisma.holiday.findMany({
+      where: { date: { gte: inicioMes, lte: finMes } },
     });
-    const festivoSet = new Set(festivos.map((f) => dateKey(f.fecha)));
+    const festivoSet = new Set(festivos.map((f) => dateKey(f.date)));
 
     const diasObjetivo: string[] = [];
     const cursor = new Date(inicioMes);
@@ -99,28 +99,28 @@ export async function POST(req: NextRequest) {
 
     const users = await prisma.user.findMany({
       where: { id: { in: userIds } },
-      select: { id: true, nombre: true, cedula: true },
+      select: { id: true, fullName: true, documentNumber: true },
     });
     const userById = new Map(users.map((u) => [u.id, u]));
 
-    const ultimas = await prisma.mallaTurno.groupBy({
+    const ultimas = await prisma.shiftSchedule.groupBy({
       by: ["userId"],
       where: {
         userId: { in: userIds },
-        tipo: "DISPONIBLE",
+        dayType: "DISPONIBLE",
       },
-      _max: { fecha: true },
+      _max: { date: true },
     });
     const ultimaPorUser = new Map<string, Date | null>(
-      ultimas.map((u) => [u.userId, u._max.fecha ?? null])
+      ultimas.map((u) => [u.userId, u._max.date ?? null])
     );
 
-    const existentes = await prisma.mallaTurno.findMany({
+    const existentes = await prisma.shiftSchedule.findMany({
       where: {
         userId: { in: userIds },
-        fecha: { gte: inicioMes, lte: finMes },
+        date: { gte: inicioMes, lte: finMes },
       },
-      select: { userId: true, fecha: true, tipo: true },
+      select: { userId: true, date: true, dayType: true },
     });
     const TIPOS_BLOQUEAN = new Set([
       "DIA_FAMILIA",
@@ -130,36 +130,36 @@ export async function POST(req: NextRequest) {
     ]);
     const bloqueado = new Set<string>();
     for (const e of existentes) {
-      if (e.tipo && TIPOS_BLOQUEAN.has(e.tipo)) {
-        bloqueado.add(`${e.userId}|${dateKey(e.fecha)}`);
+      if (e.dayType && TIPOS_BLOQUEAN.has(e.dayType)) {
+        bloqueado.add(`${e.userId}|${dateKey(e.date)}`);
       }
     }
 
-    type Cola = { userId: string; nombre: string; cedula: string | null; ultima: Date | null };
+    type Cola = { userId: string; fullName: string; documentNumber: string | null; ultima: Date | null };
     const cola: Cola[] = userIds
       .map((uid) => {
         const u = userById.get(uid);
         return {
           userId: uid,
-          nombre: u?.nombre ?? "",
-          cedula: u?.cedula ?? null,
+          fullName: u?.fullName ?? "",
+          documentNumber: u?.documentNumber ?? null,
           ultima: ultimaPorUser.get(uid) ?? null,
         };
       })
       .sort((a, b) => {
-        if (a.ultima === null && b.ultima === null) return a.nombre.localeCompare(b.nombre);
+        if (a.ultima === null && b.ultima === null) return a.fullName.localeCompare(b.fullName);
         if (a.ultima === null) return -1;
         if (b.ultima === null) return 1;
         const diff = a.ultima.getTime() - b.ultima.getTime();
         if (diff !== 0) return diff;
-        return a.nombre.localeCompare(b.nombre);
+        return a.fullName.localeCompare(b.fullName);
       });
 
     type Asignacion = {
       userId: string;
-      nombre: string;
-      cedula: string | null;
-      fecha: string;
+      fullName: string;
+      documentNumber: string | null;
+      date: string;
       ultimaPrev: string | null;
     };
     const asignaciones: Asignacion[] = [];
@@ -181,9 +181,9 @@ export async function POST(req: NextRequest) {
       if (asignado) {
         asignaciones.push({
           userId: asignado.userId,
-          nombre: asignado.nombre,
-          cedula: asignado.cedula,
-          fecha,
+          fullName: asignado.fullName,
+          documentNumber: asignado.documentNumber,
+          date: fecha,
           ultimaPrev: asignado.ultima ? dateKey(asignado.ultima) : null,
         });
       }
@@ -197,7 +197,7 @@ export async function POST(req: NextRequest) {
         asignaciones,
         ordenInicial: cola.map((c) => ({
           userId: c.userId,
-          nombre: c.nombre,
+          fullName: c.fullName,
           ultima: c.ultima ? dateKey(c.ultima) : null,
         })),
       });
@@ -205,23 +205,23 @@ export async function POST(req: NextRequest) {
 
     let escritos = 0;
     for (const a of asignaciones) {
-      const [y, m, d] = a.fecha.split("-").map(Number);
+      const [y, m, d] = a.date.split("-").map(Number);
       const fechaDate = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
 
-      const existente = await prisma.mallaTurno.findUnique({
-        where: { userId_fecha: { userId: a.userId, fecha: fechaDate } },
-        select: { tipo: true },
+      const existente = await prisma.shiftSchedule.findUnique({
+        where: { userId_date: { userId: a.userId, date: fechaDate } },
+        select: { dayType: true },
       });
 
-      await prisma.mallaTurno.upsert({
-        where: { userId_fecha: { userId: a.userId, fecha: fechaDate } },
-        update: { tipo: "DISPONIBLE", valor: "disponible" },
-        create: { userId: a.userId, fecha: fechaDate, tipo: "DISPONIBLE", valor: "disponible" },
+      await prisma.shiftSchedule.upsert({
+        where: { userId_date: { userId: a.userId, date: fechaDate } },
+        update: { dayType: "DISPONIBLE", shiftCode: "disponible" },
+        create: { userId: a.userId, date: fechaDate, dayType: "DISPONIBLE", shiftCode: "disponible" },
       });
       escritos++;
 
-      if (existente?.tipo !== "DISPONIBLE") {
-        appendRow("Disponibilidades", [a.nombre, a.cedula ?? "", a.fecha, 80000]).catch(console.error);
+      if (existente?.dayType !== "DISPONIBLE") {
+        appendRow("Disponibilidades", [a.fullName, a.documentNumber ?? "", a.date, 80000]).catch(console.error);
       }
     }
 

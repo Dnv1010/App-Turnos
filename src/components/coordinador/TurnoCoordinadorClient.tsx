@@ -11,33 +11,33 @@ import CoordinadorDisponibilidadTab from "@/components/coordinador/CoordinadorDi
 export type TurnoCoordinadorRow = {
   id: string;
   userId?: string;
-  fecha: string;
-  horaEntrada: string;
-  horaSalida: string | null;
-  codigoOrden: string;
-  horasOrdinarias: number;
-  heDiurna: number;
-  heNocturna: number;
-  heDominical: number;
-  heNoctDominical: number;
-  recNocturno: number;
-  recDominical: number;
-  recNoctDominical: number;
-  nota?: string | null;
-  user?: { nombre: string; cedula: string | null; zona: string; role: string };
+  date: string;
+  clockInAt: string;
+  clockOutAt: string | null;
+  orderCode: string;
+  regularHours: number;
+  daytimeOvertimeHours: number;
+  nighttimeOvertimeHours: number;
+  sundayOvertimeHours: number;
+  nightSundayOvertimeHours: number;
+  nightSurchargeHours: number;
+  sundaySurchargeHours: number;
+  nightSundaySurchargeHours: number;
+  note?: string | null;
+  user?: { fullName: string; documentNumber: string | null; zone: string; role: string };
 };
 
 function totalHE(t: Pick<TurnoCoordinadorRow, keyof TurnoCoordinadorRow>): number {
   return (
-    (t.heDiurna ?? 0) +
-    (t.heNocturna ?? 0) +
-    (t.heDominical ?? 0) +
-    (t.heNoctDominical ?? 0)
+    (t.daytimeOvertimeHours ?? 0) +
+    (t.nighttimeOvertimeHours ?? 0) +
+    (t.sundayOvertimeHours ?? 0) +
+    (t.nightSundayOvertimeHours ?? 0)
   );
 }
 
 function totalHorasTrabajo(t: TurnoCoordinadorRow): number {
-  return (t.horasOrdinarias ?? 0) + totalHE(t);
+  return (t.regularHours ?? 0) + totalHE(t);
 }
 
 function obtenerGps(): Promise<{ lat: number; lng: number } | null> {
@@ -96,7 +96,7 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
       const data = await parseResponseJson<{ turnos: TurnoCoordinadorRow[] }>(res);
       if (!res.ok) return;
       const list = Array.isArray(data?.turnos) ? data.turnos : [];
-      setTurnoAbierto(list.find((t) => t.horaSalida == null) ?? null);
+      setTurnoAbierto(list.find((t) => t.clockOutAt == null) ?? null);
     } catch {
       setTurnoAbierto(null);
     }
@@ -117,7 +117,7 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
 
   const elapsedLabel = useMemo(() => {
     if (!turnoAbierto) return "";
-    const start = new Date(turnoAbierto.horaEntrada).getTime();
+    const start = new Date(turnoAbierto.clockInAt).getTime();
     const sec = Math.max(0, Math.floor((Date.now() - start) / 1000));
     const h = Math.floor(sec / 3600);
     const m = Math.floor((sec % 3600) / 60);
@@ -139,7 +139,7 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          codigoOrden: codigo,
+          orderCode: codigo,
           ...(gps ? { lat: gps.lat, lng: gps.lng } : {}),
         }),
       });
@@ -181,7 +181,7 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
   }
 
   const cerradosOrdenados = useMemo(
-    () => turnosHist.filter((t) => t.horaSalida != null),
+    () => turnosHist.filter((t) => t.clockOutAt != null),
     [turnosHist]
   );
 
@@ -270,12 +270,12 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
             <div className="grid gap-2 text-sm sm:grid-cols-2">
               <div>
                 <span className="font-medium text-gray-700 dark:text-[#CBD5E1]">Código / orden:</span>{" "}
-                <span className="font-mono text-gray-900 dark:text-white">{turnoAbierto.codigoOrden}</span>
+                <span className="font-mono text-gray-900 dark:text-white">{turnoAbierto.orderCode}</span>
               </div>
               <div>
                 <span className="font-medium text-gray-700 dark:text-[#CBD5E1]">Inicio:</span>{" "}
-                {new Date(turnoAbierto.horaEntrada).toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric" })}{" "}
-                {new Date(turnoAbierto.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })}
+                {new Date(turnoAbierto.clockInAt).toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric" })}{" "}
+                {new Date(turnoAbierto.clockInAt).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })}
               </div>
               <div className="sm:col-span-2">
                 <span className="font-medium text-gray-700 dark:text-[#CBD5E1]">Tiempo transcurrido:</span>{" "}
@@ -358,24 +358,24 @@ export default function TurnoCoordinadorClient({ titulo = "Turno Coordinador" }:
                 ) : (
                   cerradosOrdenados.map((t) => (
                     <tr key={t.id} className="border-t border-gray-100 dark:border-[#2A3555] hover:bg-gray-50 dark:hover:bg-[#243052]">
-                      <td className="p-2 whitespace-nowrap">{formatFechaTurnoDdMmmYyyy(t.fecha)}</td>
-                      <td className="p-2 font-mono">{t.codigoOrden}</td>
+                      <td className="p-2 whitespace-nowrap">{formatFechaTurnoDdMmmYyyy(t.date)}</td>
+                      <td className="p-2 font-mono">{t.orderCode}</td>
                       <td className="p-2 whitespace-nowrap">
-                        {new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })}
+                        {new Date(t.clockInAt).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })}
                       </td>
                       <td className="p-2 whitespace-nowrap">
-                        {t.horaSalida
-                          ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })
+                        {t.clockOutAt
+                          ? new Date(t.clockOutAt).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })
                           : "—"}
                       </td>
                       <td className="p-2 text-right font-mono">{totalHorasTrabajo(t).toFixed(2)}</td>
-                      <td className="p-2 text-right font-mono">{(t.heDiurna ?? 0).toFixed(2)}</td>
-                      <td className="p-2 text-right font-mono">{(t.heNocturna ?? 0).toFixed(2)}</td>
-                      <td className="p-2 text-right font-mono">{(t.heDominical ?? 0).toFixed(2)}</td>
-                      <td className="p-2 text-right font-mono">{(t.heNoctDominical ?? 0).toFixed(2)}</td>
-                      <td className="p-2 text-right font-mono">{(t.recNocturno ?? 0).toFixed(2)}</td>
-                      <td className="p-2 text-right font-mono">{(t.recDominical ?? 0).toFixed(2)}</td>
-                      <td className="p-2 text-right font-mono">{(t.recNoctDominical ?? 0).toFixed(2)}</td>
+                      <td className="p-2 text-right font-mono">{(t.daytimeOvertimeHours ?? 0).toFixed(2)}</td>
+                      <td className="p-2 text-right font-mono">{(t.nighttimeOvertimeHours ?? 0).toFixed(2)}</td>
+                      <td className="p-2 text-right font-mono">{(t.sundayOvertimeHours ?? 0).toFixed(2)}</td>
+                      <td className="p-2 text-right font-mono">{(t.nightSundayOvertimeHours ?? 0).toFixed(2)}</td>
+                      <td className="p-2 text-right font-mono">{(t.nightSurchargeHours ?? 0).toFixed(2)}</td>
+                      <td className="p-2 text-right font-mono">{(t.sundaySurchargeHours ?? 0).toFixed(2)}</td>
+                      <td className="p-2 text-right font-mono">{(t.nightSundaySurchargeHours ?? 0).toFixed(2)}</td>
                     </tr>
                   ))
                 )}

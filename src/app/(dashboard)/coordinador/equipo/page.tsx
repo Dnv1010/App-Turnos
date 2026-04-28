@@ -8,12 +8,12 @@ import { getZonaLabel } from "@/lib/roleLabels";
 
 interface Tecnico {
   id: string;
-  cedula: string;
-  nombre: string;
+  documentNumber: string;
+  fullName: string;
   email: string;
   role: string;
-  zona: string;
-  cargo?: string;
+  zone: string;
+  jobTitle?: string;
   isActive: boolean;
 }
 
@@ -34,15 +34,15 @@ export default function CoordinadorEquipoPage() {
   const [error, setError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
-    if (!profile?.zona) return;
+    if (!profile?.zone) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/usuarios?zona=${profile?.zona}&role=TECNICO`);
+      const res = await fetch(`/api/usuarios?zona=${profile?.zone}&role=TECNICO`);
       const data = await parseResponseJson<{ tecnicos?: Tecnico[] }>(res);
       setList(data?.tecnicos || []);
     } catch { setList([]); }
     finally { setLoading(false); }
-  }, [profile?.zona]);
+  }, [profile?.zone]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -54,9 +54,9 @@ export default function CoordinadorEquipoPage() {
   };
 
   const openEdit = (t: Tecnico) => {
-    setEditingId(t.id); setCedula(t.cedula); setNombre(t.nombre); setEmail(t.email); setPin("");
+    setEditingId(t.id); setCedula(t.documentNumber); setNombre(t.fullName); setEmail(t.email); setPin("");
     setShowPin(false);
-    setCargo((t.cargo as "TECNICO" | "ALMACENISTA") || "TECNICO");
+    setCargo((t.jobTitle as "TECNICO" | "ALMACENISTA") || "TECNICO");
     setError(null); setModal("edit");
   };
 
@@ -73,11 +73,11 @@ export default function CoordinadorEquipoPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cedula: cedula.trim(),
-          nombre: nombre.trim(),
+          documentNumber: cedula.trim(),
+          fullName: nombre.trim(),
           email: email.trim().toLowerCase(),
           pin,
-          cargo,
+          jobTitle: cargo,
         }),
       });
       const data = await parseResponseJson<{ error?: string }>(res);
@@ -99,10 +99,10 @@ export default function CoordinadorEquipoPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          nombre: nombre.trim(),
+          fullName: nombre.trim(),
           email: email.trim().toLowerCase(),
           ...(pin ? { pin } : {}),
-          cargo,
+          jobTitle: cargo,
         }),
       });
       const data = await parseResponseJson<{ error?: string }>(res);
@@ -114,7 +114,7 @@ export default function CoordinadorEquipoPage() {
   };
 
   const handleDelete = async (t: Tecnico) => {
-    if (!confirm(`¿Desactivar a ${t.nombre}? No podrá iniciar sesión.`)) return;
+    if (!confirm(`¿Desactivar a ${t.fullName}? No podrá iniciar sesión.`)) return;
     try {
       const res = await fetch(`/api/usuarios/${t.id}`, { method: "DELETE" });
       if (!res.ok) {
@@ -126,14 +126,14 @@ export default function CoordinadorEquipoPage() {
   };
 
   const listFiltrada =
-    filtroCargo === "TODOS" ? list : list.filter((t) => (t.cargo || "TECNICO") === filtroCargo);
+    filtroCargo === "TODOS" ? list : list.filter((t) => (t.jobTitle || "TECNICO") === filtroCargo);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Mi Equipo</h2>
         <p className="text-gray-500 dark:text-[#A0AEC0]">
-          Zona {profile?.zona ? getZonaLabel(profile?.zona) : ""}
+          Zona {profile?.zone ? getZonaLabel(profile?.zone) : ""}
         </p>
         <button onClick={openAdd} className="btn-primary flex items-center gap-2">
           <HiUserAdd className="h-5 w-5" />Agregar operador
@@ -174,17 +174,17 @@ export default function CoordinadorEquipoPage() {
               <tbody>
                 {listFiltrada.map((t) => (
                   <tr key={t.id} className="border-b border-gray-100 dark:border-[#2A3555] hover:bg-gray-50 dark:hover:bg-[#243052]">
-                    <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">{t.cedula}</td>
+                    <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">{t.documentNumber}</td>
                     <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">
-                      {t.nombre}
+                      {t.fullName}
                       <span
                         className={`text-xs px-1.5 py-0.5 rounded font-medium ml-1 ${
-                          (t.cargo || "TECNICO") === "ALMACENISTA"
+                          (t.jobTitle || "TECNICO") === "ALMACENISTA"
                             ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
                             : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                         }`}
                       >
-                        {(t.cargo || "TECNICO") === "ALMACENISTA" ? "Almacenista" : "Técnico"}
+                        {(t.jobTitle || "TECNICO") === "ALMACENISTA" ? "Almacenista" : "Técnico"}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-600 dark:text-[#A0AEC0]">{t.email}</td>

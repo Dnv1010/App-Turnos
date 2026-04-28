@@ -1,4 +1,4 @@
-import { Role, type Zona, type User } from "@prisma/client";
+import { Role, type Zone, type User } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 const ROLES_PERMITIDOS = new Set(["COORDINADOR", "MANAGER", "ADMIN"]);
@@ -27,14 +27,14 @@ export async function getUserIdsTecnicosParaReporte(
   profile: User,
   zonaQuery: string | null
 ): Promise<string[]> {
-  const whereUser: { isActive: boolean; role: "TECNICO"; zona?: Zona } = {
+  const whereUser: { isActive: boolean; role: "TECNICO"; zone?: Zone } = {
     isActive: true,
     role: "TECNICO",
   };
   if (profile.role === "COORDINADOR") {
-    whereUser.zona = profile.zona as Zona;
+    whereUser.zone = profile.zone as Zone;
   } else if (zonaQuery && zonaQuery !== "ALL") {
-    whereUser.zona = zonaQuery as Zona;
+    whereUser.zone = zonaQuery as Zone;
   }
   const usuarios = await prisma.user.findMany({
     where: whereUser,
@@ -51,15 +51,15 @@ export async function getUserIdsCoordinadoresParaReporte(
   const whereUser: {
     isActive: boolean;
     role: { in: Role[] };
-    zona?: Zona;
+    zone?: Zone;
   } = {
     isActive: true,
     role: { in: [Role.COORDINADOR, Role.COORDINADOR_INTERIOR] },
   };
   if (profile.role === "COORDINADOR") {
-    whereUser.zona = profile.zona as Zona;
+    whereUser.zone = profile.zone as Zone;
   } else if (zonaQuery && zonaQuery !== "ALL") {
-    whereUser.zona = zonaQuery as Zona;
+    whereUser.zone = zonaQuery as Zone;
   }
   const usuarios = await prisma.user.findMany({
     where: whereUser,
@@ -71,7 +71,7 @@ export async function getUserIdsCoordinadoresParaReporte(
 /** Zona persistida en Reporte: coordinador siempre la suya; manager/admin opcional. */
 export function zonaPersistidaParaCrear(profile: User, zonaBody: string | null | undefined): string | null {
   if (profile.role === "COORDINADOR") {
-    return profile.zona;
+    return profile.zone;
   }
   if (zonaBody && zonaBody !== "ALL") {
     return zonaBody;
@@ -81,23 +81,23 @@ export function zonaPersistidaParaCrear(profile: User, zonaBody: string | null |
 
 export function whereListarReportes(profile: User, zonaQuery: string | null) {
   if (profile.role === "COORDINADOR") {
-    return { zona: profile.zona };
+    return { zone: profile.zone };
   }
   if (zonaQuery && zonaQuery !== "ALL") {
-    return { zona: zonaQuery };
+    return { zone: zonaQuery };
   }
   return {};
 }
 
 export function puedeGestionarReporte(
   profile: User,
-  reporte: { zona: string | null; creadoPor: string }
+  reporte: { zone: string | null; createdBy: string }
 ): boolean {
   if (profile.role === "MANAGER" || profile.role === "ADMIN") {
     return true;
   }
   if (profile.role === "COORDINADOR") {
-    return reporte.zona === profile.zona;
+    return reporte.zone === profile.zone;
   }
   return false;
 }

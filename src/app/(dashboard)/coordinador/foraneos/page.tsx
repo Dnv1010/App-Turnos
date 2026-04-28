@@ -9,7 +9,7 @@ import { getZonaLabel } from "@/lib/roleLabels";
 
 interface TecnicoOption {
   id: string;
-  nombre: string;
+  fullName: string;
 }
 
 export default function CoordinadorForaneosPage() {
@@ -23,7 +23,7 @@ export default function CoordinadorForaneosPage() {
     if (!profile) return;
     const url =
       profile.role === "COORDINADOR"
-        ? `/api/usuarios?zona=${profile.zona}&role=TECNICO`
+        ? `/api/usuarios?zona=${profile.zone}&role=TECNICO`
         : `/api/usuarios?role=TECNICO`;
     fetch(url)
       .then(async (r) => parseResponseJson<{ tecnicos?: TecnicoOption[] }>(r))
@@ -31,9 +31,9 @@ export default function CoordinadorForaneosPage() {
         if (d?.tecnicos) setTecnicos(d.tecnicos);
       })
       .catch(() => {});
-  }, [profile?.role, profile?.zona]);
+  }, [profile?.role, profile?.zone]);
 
-  if (profile?.role === "COORDINADOR" && !profile?.zona) {
+  if (profile?.role === "COORDINADOR" && !profile?.zone) {
     return <div className="p-6 text-gray-500">Sin zona asignada.</div>;
   }
 
@@ -42,7 +42,7 @@ export default function CoordinadorForaneosPage() {
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Foráneos</h2>
       <p className="text-gray-500">
         {profile?.role === "COORDINADOR"
-          ? `Zona ${getZonaLabel(profile?.zona ?? "")} — Registros de foráneos de los operadores de tu zona.`
+          ? `Zona ${getZonaLabel(profile?.zone ?? "")} — Registros de foráneos de los operadores de tu zona.`
           : "Registros foráneos."}
       </p>
 
@@ -71,7 +71,7 @@ export default function CoordinadorForaneosPage() {
               <option value="ALL">Todos</option>
               {tecnicos.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.nombre}
+                  {t.fullName}
                 </option>
               ))}
             </select>

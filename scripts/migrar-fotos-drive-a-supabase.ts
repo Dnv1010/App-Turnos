@@ -129,14 +129,14 @@ async function construirMapeo(): Promise<Map<string, { newUserId: string; nombre
   for (const [oldId, newId] of Object.entries(OLD_TO_NEW)) {
     const user = await prisma.user.findUnique({
       where: { id: newId },
-      select: { nombre: true },
+      select: { fullName: true },
     });
     if (!user) {
       console.warn(`   ⚠️  newUserId no encontrado en BD: ${newId}`);
       continue;
     }
-    mapeo.set(oldId, { newUserId: newId, nombre: user.nombre });
-    console.log(`   ✅ ...${oldId.slice(-8)} → ${user.nombre}`);
+    mapeo.set(oldId, { newUserId: newId, nombre: user.fullName });
+    console.log(`   ✅ ...${oldId.slice(-8)} → ${user.fullName}`);
   }
 
   console.log(`   Mapeo construido: ${mapeo.size}/${Object.keys(OLD_TO_NEW).length} usuarios`);
@@ -166,9 +166,9 @@ async function migrarTurnos(archivos: DriveFile[], mapeo: Map<string, { newUserI
     const fecha = fechaDesdets(c.timestamp);
     const campoDB = c.tipo === "ENTRADA" ? "startPhotoUrl" : "endPhotoUrl";
 
-    const turno = await prisma.turno.findFirst({
-      where: { userId: mapped.newUserId, fecha },
-      select: { id: true, startPhotoUrl: true, endPhotoUrl: true, fecha: true, user: { select: { nombre: true } } },
+    const turno = await prisma.shift.findFirst({
+      where: { userId: mapped.newUserId, date: fecha },
+      select: { id: true, startPhotoUrl: true, endPhotoUrl: true, date: true, user: { select: { fullName: true } } },
     });
 
     if (!turno) {
@@ -182,13 +182,13 @@ async function migrarTurnos(archivos: DriveFile[], mapeo: Map<string, { newUserI
     const buf = await descargarArchivoDrive(archivo.id);
     if (!buf) { err++; continue; }
 
-    const year = turno.fecha.getFullYear();
+    const year = turno.date.getFullYear();
     const storagePath = `${year}/${turno.id}_${c.tipo.toLowerCase()}.jpg`;
     const newUrl = await subirAStorage(buf, storagePath, BUCKET_TURNOS);
     if (!newUrl) { err++; continue; }
 
-    await prisma.turno.update({ where: { id: turno.id }, data: { [campoDB]: newUrl } });
-    console.log(`   ✅ ${turno.user.nombre} — ${c.tipo} ${turno.fecha.toISOString().split("T")[0]}`);
+    await prisma.shift.update({ where: { id: turno.id }, data: { [campoDB]: newUrl } });
+    console.log(`   ✅ ${turno.user.fullName} — ${c.tipo} ${turno.date.toISOString().split("T")[0]}`);
     ok++;
   }
   console.log(`   Turnos: ${ok} ok, ${skip} no encontrados, ${err} errores`);
@@ -220,16 +220,16 @@ async function migrarForaneos(archivos: DriveFile[], mapeo: Map<string, { newUse
 
     // Buscar FotoRegistro por newUserId + fecha (±1 día por si el trip cruzó medianoche)
     const FORANEO_MARGIN = 24 * 60 * 60 * 1000;
-    const registro = await prisma.fotoRegistro.findFirst({
+    const registro = await prisma.tripRecord.findFirst({
       where: {
         userId: mapped.newUserId,
-        tipo: "FORANEO",
+        type: "FORANEO",
         createdAt: {
           gte: new Date(c.timestamp.getTime() - FORANEO_MARGIN),
           lte: new Date(c.timestamp.getTime() + FORANEO_MARGIN),
         },
       },
-      select: { id: true, driveUrl: true, driveUrlFinal: true, createdAt: true, user: { select: { nombre: true } } },
+      select: { id: true, driveUrl: true, driveUrlFinal: true, createdAt: true, user: { select: { fullName: true } } },
       orderBy: { createdAt: "asc" },
     });
 
@@ -250,11 +250,11 @@ async function migrarForaneos(archivos: DriveFile[], mapeo: Map<string, { newUse
     if (!newUrl) { err++; continue; }
 
     if (tipo === "INICIAL") {
-      await prisma.fotoRegistro.update({ where: { id: registro.id }, data: { driveUrl: newUrl, driveFileId: null } });
+      await prisma.tripRecord.update({ where: { id: registro.id }, data: { driveUrl: newUrl, driveFileId: null } });
     } else {
-      await prisma.fotoRegistro.update({ where: { id: registro.id }, data: { driveUrlFinal: newUrl, driveFileIdFinal: null } });
+      await prisma.tripRecord.update({ where: { id: registro.id }, data: { driveUrlFinal: newUrl, driveFileIdFinal: null } });
     }
-    console.log(`   ✅ ${registro.user.nombre} — ${tipo} ${c.timestamp.toISOString().split("T")[0]}`);
+    console.log(`   ✅ ${registro.user.fullName} — ${tipo} ${c.timestamp.toISOString().split("T")[0]}`);
     ok++;
   }
   console.log(`   Foráneos: ${ok} ok, ${skip} no encontrados, ${err} errores`);

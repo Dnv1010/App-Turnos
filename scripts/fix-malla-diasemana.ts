@@ -16,44 +16,44 @@ dotenv.config({ path: ".env" });
 const prisma = new PrismaClient();
 
 async function main() {
-  const todos = await prisma.mallaTurno.findMany({
-    select: { id: true, fecha: true, tipo: true, valor: true, horaInicio: true, horaFin: true },
+  const todos = await prisma.shiftSchedule.findMany({
+    select: { id: true, date: true, dayType: true, shiftCode: true, startTime: true, endTime: true },
   });
 
   // Festivos en BD para no sobreescribir lunes festivos que sí deben ser DESCANSO
-  const festivoRows = await prisma.festivo.findMany({ select: { fecha: true } });
-  const festivoSet = new Set(festivoRows.map((f) => f.fecha.toISOString().split("T")[0]));
+  const festivoRows = await prisma.holiday.findMany({ select: { date: true } });
+  const festivoSet = new Set(festivoRows.map((f) => f.date.toISOString().split("T")[0]));
 
   let fixedDomingo = 0;
   let fixedLunes = 0;
   let skippedLunesFestivo = 0;
 
   for (const r of todos) {
-    const dow = r.fecha.getUTCDay(); // 0=Dom, 1=Lun, 6=Sáb
-    const fechaKey = r.fecha.toISOString().split("T")[0];
+    const dow = r.date.getUTCDay(); // 0=Dom, 1=Lun, 6=Sáb
+    const fechaKey = r.date.toISOString().split("T")[0];
     const esFestivo = festivoSet.has(fechaKey);
 
     // Caso 1: Domingo mal marcado como TRABAJO (debería ser DESCANSO)
-    if (dow === 0 && r.tipo === "TRABAJO") {
-      await prisma.mallaTurno.update({
+    if (dow === 0 && r.dayType === "TRABAJO") {
+      await prisma.shiftSchedule.update({
         where: { id: r.id },
-        data: { tipo: "DESCANSO", valor: "descanso", horaInicio: null, horaFin: null },
+        data: { dayType: "DESCANSO", shiftCode: "descanso", startTime: null, endTime: null },
       });
       console.log(`  [DOM→DESCANSO] ${fechaKey}`);
       fixedDomingo++;
     }
 
     // Caso 2: Lunes mal marcado como DESCANSO (valor "descanso"), sin ser festivo
-    else if (dow === 1 && r.tipo === "DESCANSO" && r.valor === "descanso" && !esFestivo) {
-      await prisma.mallaTurno.update({
+    else if (dow === 1 && r.dayType === "DESCANSO" && r.shiftCode === "descanso" && !esFestivo) {
+      await prisma.shiftSchedule.update({
         where: { id: r.id },
-        data: { tipo: "TRABAJO", valor: "08:00-17:00", horaInicio: "08:00", horaFin: "17:00" },
+        data: { dayType: "TRABAJO", shiftCode: "08:00-17:00", startTime: "08:00", endTime: "17:00" },
       });
       console.log(`  [LUN→TRABAJO]  ${fechaKey}`);
       fixedLunes++;
     }
 
-    else if (dow === 1 && r.tipo === "DESCANSO" && r.valor === "descanso" && esFestivo) {
+    else if (dow === 1 && r.dayType === "DESCANSO" && r.shiftCode === "descanso" && esFestivo) {
       skippedLunesFestivo++;
     }
   }

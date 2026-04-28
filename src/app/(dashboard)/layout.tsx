@@ -96,9 +96,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Sidebar role={profile.role} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar
-          nombre={profile.nombre || profile.email || ""}
+          nombre={profile.fullName || profile.email || ""}
           role={profile.role}
-          zona={profile.zona || undefined}
+          zona={profile.zone || undefined}
           onMenuClick={() => setSidebarOpen(true)}
         />
         <main className="flex-1 overflow-y-auto w-full min-w-0 p-2 sm:p-6 lg:p-8">{children}</main>

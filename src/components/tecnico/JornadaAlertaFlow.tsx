@@ -18,7 +18,7 @@ function storageKeyHandled(turnoId: string) {
 }
 
 interface Props {
-  turnoActivo: { id: string; horaEntrada: string; userId: string } | null;
+  turnoActivo: { id: string; clockInAt: string; userId: string } | null;
   /** Nombre del operador (sesión) para personalizar toast / modal / Notification local */
   operadorNombre?: string;
   onAfterReport?: () => void;
@@ -43,7 +43,7 @@ export default function JornadaAlertaFlow({ turnoActivo, operadorNombre = "" }: 
   const lastTurnoKeyRef = useRef<string | null>(null);
 
   const turnoId = turnoActivo?.id;
-  const horaEntrada = turnoActivo?.horaEntrada;
+  const horaEntrada = turnoActivo?.clockInAt;
 
   useEffect(() => {
     if (timerRef.current) {
@@ -123,7 +123,7 @@ export default function JornadaAlertaFlow({ turnoActivo, operadorNombre = "" }: 
 
   if (!turnoActivo || step === "closed") return null;
 
-  const entrada = new Date(turnoActivo.horaEntrada);
+  const entrada = new Date(turnoActivo.clockInAt);
   const horaFin = new Date(entrada.getTime() + jornadaTotalMsDesdeEntrada(entrada));
   const textoAmigable = mensajeCuerpoOperador15min(primerNombreOperador(operadorNombre));
 

@@ -51,30 +51,30 @@ export async function POST() {
     }
 
     const [turnos, mallaDisponibles, fotosForaneos] = await Promise.all([
-      prisma.turno.findMany({
+      prisma.shift.findMany({
         where: {
           userId: { in: userIds },
-          horaSalida: { not: null },
+          clockOutAt: { not: null },
         },
-        include: { user: { select: { nombre: true, cedula: true } } },
-        orderBy: [{ fecha: "asc" }, { horaEntrada: "asc" }],
+        include: { user: { select: { fullName: true, documentNumber: true } } },
+        orderBy: [{ date: "asc" }, { clockInAt: "asc" }],
       }),
-      prisma.mallaTurno.findMany({
+      prisma.shiftSchedule.findMany({
         where: {
-          tipo: "DISPONIBLE",
+          dayType: "DISPONIBLE",
           userId: { in: userIds },
         },
-        include: { user: { select: { nombre: true, cedula: true } } },
-        orderBy: [{ userId: "asc" }, { fecha: "asc" }],
+        include: { user: { select: { fullName: true, documentNumber: true } } },
+        orderBy: [{ userId: "asc" }, { date: "asc" }],
       }),
-      prisma.fotoRegistro.findMany({
+      prisma.tripRecord.findMany({
         where: {
-          tipo: "FORANEO",
-          estadoAprobacion: "APROBADA",
+          type: "FORANEO",
+          approvalStatus: "APROBADA",
           userId: { in: userIds },
-          kmFinal: { not: null },
+          endKm: { not: null },
         },
-        include: { user: { select: { nombre: true, cedula: true } } },
+        include: { user: { select: { fullName: true, documentNumber: true } } },
       }),
     ]);
 
@@ -98,13 +98,13 @@ export async function POST() {
     > = {};
     turnos.forEach((t) => {
       const key = t.userId;
-      const totalHoras = t.horaSalida
-        ? Math.round(((t.horaSalida.getTime() - t.horaEntrada.getTime()) / (1000 * 60 * 60)) * 100) / 100
+      const totalHoras = t.clockOutAt
+        ? Math.round(((t.clockOutAt.getTime() - t.clockInAt.getTime()) / (1000 * 60 * 60)) * 100) / 100
         : 0;
       if (!resumenMap[key]) {
         resumenMap[key] = {
-          nombre: t.user.nombre,
-          cedula: t.user.cedula,
+          nombre: t.user.fullName,
+          cedula: t.user.documentNumber,
           totalTurnos: 0,
           totalHoras: 0,
           horasOrd: 0,
@@ -120,14 +120,14 @@ export async function POST() {
       const r = resumenMap[key];
       r.totalTurnos += 1;
       r.totalHoras += totalHoras;
-      r.horasOrd += Math.max(0, t.horasOrdinarias ?? 0);
-      r.heDiurna += t.heDiurna ?? 0;
-      r.heNocturna += t.heNocturna ?? 0;
-      r.heDomD += t.heDominical ?? 0;
-      r.heDomN += t.heNoctDominical ?? 0;
-      r.recNoc += t.recNocturno ?? 0;
-      r.recDomD += t.recDominical ?? 0;
-      r.recDomN += t.recNoctDominical ?? 0;
+      r.horasOrd += Math.max(0, t.regularHours ?? 0);
+      r.heDiurna += t.daytimeOvertimeHours ?? 0;
+      r.heNocturna += t.nighttimeOvertimeHours ?? 0;
+      r.heDomD += t.sundayOvertimeHours ?? 0;
+      r.heDomN += t.nightSundayOvertimeHours ?? 0;
+      r.recNoc += t.nightSurchargeHours ?? 0;
+      r.recDomD += t.sundaySurchargeHours ?? 0;
+      r.recDomN += t.nightSundaySurchargeHours ?? 0;
     });
 
     const resumenHeaders = [
@@ -153,32 +153,32 @@ export async function POST() {
       "HE Dom/Fest Nocturna", "Recargo Nocturno", "Recargo Dom/Fest Diurno", "Recargo Dom/Fest Nocturno",
     ];
     const turnosRows = turnos.map((t) => {
-      const totalHoras = t.horaSalida
-        ? Math.round(((t.horaSalida.getTime() - t.horaEntrada.getTime()) / (1000 * 60 * 60)) * 100) / 100
+      const totalHoras = t.clockOutAt
+        ? Math.round(((t.clockOutAt.getTime() - t.clockInAt.getTime()) / (1000 * 60 * 60)) * 100) / 100
         : 0;
       return [
-        t.user.nombre,
-        t.user.cedula ?? "",
-        dateKey(t.fecha),
-        diaSemana(t.fecha),
-        timeColombia(t.horaEntrada),
-        t.horaSalida ? timeColombia(t.horaSalida) : "",
+        t.user.fullName,
+        t.user.documentNumber ?? "",
+        dateKey(t.date),
+        diaSemana(t.date),
+        timeColombia(t.clockInAt),
+        t.clockOutAt ? timeColombia(t.clockOutAt) : "",
         totalHoras,
-        Math.max(0, t.horasOrdinarias ?? 0),
-        t.heDiurna ?? 0,
-        t.heNocturna ?? 0,
-        t.heDominical ?? 0,
-        t.heNoctDominical ?? 0,
-        t.recNocturno ?? 0,
-        t.recDominical ?? 0,
-        t.recNoctDominical ?? 0,
+        Math.max(0, t.regularHours ?? 0),
+        t.daytimeOvertimeHours ?? 0,
+        t.nighttimeOvertimeHours ?? 0,
+        t.sundayOvertimeHours ?? 0,
+        t.nightSundayOvertimeHours ?? 0,
+        t.nightSurchargeHours ?? 0,
+        t.sundaySurchargeHours ?? 0,
+        t.nightSundaySurchargeHours ?? 0,
       ];
     });
 
     // Disponibilidades
     const dispHeaders = ["Nombre", "Cédula", "Fecha", "Valor"];
     const dispRows = mallaDisponibles.map((m) => [
-      m.user.nombre, m.user.cedula ?? "", dateKey(m.fecha), 80000,
+      m.user.fullName, m.user.documentNumber ?? "", dateKey(m.date), 80000,
     ]);
 
     // Foráneos — agrupados por técnico y fecha
@@ -187,11 +187,11 @@ export async function POST() {
       { nombre: string; cedula: string | null; cantidad: number; km: number; totalPagar: number }
     > = {};
     fotosForaneos.forEach((f) => {
-      const km = f.kmInicial != null && f.kmFinal != null && f.kmFinal > f.kmInicial ? f.kmFinal - f.kmInicial : 0;
+      const km = f.startKm != null && f.endKm != null && f.endKm > f.startKm ? f.endKm - f.startKm : 0;
       const fechaStr = dateKey(f.createdAt);
       const key = `${f.userId}_${fechaStr}`;
       if (!foraneosMap[key]) {
-        foraneosMap[key] = { nombre: f.user.nombre, cedula: f.user.cedula, cantidad: 0, km: 0, totalPagar: 0 };
+        foraneosMap[key] = { nombre: f.user.fullName, cedula: f.user.documentNumber, cantidad: 0, km: 0, totalPagar: 0 };
       }
       foraneosMap[key].cantidad += 1;
       foraneosMap[key].km += km;

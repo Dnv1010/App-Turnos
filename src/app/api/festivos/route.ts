@@ -25,11 +25,11 @@ export async function GET(req: NextRequest) {
   const fechaInicio = new Date(Date.UTC(yi, mi - 1, di, 0, 0, 0));
   const fechaFin = new Date(Date.UTC(yf, mf - 1, df, 23, 59, 59));
 
-  const festivos = await prisma.festivo.findMany({
-    where: { fecha: { gte: fechaInicio, lte: fechaFin } },
-    select: { fecha: true },
+  const festivos = await prisma.holiday.findMany({
+    where: { date: { gte: fechaInicio, lte: fechaFin } },
+    select: { date: true },
   });
 
-  const festivosKeys = festivos.map((f) => dateKey(f.fecha));
+  const festivosKeys = festivos.map((f) => dateKey(f.date));
   return NextResponse.json({ festivos: festivosKeys });
 }

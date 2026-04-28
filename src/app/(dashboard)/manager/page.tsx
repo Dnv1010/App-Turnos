@@ -13,15 +13,15 @@ import { HiUserGroup, HiOfficeBuilding, HiGlobeAlt } from "react-icons/hi";
 import { getZonaLabel } from "@/lib/roleLabels";
 
 interface DetalleUsuario {
-  userId: string; nombre: string; zona: string; role: string; totalTurnos: number;
-  horasOrdinarias: number; heDiurna: number; heNocturna: number; heDominical: number;
-  heNoctDominical: number; totalHorasExtra: number; totalRecargos: number; totalDisponibilidades: number;
+  userId: string; fullName: string; zone: string; role: string; totalTurnos: number;
+  regularHours: number; daytimeOvertimeHours: number; nighttimeOvertimeHours: number; sundayOvertimeHours: number;
+  nightSundayOvertimeHours: number; totalHorasExtra: number; totalRecargos: number; totalDisponibilidades: number;
 }
 
 interface ReporteData {
   detalle: DetalleUsuario[];
   resumen: { totalTecnicos: number; totalHorasExtra: number; totalRecargos: number; totalHorasOrdinarias: number; totalDisponibilidades: number; };
-  alertas: Array<{ nombre: string; mensaje: string }>;
+  alertas: Array<{ fullName: string; mensaje: string }>;
 }
 
 export default function ManagerPage() {
@@ -71,30 +71,30 @@ export default function ManagerPage() {
   );
   if (!data) return null;
 
-  const bogota = data.detalle.filter((d) => d.zona === "BOGOTA");
-  const costa = data.detalle.filter((d) => d.zona === "COSTA");
-  const interior = data.detalle.filter((d) => d.zona === "INTERIOR");
+  const bogota = data.detalle.filter((d) => d.zone === "BOGOTA");
+  const costa = data.detalle.filter((d) => d.zone === "COSTA");
+  const interior = data.detalle.filter((d) => d.zone === "INTERIOR");
   const datosGrafico = data.detalle.map((d) => ({
-    nombre: d.nombre.split(" ")[0],
-    horasOrdinarias: d.horasOrdinarias,
-    heDiurna: d.heDiurna,
-    heNocturna: d.heNocturna,
+    nombre: d.fullName.split(" ")[0],
+    horasOrdinarias: d.regularHours,
+    heDiurna: d.daytimeOvertimeHours,
+    heNocturna: d.nighttimeOvertimeHours,
     recargos: d.totalRecargos,
   }));
 
   const columns = [
-    { key: "nombre", label: "Operador", sortable: true },
+    { key: "fullName", label: "Operador", sortable: true },
     {
-      key: "zona",
+      key: "zone",
       label: "Zona",
       render: (d: DetalleUsuario) => (
-        <span className={d.zona === "BOGOTA" ? "badge-blue" : d.zona === "INTERIOR" ? "badge-zona-interior" : "badge-green"}>
-          {getZonaLabel(d.zona)}
+        <span className={d.zone === "BOGOTA" ? "badge-blue" : d.zone === "INTERIOR" ? "badge-zona-interior" : "badge-green"}>
+          {getZonaLabel(d.zone)}
         </span>
       ),
     },
     { key: "totalTurnos", label: "Turnos", sortable: true },
-    { key: "horasOrdinarias", label: "Ordinarias", sortable: true },
+    { key: "regularHours", label: "Ordinarias", sortable: true },
     { key: "totalHorasExtra", label: "HE Total", sortable: true },
     { key: "totalRecargos", label: "Recargos", sortable: true },
     {

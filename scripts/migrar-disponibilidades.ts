@@ -16,7 +16,7 @@
  * Tipo destino: DISPONIBLE. Valor: "disponible" (técnico) o "Disponible" (coordinador).
  * Fecha: se guarda a 00:00 UTC, igual que el resto de la app.
  */
-import { PrismaClient, type TipoDia } from "@prisma/client";
+import { PrismaClient, type DayType } from "@prisma/client";
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import * as path from "path";
@@ -104,10 +104,10 @@ async function main() {
   // 1) Match por cédula en bloque para reducir queries
   const cedulasUnicas = Array.from(new Set(filas.map((f) => f.cedula).filter(Boolean)));
   const usuarios = await prisma.user.findMany({
-    where: { cedula: { in: cedulasUnicas } },
-    select: { id: true, cedula: true, nombre: true, role: true, zona: true },
+    where: { documentNumber: { in: cedulasUnicas } },
+    select: { id: true, documentNumber: true, fullName: true, role: true, zone: true },
   });
-  const userByCedula = new Map(usuarios.map((u) => [u.cedula, u]));
+  const userByCedula = new Map(usuarios.map((u) => [u.documentNumber, u]));
 
   console.log(`   ${usuarios.length}/${cedulasUnicas.length} cédulas matcheadas en BD\n`);
 
@@ -154,9 +154,9 @@ async function main() {
       cedula: f.cedula,
       nombreCsv: f.nombre,
       rolCsv: f.rol,
-      nombreBd: user.nombre,
+      nombreBd: user.fullName,
       roleBd: user.role,
-      zona: user.zona,
+      zona: user.zone,
       userId: user.id,
       fechaIso: fechaNorm,
       fechaDate,
@@ -212,17 +212,17 @@ async function main() {
 
   for (const p of plan) {
     try {
-      await prisma.mallaTurno.upsert({
-        where: { userId_fecha: { userId: p.userId, fecha: p.fechaDate } },
+      await prisma.shiftSchedule.upsert({
+        where: { userId_date: { userId: p.userId, date: p.fechaDate } },
         create: {
           userId: p.userId,
-          fecha: p.fechaDate,
-          valor: p.valor,
-          tipo: "DISPONIBLE" satisfies TipoDia,
+          date: p.fechaDate,
+          shiftCode: p.valor,
+          dayType: "DISPONIBLE" satisfies DayType,
         },
         update: {
-          valor: p.valor,
-          tipo: "DISPONIBLE",
+          shiftCode: p.valor,
+          dayType: "DISPONIBLE",
         },
       });
       ok++;

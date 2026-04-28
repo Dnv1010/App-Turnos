@@ -24,9 +24,9 @@ export async function POST() {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
-  const turnos = await prisma.turno.findMany({
-    where: { horaSalida: { not: null } },
-    orderBy: { fecha: "asc" },
+  const turnos = await prisma.shift.findMany({
+    where: { clockOutAt: { not: null } },
+    orderBy: { date: "asc" },
   });
 
   let actualizados = 0;
@@ -34,33 +34,42 @@ export async function POST() {
 
   for (const turno of turnos) {
     try {
-      const inicioSemana = getInicioSemana(turno.fecha);
-      const finSemana = getFinSemana(turno.fecha);
+      const inicioSemana = getInicioSemana(turno.date);
+      const finSemana = getFinSemana(turno.date);
 
       const [mallaDiaRow, festivosSemana, turnosSemana] = await Promise.all([
-        prisma.mallaTurno.findUnique({
-          where: { userId_fecha: { userId: turno.userId, fecha: turno.fecha } },
+        prisma.shiftSchedule.findUnique({
+          where: { userId_date: { userId: turno.userId, date: turno.date } },
         }),
-        prisma.festivo.findMany({
-          where: { fecha: { gte: inicioSemana, lte: finSemana } },
+        prisma.holiday.findMany({
+          where: { date: { gte: inicioSemana, lte: finSemana } },
         }),
-        prisma.turno.findMany({
+        prisma.shift.findMany({
           where: {
             userId: turno.userId,
-            fecha: { gte: inicioSemana, lte: finSemana },
-            horaSalida: { not: null },
+            date: { gte: inicioSemana, lte: finSemana },
+            clockOutAt: { not: null },
             id: { not: turno.id },
           },
-          select: { fecha: true, horasOrdinarias: true },
+          select: { date: true, regularHours: true },
         }),
       ]);
 
-      const holidaySet = new Set(festivosSemana.map((f) => dateKey(f.fecha)));
-      const esFestivo = holidaySet.has(dateKey(turno.fecha));
-      const weeklyOrdHours = sumWeeklyOrdHoursMonSat(turnosSemana);
+      const holidaySet = new Set(festivosSemana.map((f) => dateKey(f.date)));
+      const esFestivo = holidaySet.has(dateKey(turno.date));
+      const weeklyOrdHours = sumWeeklyOrdHoursMonSat(
+        turnosSemana.map((t) => ({ fecha: t.date, horasOrdinarias: t.regularHours ?? 0 }))
+      );
 
       type MallaRow = { tipo?: string | null; valor: string; horaInicio?: string | null; horaFin?: string | null };
-      const row = mallaDiaRow as MallaRow | null;
+      const row = mallaDiaRow
+        ? ({
+            tipo: mallaDiaRow.dayType,
+            valor: mallaDiaRow.shiftCode,
+            horaInicio: mallaDiaRow.startTime,
+            horaFin: mallaDiaRow.endTime,
+          } as MallaRow)
+        : null;
       const mallaDia = row
         ? {
             tipo: esFestivo ? "FESTIVO" : (row.tipo ?? "TRABAJO"),
@@ -70,26 +79,35 @@ export async function POST() {
           }
         : esFestivo
           ? { tipo: "FESTIVO" as const, valor: null, horaInicio: null, horaFin: null }
-          : getDay(turno.fecha) === 0
+          : getDay(turno.date) === 0
             ? { tipo: "DESCANSO" as const, valor: null, horaInicio: null, horaFin: null }
             : {
                 tipo: "TRABAJO" as const,
                 valor: "Trabajo",
                 horaInicio: "08:00",
-                horaFin: getDay(turno.fecha) === 6 ? "12:00" : "17:00",
+                horaFin: getDay(turno.date) === 6 ? "12:00" : "17:00",
               };
 
       const resultado = calcularHorasTurno(
-        { horaEntrada: turno.horaEntrada, horaSalida: turno.horaSalida!, fecha: turno.fecha },
+        { horaEntrada: turno.clockInAt, horaSalida: turno.clockOutAt!, fecha: turno.date },
         mallaDia,
         holidaySet,
         weeklyOrdHours
       );
       const resultadoDb = resultadoToTurnoData(resultado);
 
-      await prisma.turno.update({
+      await prisma.shift.update({
         where: { id: turno.id },
-        data: resultadoDb,
+        data: {
+          regularHours: resultadoDb.horasOrdinarias,
+          daytimeOvertimeHours: resultadoDb.heDiurna,
+          nighttimeOvertimeHours: resultadoDb.heNocturna,
+          sundayOvertimeHours: resultadoDb.heDominical,
+          nightSundayOvertimeHours: resultadoDb.heNoctDominical,
+          nightSurchargeHours: resultadoDb.recNocturno,
+          sundaySurchargeHours: resultadoDb.recDominical,
+          nightSundaySurchargeHours: resultadoDb.recNoctDominical,
+        },
       });
 
       actualizados++;

@@ -31,38 +31,38 @@ export async function GET(req: NextRequest) {
     if (profile.role === "COORDINADOR" || profile.role === "SUPPLY") {
       const target = await prisma.user.findUnique({
         where: { id: userId },
-        select: { zona: true, role: true, cargo: true },
+        select: { zone: true, role: true, jobTitle: true },
       });
       if (profile.role === "SUPPLY") {
         // Supply puede ver/editar almacenistas de cualquier zona
-        const ok = target && target.role === "TECNICO" && target.cargo === "ALMACENISTA";
+        const ok = target && target.role === "TECNICO" && target.jobTitle === "ALMACENISTA";
         if (!ok) {
           return NextResponse.json({ error: "Solo puedes gestionar la malla de almacenistas" }, { status: 403 });
         }
       } else {
         // COORDINADOR solo ve su zona
-        const ok = target && target.role === "TECNICO" && target.zona === profile.zona;
+        const ok = target && target.role === "TECNICO" && target.zone === profile.zone;
         if (!ok) {
           return NextResponse.json({ error: "Solo puedes ver la malla de operadores de tu zona" }, { status: 403 });
         }
       }
     }
 
-    const malla = await prisma.mallaTurno.findMany({
+    const malla = await prisma.shiftSchedule.findMany({
       where: {
         userId,
-        fecha: { gte: startDate, lte: endDate },
+        date: { gte: startDate, lte: endDate },
       },
-      orderBy: { fecha: "asc" },
+      orderBy: { date: "asc" },
     });
 
     const mallaConKey = (malla ?? []).map((m) => ({
       userId: m.userId,
-      fecha: m.fecha.toISOString().split("T")[0],
-      valor: m.valor,
-      tipo: m.tipo ?? undefined,
-      horaInicio: m.horaInicio ?? undefined,
-      horaFin: m.horaFin ?? undefined,
+      date: m.date.toISOString().split("T")[0],
+      shiftCode: m.shiftCode,
+      dayType: m.dayType ?? undefined,
+      startTime: m.startTime ?? undefined,
+      endTime: m.endTime ?? undefined,
     }));
 
     return NextResponse.json(mallaConKey);
@@ -87,26 +87,26 @@ export async function POST(req: NextRequest) {
     } catch {
       return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 });
     }
-    const { userId, fecha, valor, tipo, horaInicio, horaFin } = body;
+    const { userId, date, shiftCode, dayType, startTime, endTime } = body;
 
-    if (!userId || !fecha) {
-      return NextResponse.json({ error: "userId y fecha requeridos" }, { status: 400 });
+    if (!userId || !date) {
+      return NextResponse.json({ error: "userId y date requeridos" }, { status: 400 });
     }
     const userIdStr = userId as string;
 
     const TIPOS_VALIDOS = ["TRABAJO", "DESCANSO", "DISPONIBLE", "DIA_FAMILIA", "INCAPACITADO", "VACACIONES", "MEDIO_CUMPLE"] as const;
-    const tipoValido = typeof tipo === "string" && (TIPOS_VALIDOS as readonly string[]).includes(tipo)
-      ? tipo as (typeof TIPOS_VALIDOS)[number]
+    const tipoValido = typeof dayType === "string" && (TIPOS_VALIDOS as readonly string[]).includes(dayType)
+      ? dayType as (typeof TIPOS_VALIDOS)[number]
       : undefined;
 
-    let valorFinal: string | undefined = typeof valor === "string" ? valor : undefined;
+    let valorFinal: string | undefined = typeof shiftCode === "string" ? shiftCode : undefined;
     if (tipoValido === "DESCANSO") valorFinal = "descanso";
     else if (tipoValido === "DISPONIBLE") valorFinal = "disponible";
-    else if (tipoValido === "TRABAJO" && horaInicio && horaFin) valorFinal = `${horaInicio}-${horaFin}`;
-    else if (tipoValido === "DIA_FAMILIA") valorFinal = typeof valor === "string" && valor ? valor : "Día de la familia";
-    else if (tipoValido === "INCAPACITADO") valorFinal = typeof valor === "string" && valor ? valor : "Incapacitado";
-    else if (tipoValido === "VACACIONES") valorFinal = typeof valor === "string" && valor ? valor : "Vacaciones";
-    else if (tipoValido === "MEDIO_CUMPLE") valorFinal = typeof valor === "string" && valor ? valor : "Medio día cumpleaños";
+    else if (tipoValido === "TRABAJO" && startTime && endTime) valorFinal = `${startTime}-${endTime}`;
+    else if (tipoValido === "DIA_FAMILIA") valorFinal = typeof shiftCode === "string" && shiftCode ? shiftCode : "Día de la familia";
+    else if (tipoValido === "INCAPACITADO") valorFinal = typeof shiftCode === "string" && shiftCode ? shiftCode : "Incapacitado";
+    else if (tipoValido === "VACACIONES") valorFinal = typeof shiftCode === "string" && shiftCode ? shiftCode : "Vacaciones";
+    else if (tipoValido === "MEDIO_CUMPLE") valorFinal = typeof shiftCode === "string" && shiftCode ? shiftCode : "Medio día cumpleaños";
     if (valorFinal === undefined) valorFinal = "";
 
     if (profile.role === "TECNICO" && userIdStr !== profile.id) {
@@ -115,50 +115,50 @@ export async function POST(req: NextRequest) {
     if (profile.role === "COORDINADOR" || profile.role === "SUPPLY") {
       const target = await prisma.user.findUnique({
         where: { id: userIdStr },
-        select: { zona: true, role: true, cargo: true },
+        select: { zone: true, role: true, jobTitle: true },
       });
       if (profile.role === "SUPPLY") {
-        const ok = target && target.role === "TECNICO" && target.cargo === "ALMACENISTA";
+        const ok = target && target.role === "TECNICO" && target.jobTitle === "ALMACENISTA";
         if (!ok) {
           return NextResponse.json({ error: "Solo puedes gestionar la malla de almacenistas" }, { status: 403 });
         }
       } else {
-        const ok = target && target.role === "TECNICO" && target.zona === profile.zona;
+        const ok = target && target.role === "TECNICO" && target.zone === profile.zone;
         if (!ok) {
           return NextResponse.json({ error: "Solo puedes editar la malla de operadores de tu zona" }, { status: 403 });
         }
       }
     }
 
-    const fechaStr = typeof fecha === "string" ? fecha : String(fecha);
+    const fechaStr = typeof date === "string" ? date : String(date);
     const [y, m, d] = fechaStr.split("-").map(Number);
     if (!y || !m || !d) {
-      return NextResponse.json({ error: "fecha debe ser YYYY-MM-DD" }, { status: 400 });
+      return NextResponse.json({ error: "date debe ser YYYY-MM-DD" }, { status: 400 });
     }
     const fechaDate = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
 
     const updateData: {
-      valor: string;
-      tipo?: (typeof TIPOS_VALIDOS)[number];
-      horaInicio?: string | null;
-      horaFin?: string | null;
-    } = { valor: valorFinal };
-    if (tipoValido) updateData.tipo = tipoValido;
-    if (horaInicio !== undefined) updateData.horaInicio = (horaInicio as string) || null;
-    if (horaFin !== undefined) updateData.horaFin = (horaFin as string) || null;
+      shiftCode: string;
+      dayType?: (typeof TIPOS_VALIDOS)[number];
+      startTime?: string | null;
+      endTime?: string | null;
+    } = { shiftCode: valorFinal };
+    if (tipoValido) updateData.dayType = tipoValido;
+    if (startTime !== undefined) updateData.startTime = (startTime as string) || null;
+    if (endTime !== undefined) updateData.endTime = (endTime as string) || null;
 
-    await prisma.mallaTurno.upsert({
+    await prisma.shiftSchedule.upsert({
       where: {
-        userId_fecha: { userId: userIdStr, fecha: fechaDate },
+        userId_date: { userId: userIdStr, date: fechaDate },
       },
       update: updateData,
       create: {
         userId: userIdStr,
-        fecha: fechaDate,
-        valor: updateData.valor,
-        tipo: updateData.tipo ?? "TRABAJO",
-        horaInicio: updateData.horaInicio ?? undefined,
-        horaFin: updateData.horaFin ?? undefined,
+        date: fechaDate,
+        shiftCode: updateData.shiftCode,
+        dayType: updateData.dayType ?? "TRABAJO",
+        startTime: updateData.startTime ?? undefined,
+        endTime: updateData.endTime ?? undefined,
       },
     });
 

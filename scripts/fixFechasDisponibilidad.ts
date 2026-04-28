@@ -1,12 +1,12 @@
-﻿import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 async function main() {
-  const rows = await prisma.mallaTurno.findMany({ where: { tipo: "DISPONIBLE" } });
+  const rows = await prisma.shiftSchedule.findMany({ where: { dayType: "DISPONIBLE" } });
   let fixed = 0;
   for (const r of rows) {
-    if (r.fecha.getUTCHours() !== 0) {
-      const f = new Date(Date.UTC(r.fecha.getUTCFullYear(), r.fecha.getUTCMonth(), r.fecha.getUTCDate(), 0, 0, 0));
-      await prisma.mallaTurno.update({ where: { id: r.id }, data: { fecha: f } });
+    if (r.date.getUTCHours() !== 0) {
+      const f = new Date(Date.UTC(r.date.getUTCFullYear(), r.date.getUTCMonth(), r.date.getUTCDate(), 0, 0, 0));
+      await prisma.shiftSchedule.update({ where: { id: r.id }, data: { date: f } });
       fixed++;
     }
   }

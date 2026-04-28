@@ -17,29 +17,29 @@ import {
 
 export type ForaneoRow = {
   id: string;
-  nombre: string;
-  cedula: string;
-  zona: string;
-  fecha: string;
-  kmInicial: number | null;
-  kmFinal: number | null;
+  fullName: string;
+  documentNumber: string;
+  zone: string;
+  createdAt: string;
+  startKm: number | null;
+  endKm: number | null;
   kmRecorridos: number | null;
   driveUrl: string | null;
   driveUrlFinal: string | null;
-  latInicial: number | null;
-  lngInicial: number | null;
-  latFinal: number | null;
-  lngFinal: number | null;
-  observaciones: string | null;
-  estadoAprobacion: "PENDIENTE" | "APROBADA" | "NO_APROBADA";
-  aprobadoPor: string | null;
-  fechaAprobacion: string | null;
-  notaAprobacion: string | null;
+  startLat: number | null;
+  startLng: number | null;
+  endLat: number | null;
+  endLng: number | null;
+  notes: string | null;
+  approvalStatus: "PENDIENTE" | "APROBADA" | "NO_APROBADA";
+  approvedBy: string | null;
+  approvedAt: string | null;
+  approvalNote: string | null;
 };
 
 type EstadoFiltro = "ALL" | "PENDIENTE" | "APROBADA" | "NO_APROBADA";
 
-function badgeEstado(e: ForaneoRow["estadoAprobacion"]) {
+function badgeEstado(e: ForaneoRow["approvalStatus"]) {
   if (e === "APROBADA")
     return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-[#00D4AA20] dark:text-[#00D4AA]">Aprobada</span>;
   if (e === "NO_APROBADA")
@@ -63,10 +63,10 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editingForaneo, setEditingForaneo] = useState<ForaneoRow | null>(null);
   const [saving, setSaving] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<{ id: string; nombre: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; fullName: string } | null>(null);
   const [rejectModal, setRejectModal] = useState<{ ids: string[] } | null>(null);
   const [rejectNota, setRejectNota] = useState("");
-  const [editForm, setEditForm] = useState({ kmInicial: "", kmFinal: "", observaciones: "" });
+  const [editForm, setEditForm] = useState({ startKm: "", endKm: "", notes: "" });
   const headerCbRef = useRef<HTMLInputElement>(null);
 
   const canApprove =
@@ -76,7 +76,7 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
 
   const loadForaneos = useCallback(async () => {
     if (!profile) return;
-    if (profile.role === "COORDINADOR" && !profile.zona) return;
+    if (profile.role === "COORDINADOR" && !profile.zone) return;
     setLoading(true);
     try {
       const params = new URLSearchParams({ desde, hasta });
@@ -103,9 +103,9 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
     const t = search.toLowerCase();
     return foraneos.filter(
       (f) =>
-        f.nombre.toLowerCase().includes(t) ||
-        f.cedula.toLowerCase().includes(t) ||
-        (f.observaciones ?? "").toLowerCase().includes(t)
+        f.fullName.toLowerCase().includes(t) ||
+        f.documentNumber.toLowerCase().includes(t) ||
+        (f.notes ?? "").toLowerCase().includes(t)
     );
   }, [foraneos, search]);
 
@@ -152,7 +152,7 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
       const res = await fetch("/api/foraneos/batch-aprobar", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids, estadoAprobacion: "APROBADA" }),
+        body: JSON.stringify({ ids, approvalStatus: "APROBADA" }),
       });
       const data = await parseResponseJson<{ ok?: boolean; error?: string; actualizados?: number }>(res);
       if (res.ok && data?.ok) {
@@ -178,8 +178,8 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            estadoAprobacion: "NO_APROBADA",
-            notaAprobacion: rejectNota.trim() || undefined,
+            approvalStatus: "NO_APROBADA",
+            approvalNote: rejectNota.trim() || undefined,
           }),
         });
         const data = await parseResponseJson<{ ok?: boolean; error?: string }>(res);
@@ -197,8 +197,8 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             ids,
-            estadoAprobacion: "NO_APROBADA",
-            notaAprobacion: rejectNota.trim() || undefined,
+            approvalStatus: "NO_APROBADA",
+            approvalNote: rejectNota.trim() || undefined,
           }),
         });
         const data = await parseResponseJson<{ ok?: boolean; error?: string; actualizados?: number }>(res);
@@ -222,7 +222,7 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
       const res = await fetch(`/api/foraneos/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ estadoAprobacion: "APROBADA" }),
+        body: JSON.stringify({ approvalStatus: "APROBADA" }),
       });
       const data = await parseResponseJson<{ ok?: boolean; error?: string }>(res);
       if (res.ok && data?.ok) {
@@ -239,9 +239,9 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
   function openEditModal(f: ForaneoRow) {
     setEditingForaneo(f);
     setEditForm({
-      kmInicial: f.kmInicial != null ? String(f.kmInicial) : "",
-      kmFinal: f.kmFinal != null ? String(f.kmFinal) : "",
-      observaciones: f.observaciones ?? "",
+      startKm: f.startKm != null ? String(f.startKm) : "",
+      endKm: f.endKm != null ? String(f.endKm) : "",
+      notes: f.notes ?? "",
     });
   }
 
@@ -249,16 +249,16 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
     if (!editingForaneo) return;
     setSaving(true);
     try {
-      const body: { kmInicial?: number; kmFinal?: number; observaciones?: string } = {};
-      if (editForm.kmInicial.trim() !== "") {
-        const v = parseFloat(editForm.kmInicial.replace(",", "."));
-        if (!Number.isNaN(v)) body.kmInicial = v;
+      const body: { startKm?: number; endKm?: number; notes?: string } = {};
+      if (editForm.startKm.trim() !== "") {
+        const v = parseFloat(editForm.startKm.replace(",", "."));
+        if (!Number.isNaN(v)) body.startKm = v;
       }
-      if (editForm.kmFinal.trim() !== "") {
-        const v = parseFloat(editForm.kmFinal.replace(",", "."));
-        if (!Number.isNaN(v)) body.kmFinal = v;
+      if (editForm.endKm.trim() !== "") {
+        const v = parseFloat(editForm.endKm.replace(",", "."));
+        if (!Number.isNaN(v)) body.endKm = v;
       }
-      body.observaciones = editForm.observaciones;
+      body.notes = editForm.notes;
 
       const res = await fetch(`/api/foraneos/${editingForaneo.id}`, {
         method: "PATCH",
@@ -319,7 +319,7 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
     );
 
   if (!profile) return null;
-  if (profile.role === "COORDINADOR" && !profile.zona) return null;
+  if (profile.role === "COORDINADOR" && !profile.zone) return null;
 
   return (
     <div className="space-y-4">
@@ -438,30 +438,30 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
                           checked={selected.has(f.id)}
                           onChange={() => toggleRow(f.id)}
                           className="rounded border-gray-300 dark:border-[#3A4565] dark:bg-bia-navy-600"
-                          aria-label={`Seleccionar ${f.nombre}`}
+                          aria-label={`Seleccionar ${f.fullName}`}
                         />
                       </td>
                     )}
-                    <td className="px-4 py-3 text-sm text-gray-800 dark:text-white whitespace-nowrap">{f.nombre}</td>
+                    <td className="px-4 py-3 text-sm text-gray-800 dark:text-white whitespace-nowrap">{f.fullName}</td>
                     <td className="px-4 py-3 text-sm text-gray-700 dark:text-white whitespace-nowrap">
-                      {formatFechaTurnoDdMmmYyyy(f.fecha)}
+                      {formatFechaTurnoDdMmmYyyy(f.createdAt)}
                     </td>
-                    <td className="px-4 py-3 text-sm whitespace-nowrap">{badgeEstado(f.estadoAprobacion)}</td>
+                    <td className="px-4 py-3 text-sm whitespace-nowrap">{badgeEstado(f.approvalStatus)}</td>
                     <td className="px-4 py-3 text-sm text-gray-700 dark:text-white whitespace-nowrap">
-                      {f.kmInicial != null ? f.kmInicial : "—"}
+                      {f.startKm != null ? f.startKm : "—"}
                     </td>
                     <td className="px-4 py-3 text-sm">{driveLink(f.driveUrl)}</td>
-                    <td className="px-4 py-3 text-sm">{mapLink(f.latInicial, f.lngInicial)}</td>
+                    <td className="px-4 py-3 text-sm">{mapLink(f.startLat, f.startLng)}</td>
                     <td className="px-4 py-3 text-sm text-gray-700 dark:text-white whitespace-nowrap">
-                      {f.kmFinal != null ? f.kmFinal : "Pendiente"}
+                      {f.endKm != null ? f.endKm : "Pendiente"}
                     </td>
                     <td className="px-4 py-3 text-sm">{driveLink(f.driveUrlFinal)}</td>
-                    <td className="px-4 py-3 text-sm">{mapLink(f.latFinal, f.lngFinal)}</td>
+                    <td className="px-4 py-3 text-sm">{mapLink(f.endLat, f.endLng)}</td>
                     <td className="px-4 py-3 text-sm text-gray-700 dark:text-white whitespace-nowrap">
                       {f.kmRecorridos != null ? `${Number(f.kmRecorridos).toFixed(1)} km` : "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 max-w-[140px] truncate" title={f.notaAprobacion ?? ""}>
-                      {f.notaAprobacion ?? "—"}
+                    <td className="px-4 py-3 text-sm text-gray-600 max-w-[140px] truncate" title={f.approvalNote ?? ""}>
+                      {f.approvalNote ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-sm whitespace-nowrap">
                       <div className="flex flex-wrap gap-1 items-center">
@@ -499,7 +499,7 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
                         <button
                           type="button"
                           title="Eliminar"
-                          onClick={() => setConfirmDelete({ id: f.id, nombre: f.nombre })}
+                          onClick={() => setConfirmDelete({ id: f.id, fullName: f.fullName })}
                           className="p-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/40"
                         >
                           <HiTrash className="h-4 w-4" />
@@ -557,7 +557,7 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Editar foráneo</h3>
                 <p className="text-sm text-gray-500 dark:text-[#A0AEC0]">
-                  {editingForaneo.nombre} — {formatFechaTurnoDdMmmYyyy(editingForaneo.fecha)}
+                  {editingForaneo.fullName} — {formatFechaTurnoDdMmmYyyy(editingForaneo.createdAt)}
                 </p>
               </div>
               <button type="button" onClick={() => setEditingForaneo(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-[#243052] rounded-lg text-gray-600 dark:text-[#CBD5E1]">
@@ -570,8 +570,8 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
                 <input
                   type="text"
                   inputMode="decimal"
-                  value={editForm.kmInicial}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, kmInicial: e.target.value }))}
+                  value={editForm.startKm}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, startKm: e.target.value }))}
                   className="input-field w-full"
                   placeholder="Ej: 12050.5"
                 />
@@ -581,8 +581,8 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
                 <input
                   type="text"
                   inputMode="decimal"
-                  value={editForm.kmFinal}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, kmFinal: e.target.value }))}
+                  value={editForm.endKm}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, endKm: e.target.value }))}
                   className="input-field w-full"
                   placeholder="Ej: 12100"
                 />
@@ -590,8 +590,8 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
               <div>
                 <label className="block text-xs font-medium text-gray-600 dark:text-[#CBD5E1] mb-1">Observaciones</label>
                 <textarea
-                  value={editForm.observaciones}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, observaciones: e.target.value }))}
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, notes: e.target.value }))}
                   rows={3}
                   className="input-field w-full resize-none"
                 />
@@ -632,7 +632,7 @@ export default function CoordinadorForaneosPanel({ desde, hasta, tecnicoFilter }
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">¿Eliminar foráneo?</h3>
               <p className="text-gray-500 dark:text-[#A0AEC0] text-sm mb-6">
-                Vas a eliminar el registro de <strong>{confirmDelete.nombre}</strong>. Esta acción no se puede deshacer.
+                Vas a eliminar el registro de <strong>{confirmDelete.fullName}</strong>. Esta acción no se puede deshacer.
               </p>
               <div className="flex gap-3">
                 <button

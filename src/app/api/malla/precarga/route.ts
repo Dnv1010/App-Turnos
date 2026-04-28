@@ -42,13 +42,13 @@ export async function POST(req: NextRequest) {
     if (profile.role === "COORDINADOR" || profile.role === "SUPPLY") {
       const targets = await prisma.user.findMany({
         where: { id: { in: targetIds } },
-        select: { id: true, zona: true, role: true, cargo: true },
+        select: { id: true, zone: true, role: true, jobTitle: true },
       });
       const invalido =
         targets.length !== targetIds.length ||
         targets.some((t) => {
-          if (t.role !== "TECNICO" || t.zona !== profile.zona) return true;
-          if (profile.role === "SUPPLY" && t.cargo !== "ALMACENISTA") return true;
+          if (t.role !== "TECNICO" || t.zone !== profile.zone) return true;
+          if (profile.role === "SUPPLY" && t.jobTitle !== "ALMACENISTA") return true;
           return false;
         });
       if (invalido) {
@@ -59,10 +59,10 @@ export async function POST(req: NextRequest) {
     const [year, month] = String(mes).split("-").map(Number);
     const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
     const end = new Date(Date.UTC(year, month, 0, 23, 59, 59));
-    const festivos = await prisma.festivo.findMany({
-      where: { fecha: { gte: start, lte: end } },
+    const festivos = await prisma.holiday.findMany({
+      where: { date: { gte: start, lte: end } },
     });
-    const festivoSet = new Set(festivos.map((f) => dateKey(f.fecha)));
+    const festivoSet = new Set(festivos.map((f) => dateKey(f.date)));
 
     let count = 0;
     let usuariosProcesados = 0;
@@ -91,10 +91,10 @@ export async function POST(req: NextRequest) {
           horaFin = "12:00";
         }
 
-        await prisma.mallaTurno.upsert({
-          where: { userId_fecha: { userId: uid, fecha: new Date(current.getTime()) } },
-          update: { valor, tipo, horaInicio: horaInicio || null, horaFin: horaFin || null },
-          create: { userId: uid, fecha: new Date(current.getTime()), valor, tipo, horaInicio: horaInicio || null, horaFin: horaFin || null },
+        await prisma.shiftSchedule.upsert({
+          where: { userId_date: { userId: uid, date: new Date(current.getTime()) } },
+          update: { shiftCode: valor, dayType: tipo, startTime: horaInicio || null, endTime: horaFin || null },
+          create: { userId: uid, date: new Date(current.getTime()), shiftCode: valor, dayType: tipo, startTime: horaInicio || null, endTime: horaFin || null },
         });
         count++;
         current.setUTCDate(current.getUTCDate() + 1);

@@ -32,21 +32,38 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const zona = searchParams.get("zona");
 
-  const reportes = await prisma.reporte.findMany({
+  const reportesRaw = await prisma.report.findMany({
     where: whereListarReportes(auth.profile, zona),
     include: {
-      creadoPorUser: { select: { nombre: true } },
+      createdByUser: { select: { fullName: true } },
       _count: {
         select: {
-          turnosIncluidos: true,
-          foraneosIncluidos: true,
-          disponibilidadesIncluidas: true,
-          turnosCoordinadorIncluidos: true,
+          shiftsIncluded: true,
+          tripsIncluded: true,
+          availabilitiesIncluded: true,
+          coordinatorShiftsIncluded: true,
         },
       },
     },
     orderBy: { createdAt: "desc" },
   });
+
+  const reportes = reportesRaw.map((r) => ({
+    id: r.id,
+    name: r.name,
+    startDate: r.startDate.toISOString(),
+    endDate: r.endDate.toISOString(),
+    createdBy: r.createdBy,
+    zone: r.zone,
+    createdAt: r.createdAt.toISOString(),
+    createdByUser: { fullName: r.createdByUser.fullName },
+    _count: {
+      turnosIncluidos: r._count.shiftsIncluded,
+      foraneosIncluidos: r._count.tripsIncluded,
+      disponibilidadesIncluidas: r._count.availabilitiesIncluded,
+      turnosCoordinadorIncluidos: r._count.coordinatorShiftsIncluded,
+    },
+  }));
 
   return NextResponse.json({ reportes });
 }
@@ -62,10 +79,10 @@ export async function POST(req: NextRequest) {
   }
 
   let body: {
-    nombre?: string;
-    fechaInicio?: string;
-    fechaFin?: string;
-    zona?: string | null;
+    name?: string;
+    startDate?: string;
+    endDate?: string;
+    zone?: string | null;
     turnoIds?: string[];
     foraneoIds?: string[];
     disponibilidadIds?: string[];
@@ -77,15 +94,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
   }
 
-  const nombre = (body.nombre ?? "").trim();
-  if (!nombre) {
-    return NextResponse.json({ error: "El nombre es obligatorio" }, { status: 400 });
+  const name = (body.name ?? "").trim();
+  if (!name) {
+    return NextResponse.json({ error: "El name es obligatorio" }, { status: 400 });
   }
 
-  const desde = body.fechaInicio;
-  const hasta = body.fechaFin;
+  const desde = body.startDate;
+  const hasta = body.endDate;
   if (!desde || !hasta) {
-    return NextResponse.json({ error: "fechaInicio y fechaFin requeridos" }, { status: 400 });
+    return NextResponse.json({ error: "startDate y endDate requeridos" }, { status: 400 });
   }
 
   const rango = parseRangoFechasUtc(desde, hasta);
@@ -112,7 +129,7 @@ export async function POST(req: NextRequest) {
   }
 
   const zonaParam =
-    auth.profile.role === "COORDINADOR" ? null : body.zona === "ALL" ? null : body.zona ?? null;
+    auth.profile.role === "COORDINADOR" ? null : body.zone === "ALL" ? null : body.zone ?? null;
   const userIds = await getUserIdsTecnicosParaReporte(auth.profile, zonaParam);
   const coordUserIds = await getUserIdsCoordinadoresParaReporte(auth.profile, zonaParam);
 
@@ -146,7 +163,7 @@ export async function POST(req: NextRequest) {
   );
 
   if (turnoIds.length > 0) {
-    const ok = await prisma.turno.count({
+    const ok = await prisma.shift.count({
       where: { id: { in: turnoIds }, ...whereTurnos },
     });
     if (ok !== turnoIds.length) {
@@ -158,7 +175,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (foraneoIds.length > 0) {
-    const okF = await prisma.fotoRegistro.count({
+    const okF = await prisma.tripRecord.count({
       where: { id: { in: foraneoIds }, ...whereForaneos },
     });
     if (okF !== foraneoIds.length) {
@@ -170,7 +187,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (disponibilidadIds.length > 0) {
-    const okM = await prisma.mallaTurno.count({
+    const okM = await prisma.shiftSchedule.count({
       where: { id: { in: disponibilidadIds }, ...whereMallaDisp },
     });
     if (okM !== disponibilidadIds.length) {
@@ -185,7 +202,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (turnoCoordinadorIds.length > 0) {
-    const okC = await prisma.turnoCoordinador.count({
+    const okC = await prisma.coordinatorShift.count({
       where: { id: { in: turnoCoordinadorIds }, ...whereTurnosCoord },
     });
     if (okC !== turnoCoordinadorIds.length) {
@@ -199,40 +216,56 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const zonaGuardar = zonaPersistidaParaCrear(auth.profile, body.zona ?? null);
+  const zonaGuardar = zonaPersistidaParaCrear(auth.profile, body.zone ?? null);
 
   try {
-    const reporte = await prisma.reporte.create({
+    const reporteRaw = await prisma.report.create({
       data: {
-        nombre,
-        fechaInicio,
-        fechaFin,
-        creadoPor: auth.profile.id,
-        zona: zonaGuardar,
-        turnosIncluidos: {
-          create: turnoIds.map((turnoId) => ({ turnoId })),
+        name,
+        startDate: fechaInicio,
+        endDate: fechaFin,
+        createdBy: auth.profile.id,
+        zone: zonaGuardar,
+        shiftsIncluded: {
+          create: turnoIds.map((shiftId) => ({ shiftId })),
         },
-        foraneosIncluidos: {
-          create: foraneoIds.map((fotoRegistroId) => ({ fotoRegistroId })),
+        tripsIncluded: {
+          create: foraneoIds.map((tripRecordId) => ({ tripRecordId })),
         },
-        disponibilidadesIncluidas: {
-          create: disponibilidadIds.map((mallaTurnoId) => ({ mallaTurnoId })),
+        availabilitiesIncluded: {
+          create: disponibilidadIds.map((shiftScheduleId) => ({ shiftScheduleId })),
         },
-        turnosCoordinadorIncluidos: {
-          create: turnoCoordinadorIds.map((turnoCoordinadorId) => ({ turnoCoordinadorId })),
+        coordinatorShiftsIncluded: {
+          create: turnoCoordinadorIds.map((coordinatorShiftId) => ({ coordinatorShiftId })),
         },
       },
       include: {
         _count: {
           select: {
-            turnosIncluidos: true,
-            foraneosIncluidos: true,
-            disponibilidadesIncluidas: true,
-            turnosCoordinadorIncluidos: true,
+            shiftsIncluded: true,
+            tripsIncluded: true,
+            availabilitiesIncluded: true,
+            coordinatorShiftsIncluded: true,
           },
         },
       },
     });
+
+    const reporte = {
+      id: reporteRaw.id,
+      name: reporteRaw.name,
+      startDate: reporteRaw.startDate.toISOString(),
+      endDate: reporteRaw.endDate.toISOString(),
+      createdBy: reporteRaw.createdBy,
+      zone: reporteRaw.zone,
+      createdAt: reporteRaw.createdAt.toISOString(),
+      _count: {
+        turnosIncluidos: reporteRaw._count.shiftsIncluded,
+        foraneosIncluidos: reporteRaw._count.tripsIncluded,
+        disponibilidadesIncluidas: reporteRaw._count.availabilitiesIncluded,
+        turnosCoordinadorIncluidos: reporteRaw._count.coordinatorShiftsIncluded,
+      },
+    };
 
     return NextResponse.json({ reporte });
   } catch (e) {

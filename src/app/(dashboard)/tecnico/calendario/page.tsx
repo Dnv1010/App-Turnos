@@ -8,10 +8,10 @@ import { HiChevronLeft, HiChevronRight } from "react-icons/hi";
 import { parseResponseJson } from "@/lib/parseFetchJson";
 
 interface TurnoEntry {
-  fecha: string;
-  horaEntrada: string;
-  horaSalida: string | null;
-  horasOrdinarias: number;
+  date: string;
+  clockInAt: string;
+  clockOutAt: string | null;
+  regularHours: number;
 }
 
 type TipoDia =
@@ -25,11 +25,11 @@ type TipoDia =
 
 interface MallaItem {
   userId: string;
-  fecha: string;
-  valor: string;
-  tipo?: TipoDia;
-  horaInicio?: string;
-  horaFin?: string;
+  date: string;
+  shiftCode: string;
+  dayType?: TipoDia;
+  startTime?: string;
+  endTime?: string;
 }
 
 type EstiloMalla = {
@@ -40,8 +40,8 @@ type EstiloMalla = {
 
 function clasificarMalla(item: MallaItem | null): EstiloMalla | null {
   if (!item) return null;
-  const tipo = item.tipo;
-  const v = (item.valor ?? "").toLowerCase();
+  const tipo = item.dayType;
+  const v = (item.shiftCode ?? "").toLowerCase();
 
   if (tipo === "DISPONIBLE" || v === "disponible") {
     return {
@@ -92,7 +92,7 @@ function clasificarMalla(item: MallaItem | null): EstiloMalla | null {
       classes: "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-950/40 dark:text-yellow-200 dark:border-yellow-700/60",
     };
   }
-  if (tipo === "TRABAJO" || /^\d{1,2}[:.\-]?\d{0,2}\s*[-–]\s*\d{1,2}/.test(item.valor)) {
+  if (tipo === "TRABAJO" || /^\d{1,2}[:.\-]?\d{0,2}\s*[-–]\s*\d{1,2}/.test(item.shiftCode)) {
     return {
       etiqueta: "Trabajo",
       emoji: "🔵",
@@ -100,7 +100,7 @@ function clasificarMalla(item: MallaItem | null): EstiloMalla | null {
     };
   }
   return {
-    etiqueta: item.valor || "—",
+    etiqueta: item.shiftCode || "—",
     emoji: "",
     classes: "bg-gray-100 text-gray-700 border-gray-300 dark:bg-[#1E2A45] dark:text-[#CBD5E1] dark:border-[#3A4565]",
   };
@@ -145,13 +145,13 @@ export default function CalendarioPage() {
 
   const mallaMap = useMemo(() => {
     const map = new Map<string, MallaItem>();
-    malla.forEach((m) => map.set(m.fecha, m));
+    malla.forEach((m) => map.set(m.date, m));
     return map;
   }, [malla]);
 
   const getTurnoDelDia = (fecha: Date) => {
     const fechaStr = format(fecha, "yyyy-MM-dd");
-    return turnos.find((t) => t.fecha.startsWith(fechaStr));
+    return turnos.find((t) => t.date.startsWith(fechaStr));
   };
 
   const getMallaItemDelDia = (fecha: Date): MallaItem | null => {
@@ -203,9 +203,9 @@ export default function CalendarioPage() {
                   <div className={`text-[10px] sm:text-xs px-1 sm:px-1.5 py-0.5 rounded border font-semibold leading-tight break-words ${estilo.classes}`}>
                     <span className="hidden sm:inline">{estilo.emoji} </span>
                     {estilo.etiqueta}
-                    {mallaItem?.tipo === "TRABAJO" && mallaItem.horaInicio && mallaItem.horaFin && (
+                    {mallaItem?.dayType === "TRABAJO" && mallaItem.startTime && mallaItem.endTime && (
                       <div className="text-[9px] sm:text-[10px] font-normal opacity-90 mt-0.5">
-                        {mallaItem.horaInicio}-{mallaItem.horaFin}
+                        {mallaItem.startTime}-{mallaItem.endTime}
                       </div>
                     )}
                   </div>
@@ -213,9 +213,9 @@ export default function CalendarioPage() {
                 {turno && (
                   <div className="text-[9px] sm:text-[10px] space-y-0.5 mt-0.5">
                     <div className="text-green-700 dark:text-[#00D4AA] bg-green-50 dark:bg-[#00D4AA]/15 px-1 sm:px-1.5 py-0.5 rounded truncate font-medium">
-                      {new Date(turno.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })} - {turno.horaSalida ? new Date(turno.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "..."}
+                      {new Date(turno.clockInAt).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })} - {turno.clockOutAt ? new Date(turno.clockOutAt).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "..."}
                     </div>
-                    {turno.horasOrdinarias > 0 && <div className="text-gray-500 dark:text-[#A0AEC0]">{turno.horasOrdinarias}h ord</div>}
+                    {turno.regularHours > 0 && <div className="text-gray-500 dark:text-[#A0AEC0]">{turno.regularHours}h ord</div>}
                   </div>
                 )}
               </div>
