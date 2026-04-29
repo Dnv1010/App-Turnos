@@ -10,18 +10,18 @@ datasource db {
 
 model User {
   id                String             @id @default(cuid())
-  documentNumber    String             @unique @map("cedula")
-  fullName          String             @map("nombre")
+  documentNumber    String             @unique @map("document_number")
+  fullName          String             @map("full_name")
   email             String             @unique
   password          String
   role              Role               @default(TECNICO)
-  zone              Zone               @default(BOGOTA) @map("zona")
-  jobTitle          JobTitle           @default(TECNICO) @map("cargo")
-  teamFilter        String             @default("TODOS") @map("filtroEquipo")
-  isActive          Boolean            @default(true) @map("isActive")
-  photoUrl          String?            @map("fotoUrl")
-  createdAt         DateTime           @default(now()) @map("createdAt")
-  updatedAt         DateTime           @updatedAt @map("updatedAt")
+  zone              Zone               @default(BOGOTA)
+  jobTitle          JobTitle           @default(TECNICO) @map("job_title")
+  teamFilter        String             @default("TODOS") @map("team_filter")
+  isActive          Boolean            @default(true) @map("is_active")
+  photoUrl          String?            @map("photo_url")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
   availabilities    Availability[]
   tripRecords       TripRecord[]
   shiftSchedules    ShiftSchedule[]
@@ -30,125 +30,125 @@ model User {
   shifts            Shift[]
   coordinatorShifts CoordinatorShift[]
 
-  @@map("User")
+  @@map("users")
 }
 
 model Shift {
   id                         String        @id @default(cuid())
-  userId                     String        @map("userId")
-  date                       DateTime      @db.Date @map("fecha")
-  weekday                    String?       @map("diaSemana")
-  clockInAt                  DateTime      @map("horaEntrada")
-  clockOutAt                 DateTime?     @map("horaSalida")
-  clockInLat                 Float?        @map("latEntrada")
-  clockInLng                 Float?        @map("lngEntrada")
-  clockOutLat                Float?        @map("latSalida")
-  clockOutLng                Float?        @map("lngSalida")
-  startPhotoUrl              String?       @map("startPhotoUrl")
-  endPhotoUrl                String?       @map("endPhotoUrl")
-  regularHours               Float         @default(0) @map("horasOrdinarias")
-  daytimeOvertimeHours       Float         @default(0) @map("heDiurna")
-  nighttimeOvertimeHours     Float         @default(0) @map("heNocturna")
-  sundayOvertimeHours        Float         @default(0) @map("heDominical")
-  nightSundayOvertimeHours   Float         @default(0) @map("heNoctDominical")
-  nightSurchargeHours        Float         @default(0) @map("recNocturno")
-  sundaySurchargeHours       Float         @default(0) @map("recDominical")
-  nightSundaySurchargeHours  Float         @default(0) @map("recNoctDominical")
-  notes                      String?       @map("observaciones")
-  workdayAlertSentAt         DateTime?     @map("jornadaAlertaPushSentAt")
-  createdAt                  DateTime      @default(now()) @map("createdAt")
-  updatedAt                  DateTime      @updatedAt @map("updatedAt")
+  userId                     String        @map("user_id")
+  date                       DateTime      @db.Date
+  weekday                    String?
+  clockInAt                  DateTime      @map("clock_in_at")
+  clockOutAt                 DateTime?     @map("clock_out_at")
+  clockInLat                 Float?        @map("clock_in_lat")
+  clockInLng                 Float?        @map("clock_in_lng")
+  clockOutLat                Float?        @map("clock_out_lat")
+  clockOutLng                Float?        @map("clock_out_lng")
+  startPhotoUrl              String?       @map("start_photo_url")
+  endPhotoUrl                String?       @map("end_photo_url")
+  regularHours               Float         @default(0) @map("regular_hours")
+  daytimeOvertimeHours       Float         @default(0) @map("daytime_overtime_hours")
+  nighttimeOvertimeHours     Float         @default(0) @map("nighttime_overtime_hours")
+  sundayOvertimeHours        Float         @default(0) @map("sunday_overtime_hours")
+  nightSundayOvertimeHours   Float         @default(0) @map("night_sunday_overtime_hours")
+  nightSurchargeHours        Float         @default(0) @map("night_surcharge_hours")
+  sundaySurchargeHours       Float         @default(0) @map("sunday_surcharge_hours")
+  nightSundaySurchargeHours  Float         @default(0) @map("night_sunday_surcharge_hours")
+  notes                      String?
+  workdayAlertSentAt         DateTime?     @map("workday_alert_sent_at")
+  createdAt                  DateTime      @default(now()) @map("created_at")
+  updatedAt                  DateTime      @updatedAt @map("updated_at")
   reports                    ReportShift[]
   user                       User          @relation(fields: [userId], references: [id])
 
   @@index([userId, date])
-  @@map("Turno")
+  @@map("shifts")
 }
 
 model PushSubscription {
   id        String   @id @default(cuid())
-  userId    String   @map("userId")
+  userId    String   @map("user_id")
   endpoint  String   @unique
   p256dh    String
   auth      String
-  createdAt DateTime @default(now()) @map("createdAt")
+  createdAt DateTime @default(now()) @map("created_at")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@map("PushSubscription")
+  @@map("push_subscriptions")
 }
 
 model ShiftSchedule {
   id        String               @id @default(cuid())
-  userId    String               @map("userId")
-  date      DateTime             @db.Date @map("fecha")
-  shiftCode String               @map("valor")
-  dayType   DayType?             @default(TRABAJO) @map("tipo")
-  startTime String?              @map("horaInicio")
-  endTime   String?              @map("horaFin")
-  createdAt DateTime             @default(now()) @map("createdAt")
+  userId    String               @map("user_id")
+  date      DateTime             @db.Date
+  shiftCode String               @map("shift_code")
+  dayType   DayType?             @default(TRABAJO) @map("day_type")
+  startTime String?              @map("start_time")
+  endTime   String?              @map("end_time")
+  createdAt DateTime             @default(now()) @map("created_at")
   user      User                 @relation(fields: [userId], references: [id])
   reports   ReportAvailability[]
 
   @@unique([userId, date])
-  @@map("MallaTurno")
+  @@map("shift_schedules")
 }
 
 model Holiday {
   id    String   @id @default(cuid())
-  date  DateTime @unique @db.Date @map("fecha")
-  name  String   @map("nombre")
+  date  DateTime @unique @db.Date
+  name  String
 
-  @@map("Festivo")
+  @@map("holidays")
 }
 
 model Availability {
   id        String   @id @default(cuid())
-  userId    String   @map("userId")
-  date      DateTime @db.Date @map("fecha")
-  amount    Float    @default(80000) @map("monto")
-  createdAt DateTime @default(now()) @map("createdAt")
+  userId    String   @map("user_id")
+  date      DateTime @db.Date
+  amount    Float    @default(80000)
+  createdAt DateTime @default(now()) @map("created_at")
   user      User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, date])
-  @@map("Disponibilidad")
+  @@map("availabilities")
 }
 
 model TripRecord {
-  id              String           @id @default(cuid())
-  userId          String           @map("userId")
-  type            String           @map("tipo")
-  driveFileId     String?          @map("driveFileId")
-  driveUrl        String?          @map("driveUrl")
-  driveFileIdFinal String?         @map("driveFileIdFinal")
-  driveUrlFinal   String?          @map("driveUrlFinal")
-  base64Fallback  String?          @map("base64Fallback")
-  startKm         Float?           @map("kmInicial")
-  endKm           Float?           @map("kmFinal")
-  startLat        Float?           @map("latInicial")
-  startLng        Float?           @map("lngInicial")
-  endLat          Float?           @map("latFinal")
-  endLng          Float?           @map("lngFinal")
-  notes           String?          @map("observaciones")
-  approvalStatus  ApprovalStatus   @default(PENDIENTE) @map("estadoAprobacion")
-  approvedBy      String?          @map("aprobadoPor")
-  approvedAt      DateTime?        @map("fechaAprobacion")
-  approvalNote    String?          @map("notaAprobacion")
-  createdAt       DateTime         @default(now()) @map("createdAt")
-  user            User             @relation(fields: [userId], references: [id])
-  reports         ReportTrip[]
+  id                String           @id @default(cuid())
+  userId            String           @map("user_id")
+  type              String
+  driveFileId       String?          @map("drive_file_id")
+  driveUrl          String?          @map("drive_url")
+  driveFileIdFinal  String?          @map("drive_file_id_final")
+  driveUrlFinal     String?          @map("drive_url_final")
+  base64Fallback    String?          @map("base64_fallback")
+  startKm           Float?           @map("start_km")
+  endKm             Float?           @map("end_km")
+  startLat          Float?           @map("start_lat")
+  startLng          Float?           @map("start_lng")
+  endLat            Float?           @map("end_lat")
+  endLng            Float?           @map("end_lng")
+  notes             String?
+  approvalStatus    ApprovalStatus   @default(PENDIENTE) @map("approval_status")
+  approvedBy        String?          @map("approved_by")
+  approvedAt        DateTime?        @map("approved_at")
+  approvalNote      String?          @map("approval_note")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  user              User             @relation(fields: [userId], references: [id])
+  reports           ReportTrip[]
 
-  @@map("FotoRegistro")
+  @@map("trip_records")
 }
 
 model Report {
   id                          String                    @id @default(cuid())
-  name                        String                    @map("nombre")
-  startDate                   DateTime                  @db.Date @map("fechaInicio")
-  endDate                     DateTime                  @db.Date @map("fechaFin")
-  createdBy                   String                    @map("creadoPor")
-  zone                        String?                   @map("zona")
-  createdAt                   DateTime                  @default(now()) @map("createdAt")
+  name                        String
+  startDate                   DateTime                  @db.Date @map("start_date")
+  endDate                     DateTime                  @db.Date @map("end_date")
+  createdBy                   String                    @map("created_by")
+  zone                        String?
+  createdAt                   DateTime                  @default(now()) @map("created_at")
   createdByUser               User                      @relation("ReportesCreados", fields: [createdBy], references: [id])
   availabilitiesIncluded      ReportAvailability[]
   tripsIncluded               ReportTrip[]
@@ -157,80 +157,80 @@ model Report {
 
   @@index([zone])
   @@index([createdAt])
-  @@map("Reporte")
+  @@map("reports")
 }
 
 model ReportShift {
   id        String  @id @default(cuid())
-  reportId  String  @map("reporteId")
-  shiftId   String  @map("turnoId")
+  reportId  String  @map("report_id")
+  shiftId   String  @map("shift_id")
   report    Report  @relation(fields: [reportId], references: [id], onDelete: Cascade)
   shift     Shift   @relation(fields: [shiftId], references: [id])
 
   @@unique([reportId, shiftId])
-  @@map("ReporteTurno")
+  @@map("report_shifts")
 }
 
 model ReportTrip {
   id            String     @id @default(cuid())
-  reportId      String     @map("reporteId")
-  tripRecordId  String     @map("fotoRegistroId")
+  reportId      String     @map("report_id")
+  tripRecordId  String     @map("trip_record_id")
   tripRecord    TripRecord @relation(fields: [tripRecordId], references: [id])
   report        Report     @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   @@unique([reportId, tripRecordId])
-  @@map("ReporteForaneo")
+  @@map("report_trips")
 }
 
 model ReportAvailability {
   id              String        @id @default(cuid())
-  reportId        String        @map("reporteId")
-  shiftScheduleId String        @map("mallaTurnoId")
+  reportId        String        @map("report_id")
+  shiftScheduleId String        @map("shift_schedule_id")
   shiftSchedule   ShiftSchedule @relation(fields: [shiftScheduleId], references: [id])
   report          Report        @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   @@unique([reportId, shiftScheduleId])
-  @@map("ReporteDisponibilidad")
+  @@map("report_availabilities")
 }
 
 model CoordinatorShift {
   id                         String                    @id @default(cuid())
-  userId                     String                    @map("userId")
-  date                       DateTime                  @db.Date @map("fecha")
-  clockInAt                  DateTime                  @map("horaEntrada")
-  clockOutAt                 DateTime?                 @map("horaSalida")
-  orderCode                  String                    @map("codigoOrden")
-  note                       String?                   @map("nota")
-  regularHours               Float                     @default(0) @map("horasOrdinarias")
-  daytimeOvertimeHours       Float                     @default(0) @map("heDiurna")
-  nighttimeOvertimeHours     Float                     @default(0) @map("heNocturna")
-  sundayOvertimeHours        Float                     @default(0) @map("heDominical")
-  nightSundayOvertimeHours   Float                     @default(0) @map("heNoctDominical")
-  nightSurchargeHours        Float                     @default(0) @map("recNocturno")
-  sundaySurchargeHours       Float                     @default(0) @map("recDominical")
-  nightSundaySurchargeHours  Float                     @default(0) @map("recNoctDominical")
-  clockInLat                 Float?                    @map("latEntrada")
-  clockInLng                 Float?                    @map("lngEntrada")
-  clockOutLat                Float?                    @map("latSalida")
-  clockOutLng                Float?                    @map("lngSalida")
-  createdAt                  DateTime                  @default(now()) @map("createdAt")
-  updatedAt                  DateTime                  @updatedAt @map("updatedAt")
+  userId                     String                    @map("user_id")
+  date                       DateTime                  @db.Date
+  clockInAt                  DateTime                  @map("clock_in_at")
+  clockOutAt                 DateTime?                 @map("clock_out_at")
+  orderCode                  String                    @map("order_code")
+  note                       String?
+  regularHours               Float                     @default(0) @map("regular_hours")
+  daytimeOvertimeHours       Float                     @default(0) @map("daytime_overtime_hours")
+  nighttimeOvertimeHours     Float                     @default(0) @map("nighttime_overtime_hours")
+  sundayOvertimeHours        Float                     @default(0) @map("sunday_overtime_hours")
+  nightSundayOvertimeHours   Float                     @default(0) @map("night_sunday_overtime_hours")
+  nightSurchargeHours        Float                     @default(0) @map("night_surcharge_hours")
+  sundaySurchargeHours       Float                     @default(0) @map("sunday_surcharge_hours")
+  nightSundaySurchargeHours  Float                     @default(0) @map("night_sunday_surcharge_hours")
+  clockInLat                 Float?                    @map("clock_in_lat")
+  clockInLng                 Float?                    @map("clock_in_lng")
+  clockOutLat                Float?                    @map("clock_out_lat")
+  clockOutLng                Float?                    @map("clock_out_lng")
+  createdAt                  DateTime                  @default(now()) @map("created_at")
+  updatedAt                  DateTime                  @updatedAt @map("updated_at")
   reports                    ReportCoordinatorShift[]
   user                       User                      @relation(fields: [userId], references: [id])
 
   @@index([userId, date])
-  @@map("TurnoCoordinador")
+  @@map("coordinator_shifts")
 }
 
 model ReportCoordinatorShift {
   id                  String           @id @default(cuid())
-  reportId            String           @map("reporteId")
-  coordinatorShiftId  String           @map("turnoCoordinadorId")
+  reportId            String           @map("report_id")
+  coordinatorShiftId  String           @map("coordinator_shift_id")
   report              Report           @relation(fields: [reportId], references: [id], onDelete: Cascade)
   coordinatorShift    CoordinatorShift @relation(fields: [coordinatorShiftId], references: [id], onDelete: Cascade)
 
   @@unique([reportId, coordinatorShiftId])
-  @@map("ReporteTurnoCoordinador")
+  @@map("report_coordinator_shifts")
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -394,23 +394,17 @@ enum Zone {
   BOGOTA
   COSTA
   INTERIOR
-
-  @@map("Zona")
 }
 
 enum JobTitle {
   TECNICO
   ALMACENISTA
-
-  @@map("Cargo")
 }
 
 enum ApprovalStatus {
   PENDIENTE
   APROBADA
   NO_APROBADA
-
-  @@map("EstadoAprobacion")
 }
 
 enum DayType {
@@ -421,6 +415,4 @@ enum DayType {
   INCAPACITADO
   VACACIONES
   MEDIO_CUMPLE
-
-  @@map("TipoDia")
 }
