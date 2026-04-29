@@ -13,15 +13,15 @@ export async function computeHorasAlCerrarTurnoCoordinador(
   const maxMs = Math.max(horaEntrada.getTime(), horaSalida.getTime());
   const padMs = 5 * 24 * 60 * 60 * 1000;
 
-  const festivos = await prisma.festivo.findMany({
+  const festivos = await prisma.holiday.findMany({
     where: {
-      fecha: {
+      date: {
         gte: new Date(minMs - padMs),
         lte: new Date(maxMs + padMs),
       },
     },
   });
 
-  const holidaySet = new Set(festivos.map((f) => dateKeyColombia(f.fecha)));
+  const holidaySet = new Set(festivos.map((f) => dateKeyColombia(f.date)));
   return calcularHorasTurnoCoordinador(horaEntrada, horaSalida, holidaySet);
 }

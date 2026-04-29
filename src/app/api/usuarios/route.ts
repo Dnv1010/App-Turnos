@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
 import bcrypt from "bcryptjs";
-import { Cargo, Role, Zona } from "@prisma/client";
+import { JobTitle, Role, Zone } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   try {
@@ -27,10 +27,10 @@ export async function GET(req: NextRequest) {
     const emailFilter = searchParams.get("email");
 
     // Cualquier usuario autenticado puede consultar su propio perfil
-    if (emailFilter && emailFilter.toLowerCase() === user.email!.toLowerCase()) {
+    if (emailFilter && emailFilter.toLowerCase() === user!.email!.toLowerCase()) {
       const self = await prisma.user.findUnique({
         where: { email: emailFilter.toLowerCase() },
-        select: { id: true, cedula: true, nombre: true, email: true, role: true, zona: true, cargo: true, filtroEquipo: true, isActive: true, createdAt: true },
+        select: { id: true, documentNumber: true, fullName: true, email: true, role: true, zone: true, jobTitle: true, teamFilter: true, isActive: true, createdAt: true },
       });
       return NextResponse.json({ ok: true, tecnicos: self ? [self] : [] });
     }
@@ -40,32 +40,32 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
     if ((profile.role === "COORDINADOR" || profile.role === "COORDINADOR_INTERIOR" || profile.role === "SUPPLY") && !zona) {
-      zona = profile.zona;
+      zona = profile.zone;
     }
 
     const where: Record<string, unknown> = { isActive: true };
     if (emailFilter) where.email = emailFilter.toLowerCase();
-    if (zona && zona !== "ALL") where.zona = zona;
+    if (zona && zona !== "ALL") where.zone = zona;
     if (role) where.role = role;
-    if (cargo && cargo !== "ALL" && Object.values(Cargo).includes(cargo as Cargo)) {
-      where.cargo = cargo as Cargo;
+    if (cargo && cargo !== "ALL" && Object.values(JobTitle).includes(cargo as JobTitle)) {
+      where.jobTitle = cargo as JobTitle;
     }
 
     const users = await prisma.user.findMany({
       where,
       select: {
         id: true,
-        cedula: true,
-        nombre: true,
+        documentNumber: true,
+        fullName: true,
         email: true,
         role: true,
-        zona: true,
-        cargo: true,
-        filtroEquipo: true,
+        zone: true,
+        jobTitle: true,
+        teamFilter: true,
         isActive: true,
         createdAt: true,
       },
-      orderBy: { nombre: "asc" },
+      orderBy: { fullName: "asc" },
     });
 
     return NextResponse.json({ ok: true, tecnicos: users });
@@ -85,65 +85,57 @@ export async function POST(req: NextRequest) {
     if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
     const body = await req.json();
-    const { cedula, nombre, email, pin, role: bodyRole, zona: bodyZona, cargo: bodyCargo } = body;
+    const { documentNumber, fullName, email, pin, role: bodyRole, zone: bodyZone, jobTitle: bodyJobTitle } = body;
 
-    if (!cedula || !nombre || !email || !pin) {
-      return NextResponse.json({ error: "Campos requeridos: cedula, nombre, email, pin" }, { status: 400 });
+    if (!documentNumber || !fullName || !email || !pin) {
+      return NextResponse.json({ error: "Campos requeridos: documentNumber, fullName, email, pin" }, { status: 400 });
     }
 
-    let zona = (bodyZona || "BOGOTA") as string;
+    let zone = (bodyZone || "BOGOTA") as string;
     let role = (bodyRole || "TECNICO") as string;
     if (profile.role === "COORDINADOR") {
       if (role !== "TECNICO") return NextResponse.json({ error: "Solo puedes agregar operadores" }, { status: 403 });
-      zona = profile.zona;
+      zone = profile.zone;
     } else if (profile.role === "SUPPLY") {
       if (role !== "TECNICO") return NextResponse.json({ error: "Solo puedes agregar operadores" }, { status: 403 });
-      const z = typeof bodyZona === "string" && Object.values(Zona).includes(bodyZona as Zona) ? bodyZona : "BOGOTA";
-      zona = z;
+      const z = typeof bodyZone === "string" && Object.values(Zone).includes(bodyZone as Zone) ? bodyZone : "BOGOTA";
+      zone = z;
     }
 
     const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (existing) {
       return NextResponse.json({ error: "El correo ya está registrado" }, { status: 400 });
     }
-    const existingCedula = await prisma.user.findUnique({ where: { cedula } });
-    if (existingCedula) return NextResponse.json({ error: "La cédula ya está registrada" }, { status: 400 });
+    const existingDoc = await prisma.user.findUnique({ where: { documentNumber } });
+    if (existingDoc) return NextResponse.json({ error: "La cédula ya está registrada" }, { status: 400 });
 
     const pinNormalized = String(pin ?? "").trim();
     if (!pinNormalized) return NextResponse.json({ error: "El PIN es obligatorio" }, { status: 400 });
     const hashedPin = await bcrypt.hash(pinNormalized, 10);
 
-    let cargoCreate =
-      typeof bodyCargo === "string" && Object.values(Cargo).includes(bodyCargo as Cargo)
-        ? (bodyCargo as Cargo)
-        : Cargo.TECNICO;
+    let jobTitleCreate =
+      typeof bodyJobTitle === "string" && Object.values(JobTitle).includes(bodyJobTitle as JobTitle)
+        ? (bodyJobTitle as JobTitle)
+        : JobTitle.TECNICO;
     if (profile.role === "SUPPLY") {
-      cargoCreate = Cargo.ALMACENISTA;
+      jobTitleCreate = JobTitle.ALMACENISTA;
     }
 
     const newUser = await prisma.user.create({
       data: {
-        cedula,
-        nombre,
+        documentNumber,
+        fullName,
         email: email.toLowerCase(),
         password: hashedPin,
         role: role as Role,
-        zona: zona as Zona,
-        cargo: cargoCreate,
+        zone: zone as Zone,
+        jobTitle: jobTitleCreate,
       },
     });
 
     return NextResponse.json({
       ok: true,
-      user: {
-        id: newUser.id,
-        cedula: newUser.cedula,
-        nombre: newUser.nombre,
-        email: newUser.email,
-        role: newUser.role,
-        zona: newUser.zona,
-        cargo: newUser.cargo,
-      },
+      user: newUser,
     });
   } catch (error: unknown) {
     console.error("[/api/usuarios]", error);

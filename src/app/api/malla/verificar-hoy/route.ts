@@ -23,15 +23,15 @@ export async function GET() {
       Date.UTC(colombiaTime.getUTCFullYear(), colombiaTime.getUTCMonth(), colombiaTime.getUTCDate())
     );
 
-    const malla = await prisma.mallaTurno.findUnique({
-      where: { userId_fecha: { userId: uid, fecha } },
+    const malla = await prisma.shiftSchedule.findUnique({
+      where: { userId_date: { userId: uid, date: fecha } },
     });
 
     if (!malla) {
       return NextResponse.json({ bloqueado: false });
     }
 
-    const valorMalla = (malla.valor ?? "").toLowerCase().trim();
+    const valorMalla = (malla.shiftCode ?? "").toLowerCase().trim();
     const estadosBloqueantes = [
       "descanso",
       "vacacion",
@@ -49,8 +49,8 @@ export async function GET() {
 
     return NextResponse.json({
       bloqueado,
-      estado: malla.valor,
-      fecha: fechaStr,
+      estado: malla.shiftCode,
+      date: fechaStr,
     });
   } catch (error) {
     console.error("[malla/verificar-hoy]", error);

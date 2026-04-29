@@ -23,7 +23,7 @@ export default function OpsHomePage() {
     return "/tecnico";
   }
 
-  const nombre = profile?.nombre || profile?.email || "Usuario";
+  const nombre = profile?.fullName || profile?.email || "Usuario";
   const hora = new Date().getHours();
   const saludo = hora < 12 ? "Buenos dias" : hora < 18 ? "Buenas tardes" : "Buenas noches";
 

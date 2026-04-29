@@ -1,32 +1,32 @@
 import type { Prisma } from "@prisma/client";
 
 /** Turnos con HE o recargos > 0, no cancelados */
-export const turnoHeRecargoOr: Prisma.TurnoWhereInput = {
+export const turnoHeRecargoOr: Prisma.ShiftWhereInput = {
   OR: [
-    { heDiurna: { gt: 0 } },
-    { heNocturna: { gt: 0 } },
-    { heDominical: { gt: 0 } },
-    { heNoctDominical: { gt: 0 } },
-    { recNocturno: { gt: 0 } },
-    { recDominical: { gt: 0 } },
-    { recNoctDominical: { gt: 0 } },
+    { daytimeOvertimeHours: { gt: 0 } },
+    { nighttimeOvertimeHours: { gt: 0 } },
+    { sundayOvertimeHours: { gt: 0 } },
+    { nightSundayOvertimeHours: { gt: 0 } },
+    { nightSurchargeHours: { gt: 0 } },
+    { sundaySurchargeHours: { gt: 0 } },
+    { nightSundaySurchargeHours: { gt: 0 } },
   ],
 };
 
-export const turnoNoCanceladoOr: Prisma.TurnoWhereInput = {
-  OR: [{ observaciones: null }, { observaciones: { not: { startsWith: "Cancelado" } } }],
+export const turnoNoCanceladoOr: Prisma.ShiftWhereInput = {
+  OR: [{ notes: null }, { notes: { not: { startsWith: "Cancelado" } } }],
 };
 
 export function whereTurnosDisponiblesParaReporte(
   fechaInicio: Date,
   fechaFin: Date,
   userIds: string[]
-): Prisma.TurnoWhereInput {
+): Prisma.ShiftWhereInput {
   return {
     userId: { in: userIds },
-    fecha: { gte: fechaInicio, lte: fechaFin },
-    horaSalida: { not: null },
-    reportes: { none: {} },
+    date: { gte: fechaInicio, lte: fechaFin },
+    clockOutAt: { not: null },
+    reports: { none: {} },
     AND: [turnoHeRecargoOr, turnoNoCanceladoOr],
   };
 }
@@ -35,13 +35,13 @@ export function whereForaneosDisponiblesParaReporte(
   fechaInicio: Date,
   fechaFin: Date,
   userIds: string[]
-): Prisma.FotoRegistroWhereInput {
+): Prisma.TripRecordWhereInput {
   return {
-    tipo: "FORANEO",
-    estadoAprobacion: "APROBADA",
+    type: "FORANEO",
+    approvalStatus: "APROBADA",
     userId: { in: userIds },
     createdAt: { gte: fechaInicio, lte: fechaFin },
-    reportes: { none: {} },
+    reports: { none: {} },
   };
 }
 
@@ -50,14 +50,14 @@ export function whereDisponibilidadesMallaParaReporte(
   fechaInicio: Date,
   fechaFin: Date,
   userIds: string[]
-): Prisma.MallaTurnoWhereInput {
+): Prisma.ShiftScheduleWhereInput {
   return {
     userId: { in: userIds },
-    fecha: { gte: fechaInicio, lte: fechaFin },
+    date: { gte: fechaInicio, lte: fechaFin },
     // FIX: usar tipo:"DISPONIBLE" en lugar de valor contains "disponible"
     // El campo tipo es el que determina si es disponibilidad, no el valor
-    tipo: "DISPONIBLE",
-    reportes: { none: {} },
+    dayType: "DISPONIBLE",
+    reports: { none: {} },
     user: {
       role: "TECNICO",
       isActive: true,
@@ -70,13 +70,13 @@ export function whereDisponibilidadesCoordinadoresParaReporte(
   fechaInicio: Date,
   fechaFin: Date,
   coordUserIds: string[]
-): Prisma.MallaTurnoWhereInput {
+): Prisma.ShiftScheduleWhereInput {
   return {
     userId: { in: coordUserIds },
-    fecha: { gte: fechaInicio, lte: fechaFin },
+    date: { gte: fechaInicio, lte: fechaFin },
     // FIX: usar tipo:"DISPONIBLE" en lugar de valor contains "disponible"
-    tipo: "DISPONIBLE",
-    reportes: { none: {} },
+    dayType: "DISPONIBLE",
+    reports: { none: {} },
     user: {
       role: { in: ["COORDINADOR", "COORDINADOR_INTERIOR"] },
       isActive: true,
@@ -93,15 +93,15 @@ export function whereDisponibilidadesMallaCombinadaParaReporte(
   fechaFin: Date,
   userIdsTecnicos: string[],
   coordUserIds: string[]
-): Prisma.MallaTurnoWhereInput {
+): Prisma.ShiftScheduleWhereInput {
   // FIX: la base ahora usa tipo:"DISPONIBLE" — correcto y consistente con el schema
   const base = {
-    fecha: { gte: fechaInicio, lte: fechaFin },
-    tipo: "DISPONIBLE" as const,
-    reportes: { none: {} },
+    date: { gte: fechaInicio, lte: fechaFin },
+    dayType: "DISPONIBLE" as const,
+    reports: { none: {} },
   };
 
-  const or: Prisma.MallaTurnoWhereInput[] = [];
+  const or: Prisma.ShiftScheduleWhereInput[] = [];
   if (userIdsTecnicos.length > 0) {
     or.push({
       ...base,
@@ -126,15 +126,15 @@ export function whereDisponibilidadesMallaCombinadaParaReporte(
   return { OR: or };
 }
 
-const turnoCoordHeRecargoOr: Prisma.TurnoCoordinadorWhereInput = {
+const turnoCoordHeRecargoOr: Prisma.CoordinatorShiftWhereInput = {
   OR: [
-    { heDiurna: { gt: 0 } },
-    { heNocturna: { gt: 0 } },
-    { heDominical: { gt: 0 } },
-    { heNoctDominical: { gt: 0 } },
-    { recNocturno: { gt: 0 } },
-    { recDominical: { gt: 0 } },
-    { recNoctDominical: { gt: 0 } },
+    { daytimeOvertimeHours: { gt: 0 } },
+    { nighttimeOvertimeHours: { gt: 0 } },
+    { sundayOvertimeHours: { gt: 0 } },
+    { nightSundayOvertimeHours: { gt: 0 } },
+    { nightSurchargeHours: { gt: 0 } },
+    { sundaySurchargeHours: { gt: 0 } },
+    { nightSundaySurchargeHours: { gt: 0 } },
   ],
 };
 
@@ -142,12 +142,12 @@ export function whereTurnosCoordinadorDisponiblesParaReporte(
   fechaInicio: Date,
   fechaFin: Date,
   userIds: string[]
-): Prisma.TurnoCoordinadorWhereInput {
+): Prisma.CoordinatorShiftWhereInput {
   return {
     userId: { in: userIds },
-    fecha: { gte: fechaInicio, lte: fechaFin },
-    horaSalida: { not: null },
-    reportes: { none: {} },
+    date: { gte: fechaInicio, lte: fechaFin },
+    clockOutAt: { not: null },
+    reports: { none: {} },
     AND: [turnoCoordHeRecargoOr],
   };
 }

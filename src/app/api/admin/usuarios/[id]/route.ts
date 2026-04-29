@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
-import { Role, Zona, Cargo } from "@prisma/client";
+import { Role, Zone, JobTitle } from "@prisma/client";
 import type { User } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
@@ -18,7 +18,7 @@ async function verificarAdmin(): Promise<User | null> {
 }
 
 const ROLES: Role[] = ["ADMIN", "MANAGER", "COORDINADOR", "COORDINADOR_INTERIOR", "TECNICO", "SUPPLY"];
-const ZONAS: Zona[] = ["BOGOTA", "COSTA", "INTERIOR"];
+const ZONAS: Zone[] = ["BOGOTA", "COSTA", "INTERIOR"];
 const FILTROS_EQUIPO = ["TODOS", "TECNICO", "ALMACENISTA"] as const;
 
 export async function PATCH(
@@ -38,23 +38,23 @@ export async function PATCH(
     return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 });
   }
 
-  const { nombre, email, cedula, pin, role, zona, isActive, cargo, filtroEquipo } = body;
+  const { fullName, email, documentNumber, pin, role, zone, isActive, jobTitle, teamFilter } = body;
 
   const data: {
-    nombre?: string;
+    fullName?: string;
     email?: string;
-    cedula?: string;
+    documentNumber?: string;
     password?: string;
     role?: Role;
-    zona?: Zona;
+    zone?: Zone;
     isActive?: boolean;
-    cargo?: Cargo;
-    filtroEquipo?: string;
+    jobTitle?: JobTitle;
+    teamFilter?: string;
   } = {};
 
-  if (typeof nombre === "string" && nombre.trim()) data.nombre = nombre.trim();
+  if (typeof fullName === "string" && fullName.trim()) data.fullName = fullName.trim();
   if (typeof email === "string" && email.trim()) data.email = email.trim().toLowerCase();
-  if (typeof cedula === "string" && cedula.trim()) data.cedula = cedula.trim();
+  if (typeof documentNumber === "string" && documentNumber.trim()) data.documentNumber = documentNumber.trim();
   if (typeof pin === "string" && pin.trim() !== "") {
     const pinStr = pin.trim();
     if (pinStr.length !== 4) {
@@ -63,28 +63,18 @@ export async function PATCH(
     data.password = await bcrypt.hash(pinStr, 10);
   }
   if (typeof role === "string" && ROLES.includes(role as Role)) data.role = role as Role;
-  if (typeof zona === "string" && ZONAS.includes(zona as Zona)) data.zona = zona as Zona;
+  if (typeof zone === "string" && ZONAS.includes(zone as Zone)) data.zone = zone as Zone;
   if (typeof isActive === "boolean") data.isActive = isActive;
-  if (typeof cargo === "string" && Object.values(Cargo).includes(cargo as Cargo)) data.cargo = cargo as Cargo;
-  if (typeof filtroEquipo === "string" && FILTROS_EQUIPO.includes(filtroEquipo as (typeof FILTROS_EQUIPO)[number])) {
-    data.filtroEquipo = filtroEquipo;
+  if (typeof jobTitle === "string" && Object.values(JobTitle).includes(jobTitle as JobTitle)) data.jobTitle = jobTitle as JobTitle;
+  if (typeof teamFilter === "string" && FILTROS_EQUIPO.includes(teamFilter as (typeof FILTROS_EQUIPO)[number])) {
+    data.teamFilter = teamFilter;
   }
 
   try {
     const usuario = await prisma.user.update({ where: { id }, data });
     return NextResponse.json({
       ok: true,
-      user: {
-        id: usuario.id,
-        cedula: usuario.cedula,
-        nombre: usuario.nombre,
-        email: usuario.email,
-        role: usuario.role,
-        zona: usuario.zona,
-        cargo: usuario.cargo,
-        filtroEquipo: usuario.filtroEquipo,
-        isActive: usuario.isActive,
-      },
+      user: usuario,
     });
   } catch (e) {
     console.error("[admin usuarios PATCH]", e);

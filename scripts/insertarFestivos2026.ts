@@ -1,4 +1,4 @@
-﻿import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 const FORMATO_MAP: Record<string, string> = {
@@ -14,18 +14,18 @@ const FORMATO_MAP: Record<string, string> = {
 };
 
 async function main() {
-  const todos = await prisma.mallaTurno.findMany({
-    select: { valor: true },
-    distinct: ["valor"],
+  const todos = await prisma.shiftSchedule.findMany({
+    select: { shiftCode: true },
+    distinct: ["shiftCode"],
   });
   console.log("Valores distintos en malla:");
-  todos.forEach((m) => console.log(" -", JSON.stringify(m.valor)));
+  todos.forEach((m) => console.log(" -", JSON.stringify(m.shiftCode)));
 
   let totalFixed = 0;
   for (const [viejo, nuevo] of Object.entries(FORMATO_MAP)) {
-    const result = await prisma.mallaTurno.updateMany({
-      where: { valor: viejo },
-      data: { valor: nuevo },
+    const result = await prisma.shiftSchedule.updateMany({
+      where: { shiftCode: viejo },
+      data: { shiftCode: nuevo },
     });
     if (result.count > 0) {
       console.log(`Corregidos "${viejo}" a "${nuevo}": ${result.count}`);

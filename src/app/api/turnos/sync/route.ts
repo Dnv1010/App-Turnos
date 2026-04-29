@@ -3,14 +3,14 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { Prisma, User } from "@prisma/client";
-import type { Zona } from "@prisma/client";
+import type { Zone } from "@prisma/client";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
 
 /** Alineado con GET /api/turnos y reportes: solo turnos de técnicos visibles para el rol. */
 async function buildTurnoUserScope(
   profile: User
-): Promise<Prisma.TurnoWhereInput> {
+): Promise<Prisma.ShiftWhereInput> {
   if (profile.role === "PENDIENTE") {
     return { userId: { in: [] } };
   }
@@ -24,7 +24,7 @@ async function buildTurnoUserScope(
   ) {
     const usersZona = await prisma.user.findMany({
       where: {
-        zona: profile.zona as Zona,
+        zone: profile.zone as Zone,
         role: "TECNICO",
         isActive: true,
       },
@@ -62,13 +62,13 @@ export async function GET(req: NextRequest) {
 
     const userScope = await buildTurnoUserScope(profile);
 
-    const turnos = await prisma.turno.findMany({
+    const turnos = await prisma.shift.findMany({
       where: {
         ...userScope,
         updatedAt: { gte: sinceDate },
-        OR: [{ observaciones: null }, { observaciones: { not: { startsWith: "Cancelado" } } }],
+        OR: [{ notes: null }, { notes: { not: { startsWith: "Cancelado" } } }],
       },
-      include: { user: { select: { nombre: true, zona: true } } },
+      include: { user: { select: { fullName: true, zone: true } } },
       orderBy: { updatedAt: "desc" },
       take: 50,
     });
@@ -80,18 +80,18 @@ export async function GET(req: NextRequest) {
       (t) => new Date(t.createdAt).getTime() < sinceDate.getTime()
     );
 
-    const cancelados = await prisma.turno.findMany({
+    const cancelados = await prisma.shift.findMany({
       where: {
         ...userScope,
         updatedAt: { gte: sinceDate },
-        observaciones: { startsWith: "Cancelado" },
+        notes: { startsWith: "Cancelado" },
       },
       select: { id: true, userId: true, updatedAt: true },
     });
 
     return NextResponse.json({
-      creados,
-      editados,
+      creados: creados,
+      editados: editados,
       eliminados: cancelados.map((t) => ({ id: t.id })),
     });
   } catch (e) {

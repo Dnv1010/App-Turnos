@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
-import { Role, Zona, Cargo } from "@prisma/client";
+import { Role, Zone, JobTitle } from "@prisma/client";
 import type { User } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
@@ -22,16 +22,16 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const usuarios = await prisma.user.findMany({
-    orderBy: { nombre: "asc" },
+    orderBy: { fullName: "asc" },
     select: {
       id: true,
-      cedula: true,
-      nombre: true,
+      documentNumber: true,
+      fullName: true,
       email: true,
       role: true,
-      zona: true,
-      cargo: true,
-      filtroEquipo: true,
+      zone: true,
+      jobTitle: true,
+      teamFilter: true,
       isActive: true,
       createdAt: true,
     },
@@ -45,10 +45,10 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const body = await req.json();
-  const { cedula, nombre, email, pin, role, zona, isActive, cargo: bodyCargo } = body;
+  const { documentNumber, fullName, email, pin, role, zone, isActive, jobTitle: bodyJobTitle } = body;
 
-  if (!cedula || !nombre || !email || !pin) {
-    return NextResponse.json({ error: "Campos requeridos: cedula, nombre, email, pin" }, { status: 400 });
+  if (!documentNumber || !fullName || !email || !pin) {
+    return NextResponse.json({ error: "Campos requeridos: documentNumber, fullName, email, pin" }, { status: 400 });
   }
 
   const exists = await prisma.user.findUnique({ where: { email: (email as string).toLowerCase() } });
@@ -62,39 +62,29 @@ export async function POST(req: NextRequest) {
   const activo = typeof isActive === "boolean" ? isActive : true;
 
   const roleResolved = (role as Role) || Role.TECNICO;
-  const filtroEquipoDefault = roleResolved === Role.SUPPLY ? "ALMACENISTA" : "TODOS";
+  const teamFilterDefault = roleResolved === Role.SUPPLY ? "ALMACENISTA" : "TODOS";
 
-  const cargoCreate =
-    typeof bodyCargo === "string" && Object.values(Cargo).includes(bodyCargo as Cargo)
-      ? (bodyCargo as Cargo)
-      : Cargo.TECNICO;
+  const jobTitleCreate =
+    typeof bodyJobTitle === "string" && Object.values(JobTitle).includes(bodyJobTitle as JobTitle)
+      ? (bodyJobTitle as JobTitle)
+      : JobTitle.TECNICO;
 
   const usuario = await prisma.user.create({
     data: {
-      cedula: String(cedula),
-      nombre: String(nombre),
+      documentNumber: String(documentNumber),
+      fullName: String(fullName),
       email: (email as string).toLowerCase(),
       password: hashedPin,
       role: roleResolved,
-      zona: (zona as Zona) || "BOGOTA",
-      cargo: cargoCreate,
-      filtroEquipo: filtroEquipoDefault,
+      zone: (zone as Zone) || "BOGOTA",
+      jobTitle: jobTitleCreate,
+      teamFilter: teamFilterDefault,
       isActive: activo,
     },
   });
 
   return NextResponse.json({
     ok: true,
-    user: {
-      id: usuario.id,
-      cedula: usuario.cedula,
-      nombre: usuario.nombre,
-      email: usuario.email,
-      role: usuario.role,
-      zona: usuario.zona,
-      cargo: usuario.cargo,
-      filtroEquipo: usuario.filtroEquipo,
-      isActive: usuario.isActive,
-    },
+    user: usuario,
   }, { status: 201 });
 }

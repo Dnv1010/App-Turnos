@@ -43,10 +43,10 @@ export async function POST(req: NextRequest) {
     const emailLower = email.toLowerCase()
     const userMeta = {
       userId: user.id,
-      nombre: user.nombre,
+      fullName: user.fullName,
       role: user.role,
-      zona: user.zona,
-      cargo: user.cargo,
+      zone: user.zone,
+      jobTitle: user.jobTitle,
     }
 
     // Intentar crear; si ya existe, actualizar metadata por ID

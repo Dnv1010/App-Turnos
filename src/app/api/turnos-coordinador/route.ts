@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import { Zona } from "@prisma/client";
+import { Zone } from "@prisma/client";
 
 const ROLES_FICHAJE = new Set<string>(["COORDINADOR", "COORDINADOR_INTERIOR"]);
 const ROLES_VER_TODOS = new Set<string>(["MANAGER", "ADMIN"]);
@@ -45,21 +45,21 @@ export async function GET(req: NextRequest) {
   } else if (ROLES_VER_TODOS.has(role)) {
     if (userIdParam) where.userId = userIdParam;
     if (zona && zona !== "ALL") {
-      where.user = { zona: zona as Zona };
+      where.user = { zone: zona as Zone };
     }
   }
 
   if (desde && hasta) {
     const rango = parseFechas(desde, hasta);
-    if (rango) where.fecha = rango;
+    if (rango) where.date = rango;
   }
 
-  const turnos = await prisma.turnoCoordinador.findMany({
+  const turnos = await prisma.coordinatorShift.findMany({
     where,
     include: {
-      user: { select: { nombre: true, cedula: true, zona: true, role: true } },
+      user: { select: { fullName: true, documentNumber: true, zone: true, role: true } },
     },
-    orderBy: [{ fecha: "desc" }, { horaEntrada: "desc" }],
+    orderBy: [{ date: "desc" }, { clockInAt: "desc" }],
   });
 
   return NextResponse.json({ turnos });
@@ -77,20 +77,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
-  let body: { codigoOrden?: string; lat?: number; lng?: number };
+  let body: { orderCode?: string; lat?: number; lng?: number };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
   }
 
-  const codigoOrden = (body.codigoOrden ?? "").trim();
-  if (!codigoOrden) {
-    return NextResponse.json({ error: "codigoOrden es obligatorio" }, { status: 400 });
+  const orderCode = (body.orderCode ?? "").trim();
+  if (!orderCode) {
+    return NextResponse.json({ error: "orderCode es obligatorio" }, { status: 400 });
   }
 
-  const turnoAbierto = await prisma.turnoCoordinador.findFirst({
-    where: { userId: profile.id, horaSalida: null },
+  const turnoAbierto = await prisma.coordinatorShift.findFirst({
+    where: { userId: profile.id, clockOutAt: null },
   });
   if (turnoAbierto) {
     return NextResponse.json({ error: "Ya tienes un turno abierto" }, { status: 400 });
@@ -102,17 +102,17 @@ export async function POST(req: NextRequest) {
     Date.UTC(ahoraColombia.getUTCFullYear(), ahoraColombia.getUTCMonth(), ahoraColombia.getUTCDate())
   );
 
-  const turno = await prisma.turnoCoordinador.create({
+  const turno = await prisma.coordinatorShift.create({
     data: {
       userId: profile.id,
-      fecha,
-      horaEntrada,
-      codigoOrden,
-      latEntrada: body.lat ?? null,
-      lngEntrada: body.lng ?? null,
+      date: fecha,
+      clockInAt: horaEntrada,
+      orderCode,
+      clockInLat: body.lat ?? null,
+      clockInLng: body.lng ?? null,
     },
     include: {
-      user: { select: { nombre: true, cedula: true, zona: true, role: true } },
+      user: { select: { fullName: true, documentNumber: true, zone: true, role: true } },
     },
   });
 

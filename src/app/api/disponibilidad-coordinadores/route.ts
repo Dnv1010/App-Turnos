@@ -4,11 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import { Role, Zona } from "@prisma/client";
-import {
-  appendDisponibilidadCoordinadorSheet,
-  deleteDisponibilidadCoordinadorSheet,
-} from "@/lib/sheetsDisponibilidadCoordinador";
+import { Role, Zone } from "@prisma/client";
 
 const ROLES_OK = new Set<string>(["MANAGER", "ADMIN"]);
 
@@ -47,73 +43,81 @@ export async function GET(req: NextRequest) {
 
   if (role === "COORDINADOR" || role === "COORDINADOR_INTERIOR") {
     const [disponibilidades, disponibilidadesTabla] = await Promise.all([
-      prisma.mallaTurno.findMany({
+      prisma.shiftSchedule.findMany({
         where: {
           userId: profile.id,
-          fecha: { gte: fi, lte: ffEnd },
-          tipo: "DISPONIBLE",
+          date: { gte: fi, lte: ffEnd },
+          dayType: "DISPONIBLE",
         },
         include: {
-          user: { select: { nombre: true, cedula: true, zona: true, role: true } },
+          user: { select: { fullName: true, documentNumber: true, zone: true, role: true } },
         },
-        orderBy: { fecha: "asc" },
+        orderBy: { date: "asc" },
       }),
-      prisma.disponibilidad.findMany({
+      prisma.availability.findMany({
         where: {
           userId: profile.id,
-          fecha: { gte: fi, lte: ffEnd },
+          date: { gte: fi, lte: ffEnd },
         },
         include: {
-          user: { select: { nombre: true, cedula: true, zona: true, role: true } },
+          user: { select: { fullName: true, documentNumber: true, zone: true, role: true } },
         },
-        orderBy: { fecha: "asc" },
+        orderBy: { date: "asc" },
       }),
     ]);
-    return NextResponse.json({ coordinadores: [], disponibilidades, disponibilidadesTabla });
+    return NextResponse.json({
+      coordinadores: [],
+      disponibilidades,
+      disponibilidadesTabla,
+    });
   }
 
   if (!ROLES_OK.has(role)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
-  const whereUser: { isActive: boolean; role: { in: Role[] }; zona?: Zona } = {
+  const whereUser: { isActive: boolean; role: { in: Role[] }; zone?: Zone } = {
     isActive: true,
     role: { in: [Role.COORDINADOR, Role.COORDINADOR_INTERIOR] },
   };
   if (zona && zona !== "ALL" && (zona === "BOGOTA" || zona === "COSTA" || zona === "INTERIOR")) {
-    whereUser.zona = zona as Zona;
+    whereUser.zone = zona as Zone;
   }
 
   const [coordinadores, disponibilidades, disponibilidadesTabla] = await Promise.all([
     prisma.user.findMany({
       where: whereUser,
-      select: { id: true, nombre: true, cedula: true, zona: true, role: true },
-      orderBy: { nombre: "asc" },
+      select: { id: true, fullName: true, documentNumber: true, zone: true, role: true },
+      orderBy: { fullName: "asc" },
     }),
-    prisma.mallaTurno.findMany({
+    prisma.shiftSchedule.findMany({
       where: {
-        fecha: { gte: fi, lte: ffEnd },
-        tipo: "DISPONIBLE",
+        date: { gte: fi, lte: ffEnd },
+        dayType: "DISPONIBLE",
         user: whereUser,
       },
       include: {
-        user: { select: { nombre: true, cedula: true, zona: true, role: true } },
+        user: { select: { fullName: true, documentNumber: true, zone: true, role: true } },
       },
-      orderBy: [{ fecha: "asc" }, { user: { nombre: "asc" } }],
+      orderBy: [{ date: "asc" }, { user: { fullName: "asc" } }],
     }),
-    prisma.disponibilidad.findMany({
+    prisma.availability.findMany({
       where: {
-        fecha: { gte: fi, lte: ffEnd },
+        date: { gte: fi, lte: ffEnd },
         user: whereUser,
       },
       include: {
-        user: { select: { nombre: true, cedula: true, zona: true, role: true } },
+        user: { select: { fullName: true, documentNumber: true, zone: true, role: true } },
       },
-      orderBy: [{ fecha: "asc" }, { user: { nombre: "asc" } }],
+      orderBy: [{ date: "asc" }, { user: { fullName: "asc" } }],
     }),
   ]);
 
-  return NextResponse.json({ coordinadores, disponibilidades, disponibilidadesTabla });
+  return NextResponse.json({
+    coordinadores,
+    disponibilidades,
+    disponibilidadesTabla,
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -126,7 +130,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
-  let body: { userId?: string; fechas?: string[] };
+  let body: { userId?: string; dates?: string[] };
   try {
     body = await req.json();
   } catch {
@@ -134,9 +138,9 @@ export async function POST(req: NextRequest) {
   }
 
   const userId = body.userId?.trim();
-  const fechas = Array.isArray(body.fechas) ? body.fechas.filter(Boolean) : [];
-  if (!userId || fechas.length === 0) {
-    return NextResponse.json({ error: "userId y fechas[] requeridos" }, { status: 400 });
+  const dates = Array.isArray(body.dates) ? body.dates.filter(Boolean) : [];
+  if (!userId || dates.length === 0) {
+    return NextResponse.json({ error: "userId y dates[] requeridos" }, { status: 400 });
   }
 
   const targetUser = await prisma.user.findFirst({
@@ -145,35 +149,32 @@ export async function POST(req: NextRequest) {
       isActive: true,
       role: { in: [Role.COORDINADOR, Role.COORDINADOR_INTERIOR] },
     },
-    select: { id: true, nombre: true, cedula: true },
+    select: { id: true, fullName: true, documentNumber: true },
   });
   if (!targetUser) {
     return NextResponse.json({ error: "Usuario no es líder de zona válido" }, { status: 400 });
   }
 
-  for (const f of fechas) {
+  for (const f of dates) {
     const fechaDate = parseYmdToUtcDate(f);
     if (!fechaDate) continue;
 
-    await prisma.mallaTurno.upsert({
-      where: { userId_fecha: { userId, fecha: fechaDate } },
+    await prisma.shiftSchedule.upsert({
+      where: { userId_date: { userId, date: fechaDate } },
       create: {
         userId,
-        fecha: fechaDate,
-        tipo: "DISPONIBLE",
-        valor: "Disponible",
+        date: fechaDate,
+        dayType: "DISPONIBLE",
+        shiftCode: "Disponible",
       },
       update: {
-        tipo: "DISPONIBLE",
-        valor: "Disponible",
+        dayType: "DISPONIBLE",
+        shiftCode: "Disponible",
       },
     });
-
-    void deleteDisponibilidadCoordinadorSheet(targetUser.cedula ?? "", f);
-    void appendDisponibilidadCoordinadorSheet(targetUser.cedula ?? "", targetUser.nombre, f);
   }
 
-  return NextResponse.json({ ok: true, asignados: fechas.length });
+  return NextResponse.json({ ok: true, asignados: dates.length });
 }
 
 export async function DELETE(req: NextRequest) {
@@ -186,7 +187,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
-  let body: { userId?: string; fechas?: string[] };
+  let body: { userId?: string; dates?: string[] };
   try {
     body = await req.json();
   } catch {
@@ -194,30 +195,28 @@ export async function DELETE(req: NextRequest) {
   }
 
   const userId = body.userId?.trim();
-  const fechas = Array.isArray(body.fechas) ? body.fechas.filter(Boolean) : [];
-  if (!userId || fechas.length === 0) {
-    return NextResponse.json({ error: "userId y fechas[] requeridos" }, { status: 400 });
+  const dates = Array.isArray(body.dates) ? body.dates.filter(Boolean) : [];
+  if (!userId || dates.length === 0) {
+    return NextResponse.json({ error: "userId y dates[] requeridos" }, { status: 400 });
   }
 
   const targetUser = await prisma.user.findUnique({
     where: { id: userId },
-    select: { cedula: true, nombre: true },
+    select: { documentNumber: true, fullName: true },
   });
   if (!targetUser) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
-  for (const f of fechas) {
+  for (const f of dates) {
     const fechaDate = parseYmdToUtcDate(f);
     if (!fechaDate) continue;
 
-    await prisma.mallaTurno.deleteMany({
+    await prisma.shiftSchedule.deleteMany({
       where: {
         userId,
-        fecha: fechaDate,
-        tipo: "DISPONIBLE",
+        date: fechaDate,
+        dayType: "DISPONIBLE",
       },
     });
-
-    void deleteDisponibilidadCoordinadorSheet(targetUser.cedula ?? "", f);
   }
 
   return NextResponse.json({ ok: true });

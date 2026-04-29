@@ -14,10 +14,10 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { userIds, fechas, valor } = body;
+    const { userIds, dates, shiftCode } = body;
 
-    if (!Array.isArray(userIds) || !Array.isArray(fechas) || userIds.length === 0 || fechas.length === 0) {
-      return NextResponse.json({ error: "userIds y fechas (arrays no vacíos) requeridos" }, { status: 400 });
+    if (!Array.isArray(userIds) || !Array.isArray(dates) || userIds.length === 0 || dates.length === 0) {
+      return NextResponse.json({ error: "userIds y dates (arrays no vacíos) requeridos" }, { status: 400 });
     }
 
     if (profile.role === "TECNICO") {
@@ -26,11 +26,11 @@ export async function POST(req: NextRequest) {
     if (profile.role === "COORDINADOR" || profile.role === "SUPPLY") {
       const targets = await prisma.user.findMany({
         where: { id: { in: userIds } },
-        select: { id: true, zona: true, role: true, cargo: true },
+        select: { id: true, zone: true, role: true, jobTitle: true },
       });
       const invalid = targets.some((t) => {
-        if (t.role !== "TECNICO" || t.zona !== profile.zona) return true;
-        if (profile.role === "SUPPLY" && t.cargo !== "ALMACENISTA") return true;
+        if (t.role !== "TECNICO" || t.zone !== profile.zone) return true;
+        if (profile.role === "SUPPLY" && t.jobTitle !== "ALMACENISTA") return true;
         return false;
       });
       if (invalid || targets.length !== userIds.length) {
@@ -39,17 +39,17 @@ export async function POST(req: NextRequest) {
     }
 
     // Construir todas las operaciones y ejecutarlas en paralelo
-    const ops: ReturnType<typeof prisma.mallaTurno.upsert>[] = []
+    const ops: ReturnType<typeof prisma.shiftSchedule.upsert>[] = []
     for (const userId of userIds) {
-      for (const fecha of fechas) {
-        const fechaStr = typeof fecha === "string" ? fecha : String(fecha);
+      for (const dateInput of dates) {
+        const fechaStr = typeof dateInput === "string" ? dateInput : String(dateInput);
         const [y, m, d] = fechaStr.split("-").map(Number);
         if (!y || !m || !d) continue;
         const fechaDate = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
-        ops.push(prisma.mallaTurno.upsert({
-          where: { userId_fecha: { userId, fecha: fechaDate } },
-          update: { valor: valor ?? "" },
-          create: { userId, fecha: fechaDate, valor: valor ?? "" },
+        ops.push(prisma.shiftSchedule.upsert({
+          where: { userId_date: { userId, date: fechaDate } },
+          update: { shiftCode: shiftCode ?? "" },
+          create: { userId, date: fechaDate, shiftCode: shiftCode ?? "" },
         }))
       }
     }

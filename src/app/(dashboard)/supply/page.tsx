@@ -15,52 +15,52 @@ import SupplyPushSetup from "@/components/supply/SupplyPushSetup";
 interface TurnoRow {
   id: string;
   userId: string;
-  fecha: string;
-  horaEntrada: string;
-  horaSalida: string | null;
-  horasOrdinarias?: number;
-  heDiurna?: number;
-  heNocturna?: number;
-  heDominical?: number;
-  heNoctDominical?: number;
-  recNocturno?: number;
-  recDominical?: number;
-  recNoctDominical?: number;
-  latEntrada: number | null;
-  lngEntrada: number | null;
-  latSalida: number | null;
-  lngSalida: number | null;
+  date: string;
+  clockInAt: string;
+  clockOutAt: string | null;
+  regularHours?: number;
+  daytimeOvertimeHours?: number;
+  nighttimeOvertimeHours?: number;
+  sundayOvertimeHours?: number;
+  nightSundayOvertimeHours?: number;
+  nightSurchargeHours?: number;
+  sundaySurchargeHours?: number;
+  nightSundaySurchargeHours?: number;
+  clockInLat: number | null;
+  clockInLng: number | null;
+  clockOutLat: number | null;
+  clockOutLng: number | null;
   startPhotoUrl: string | null;
   endPhotoUrl: string | null;
-  user: { nombre: string; zona: string; cargo?: string };
+  user: { fullName: string; zone: string; jobTitle?: string };
 }
 
 interface FotoInfo {
   id: string;
-  tipo: string;
+  type: string;
   driveUrl: string | null;
-  kmInicial: number | null;
-  kmFinal: number | null;
+  startKm: number | null;
+  endKm: number | null;
   kmRecorridos: number | null;
-  observaciones: string | null;
-  fecha: string;
+  notes: string | null;
+  createdAt: string;
 }
 
 interface TurnoConMalla {
   id: string;
-  fecha: string;
+  date: string;
   malla?: string;
   [key: string]: unknown;
 }
 
 interface DetalleUsuario {
-  userId: string; nombre: string; cedula?: string; zona: string; role?: string; totalTurnos: number; horasOrdinarias: number;
-  heDiurna: number; heNocturna: number; heDominical: number; heNoctDominical: number;
-  recNocturno: number; recDominical: number; recNoctDominical: number;
+  userId: string; fullName: string; documentNumber?: string; zone: string; role?: string; totalTurnos: number; regularHours: number;
+  daytimeOvertimeHours: number; nighttimeOvertimeHours: number; sundayOvertimeHours: number; nightSundayOvertimeHours: number;
+  nightSurchargeHours: number; sundaySurchargeHours: number; nightSundaySurchargeHours: number;
   totalHorasExtra: number; totalRecargos: number; totalDisponibilidades: number;
   totalHorasTrabajadas?: number;
   totalKmRecorridos: number; registrosForaneo: number; fotos: FotoInfo[];
-  turnos?: (TurnoConMalla & { fecha: string; horaEntrada: string; horaSalida?: string | null; horasOrdinarias?: number; heDiurna?: number; heNocturna?: number; recNocturno?: number; recDominical?: number; recNoctDominical?: number })[];
+  turnos?: (TurnoConMalla & { date: string; clockInAt: string; clockOutAt?: string | null; regularHours?: number; daytimeOvertimeHours?: number; nighttimeOvertimeHours?: number; nightSurchargeHours?: number; sundaySurchargeHours?: number; nightSundaySurchargeHours?: number })[];
 }
 
 function isBlockMalla(val: string): boolean {
@@ -83,7 +83,7 @@ interface ReporteData {
     totalHorasOrdinarias: number; totalDisponibilidades: number;
     totalKmRecorridos: number; totalRegistrosForaneo: number;
   };
-  alertas: Array<{ nombre: string; mensaje: string; tipo?: string }>;
+  alertas: Array<{ fullName: string; mensaje: string; tipo?: string }>;
 }
 
 type TabView = "turnos" | "equipo" | "disponibilidades";
@@ -101,7 +101,7 @@ export default function SupplyDashboardPage() {
   const [data, setData] = useState<ReporteData | null>(null);
   const [loadingReportes, setLoadingReportes] = useState(true);
   const [tabView, setTabView] = useState<TabView>("turnos");
-  const [disponibilidadesList, setDisponibilidadesList] = useState<Array<{ nombre: string; cedula: string; fecha: string; valor: number }>>([]);
+  const [disponibilidadesList, setDisponibilidadesList] = useState<Array<{ fullName: string; documentNumber: string; date: string; amount: number }>>([]);
   const [loadingDisp, setLoadingDisp] = useState(false);
   const [reporteError, setReporteError] = useState<string | null>(null);
   const [syncingSheets, setSyncingSheets] = useState(false);
@@ -110,7 +110,7 @@ export default function SupplyDashboardPage() {
   const detalleFiltrado = useMemo(() => {
     if (!data?.detalle) return [];
     if (filtroZona === "ALL") return data.detalle;
-    return data.detalle.filter((d) => d.zona === filtroZona);
+    return data.detalle.filter((d) => d.zone === filtroZona);
   }, [data?.detalle, filtroZona]);
 
   const resumenEquipo = useMemo(() => {
@@ -121,7 +121,7 @@ export default function SupplyDashboardPage() {
       totalTecnicos: d.length,
       totalHorasExtra: Math.round(d.reduce((s, x) => s + x.totalHorasExtra, 0) * 100) / 100,
       totalRecargos: Math.round(d.reduce((s, x) => s + x.totalRecargos, 0) * 100) / 100,
-      totalHorasOrdinarias: Math.max(0, Math.round(d.reduce((s, x) => s + x.horasOrdinarias, 0) * 100) / 100),
+      totalHorasOrdinarias: Math.max(0, Math.round(d.reduce((s, x) => s + x.regularHours, 0) * 100) / 100),
       totalDisponibilidades: d.reduce((s, x) => s + x.totalDisponibilidades, 0),
       totalKmRecorridos: 0,
       totalRegistrosForaneo: 0,
@@ -130,14 +130,14 @@ export default function SupplyDashboardPage() {
 
   const turnosFiltradosPorZona = useMemo(() => {
     if (filtroZona === "ALL") return turnos;
-    return turnos.filter((t) => t.user?.zona === filtroZona);
+    return turnos.filter((t) => t.user?.zone === filtroZona);
   }, [turnos, filtroZona]);
 
   const alertasFiltradas = useMemo(() => {
     if (!data?.alertas) return [];
     if (filtroZona === "ALL") return data.alertas;
-    const names = new Set(detalleFiltrado.map((d) => d.nombre));
-    return data.alertas.filter((a) => names.has(a.nombre));
+    const names = new Set(detalleFiltrado.map((d) => d.fullName));
+    return data.alertas.filter((a) => names.has(a.fullName));
   }, [data?.alertas, detalleFiltrado, filtroZona]);
 
   useTurnosStream(
@@ -163,9 +163,9 @@ export default function SupplyDashboardPage() {
       const raw = await parseResponseJson<TurnoRow[] | { error?: string }>(res);
       let list: TurnoRow[] = Array.isArray(raw) ? raw : [];
       if (!res.ok) list = [];
-      if (estadoFilter === "ACTIVO") list = list.filter((t) => !t.horaSalida);
-      if (estadoFilter === "FINALIZADO") list = list.filter((t) => t.horaSalida);
-      list = list.filter((t) => (t.user?.cargo || "TECNICO") === "ALMACENISTA");
+      if (estadoFilter === "ACTIVO") list = list.filter((t) => !t.clockOutAt);
+      if (estadoFilter === "FINALIZADO") list = list.filter((t) => t.clockOutAt);
+      list = list.filter((t) => (t.user?.jobTitle || "TECNICO") === "ALMACENISTA");
       setTurnos(list);
     } catch { /* ignore */ }
     finally { setLoadingTurnos(false); }
@@ -183,7 +183,7 @@ export default function SupplyDashboardPage() {
         fetch(`/api/usuarios?zona=${encodeURIComponent(z)}&role=TECNICO&cargo=ALMACENISTA`),
         fetch(`/api/reportes?${params}`),
       ]);
-      const almJson = (await resAlm.json()) as { tecnicos?: { id: string; cedula?: string }[] };
+      const almJson = (await resAlm.json()) as { tecnicos?: { id: string; documentNumber?: string }[] };
       const almList = almJson?.tecnicos ?? [];
       const almIds = new Set(almList.map((t) => t.id));
       const json = await parseResponseJson<ReporteData & { error?: string }>(resRep);
@@ -193,20 +193,20 @@ export default function SupplyDashboardPage() {
         return;
       }
       const soloAlmacenistas = json.detalle.filter((d) => almIds.has(d.userId));
-      const nombresAlm = new Set(soloAlmacenistas.map((d) => d.nombre));
+      const nombresAlm = new Set(soloAlmacenistas.map((d) => d.fullName));
       const resumen: ReporteData["resumen"] = {
         totalTecnicos: soloAlmacenistas.length,
         totalHorasExtra: Math.round(soloAlmacenistas.reduce((s, d) => s + d.totalHorasExtra, 0) * 100) / 100,
         totalRecargos: Math.round(soloAlmacenistas.reduce((s, d) => s + d.totalRecargos, 0) * 100) / 100,
         totalHorasOrdinarias: Math.max(
           0,
-          Math.round(soloAlmacenistas.reduce((s, d) => s + d.horasOrdinarias, 0) * 100) / 100
+          Math.round(soloAlmacenistas.reduce((s, d) => s + d.regularHours, 0) * 100) / 100
         ),
         totalDisponibilidades: soloAlmacenistas.reduce((s, d) => s + d.totalDisponibilidades, 0),
         totalKmRecorridos: 0,
         totalRegistrosForaneo: 0,
       };
-      const alertas = json.alertas.filter((a) => nombresAlm.has(a.nombre));
+      const alertas = json.alertas.filter((a) => nombresAlm.has(a.fullName));
       setData({ ...json, detalle: soloAlmacenistas, resumen, alertas });
     } catch (e) {
       setData(null);
@@ -224,16 +224,16 @@ export default function SupplyDashboardPage() {
       const q = `${tecnicoFilter !== "ALL" ? `&userId=${tecnicoFilter}` : ""}`;
       fetch(`/api/usuarios?zona=ALL&role=TECNICO&cargo=ALMACENISTA`)
         .then((r) => r.json())
-        .then((d: { tecnicos?: { cedula?: string; zona?: string }[] }) => {
+        .then((d: { tecnicos?: { documentNumber?: string; zone?: string }[] }) => {
           const tec = d?.tecnicos ?? [];
-          const ced = new Set(tec.map((t) => String(t.cedula ?? "")).filter(Boolean));
-          const cedToZona = new Map(tec.map((t) => [String(t.cedula ?? ""), t.zona || "BOGOTA"]));
+          const ced = new Set(tec.map((t) => String(t.documentNumber ?? "")).filter(Boolean));
+          const cedToZona = new Map(tec.map((t) => [String(t.documentNumber ?? ""), t.zone || "BOGOTA"]));
           return fetch(`/api/reportes/disponibilidades?desde=${inicio}&hasta=${fin}${q}`)
             .then(async (r) => parseResponseJson<typeof disponibilidadesList>(r))
             .then((j) => {
-              let rows = Array.isArray(j) ? j.filter((row) => ced.has(row.cedula)) : [];
+              let rows = Array.isArray(j) ? j.filter((row) => ced.has(row.documentNumber)) : [];
               if (filtroZona !== "ALL") {
-                rows = rows.filter((row) => cedToZona.get(row.cedula) === filtroZona);
+                rows = rows.filter((row) => cedToZona.get(row.documentNumber) === filtroZona);
               }
               return rows;
             });
@@ -246,23 +246,12 @@ export default function SupplyDashboardPage() {
   useEffect(() => {
     if (!profile) return;
     fetch(`/api/usuarios?zona=ALL&role=TECNICO&cargo=ALMACENISTA`)
-      .then(async (r) => parseResponseJson<{ tecnicos?: { id: string; nombre: string }[] }>(r))
+      .then(async (r) => parseResponseJson<{ tecnicos?: { id: string; fullName: string }[] }>(r))
       .then((d) => {
-        if (d?.tecnicos) setTecnicosList(d.tecnicos.map((u) => ({ id: u.id, nombre: u.nombre })));
+        if (d?.tecnicos) setTecnicosList(d.tecnicos.map((u) => ({ id: u.id, nombre: u.fullName })));
       })
       .catch(() => {});
   }, [profile]);
-
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        void cargarTurnos();
-        void cargarReportes();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [cargarTurnos, cargarReportes]);
 
   const exportarCSV = () => {
     if (!data) return;
@@ -271,7 +260,7 @@ export default function SupplyDashboardPage() {
       "Total HE", "Total Recargos", "Malla", "Links Fotos Drive",
     ];
     const rows = detalleFiltrado.map((d) => [
-      d.nombre, getZonaLabel(d.zona), d.totalTurnos, d.horasOrdinarias, d.heDiurna, d.heNocturna,
+      d.fullName, getZonaLabel(d.zone), d.totalTurnos, d.regularHours, d.daytimeOvertimeHours, d.nighttimeOvertimeHours,
       d.totalHorasExtra, d.totalRecargos, mallaResumen(d.turnos),
       d.fotos.filter((f) => f.driveUrl).map((f) => f.driveUrl).join(" | "),
     ]);
@@ -332,23 +321,23 @@ export default function SupplyDashboardPage() {
   };
 
   const columnsTurnos = [
-    { key: "user", label: "Operador", render: (t: TurnoRow) => t.user?.nombre ?? "—" },
-    { key: "fecha", label: "Fecha", render: (t: TurnoRow) => formatFechaTurnoDdMmmYyyy(t.fecha) },
-    { key: "horaEntrada", label: "Entrada", render: (t: TurnoRow) => new Date(t.horaEntrada).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
-    { key: "horaSalida", label: "Salida", render: (t: TurnoRow) => t.horaSalida ? new Date(t.horaSalida).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
-    { key: "horasOrdinarias", label: "Ord.", render: (t: TurnoRow) => Math.max(0, t.horasOrdinarias ?? 0) },
-    { key: "heDiurna", label: "HE Día", render: (t: TurnoRow) => (t.heDiurna ?? 0) > 0 ? (t.heDiurna ?? 0) : "—" },
-    { key: "heNocturna", label: "HE Noc", render: (t: TurnoRow) => (t.heNocturna ?? 0) > 0 ? (t.heNocturna ?? 0) : "—" },
-    { key: "heDominical", label: "HE Dom/Fest Día", render: (t: TurnoRow) => (t.heDominical ?? 0) > 0 ? (t.heDominical ?? 0) : "—" },
-    { key: "heNoctDominical", label: "HE Dom/Fest Noc", render: (t: TurnoRow) => (t.heNoctDominical ?? 0) > 0 ? (t.heNoctDominical ?? 0) : "—" },
-    { key: "recNocturno", label: "Rec. Noc", render: (t: TurnoRow) => (t.recNocturno ?? 0) > 0 ? (t.recNocturno ?? 0) : "—" },
-    { key: "recDominical", label: "Rec Dom/Fest Día", render: (t: TurnoRow) => (t.recDominical ?? 0) > 0 ? (t.recDominical ?? 0) : "—" },
-    { key: "recNoctDominical", label: "Rec Dom/Fest Noc", render: (t: TurnoRow) => (t.recNoctDominical ?? 0) > 0 ? (t.recNoctDominical ?? 0) : "—" },
-    { key: "latEntrada", label: "Ubicación inicio", render: (t: TurnoRow) => t.latEntrada != null && t.lngEntrada != null ? <a href={`https://www.google.com/maps?q=${t.latEntrada},${t.lngEntrada}`} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline flex items-center gap-1"><HiLocationMarker className="h-3.5 w-3.5" />Mapa</a> : "—" },
-    { key: "latSalida", label: "Ubicación fin", render: (t: TurnoRow) => t.latSalida != null && t.lngSalida != null ? <a href={`https://www.google.com/maps?q=${t.latSalida},${t.lngSalida}`} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline flex items-center gap-1"><HiLocationMarker className="h-3.5 w-3.5" />Mapa</a> : "—" },
+    { key: "user", label: "Operador", render: (t: TurnoRow) => t.user?.fullName ?? "—" },
+    { key: "date", label: "Fecha", render: (t: TurnoRow) => formatFechaTurnoDdMmmYyyy(t.date) },
+    { key: "clockInAt", label: "Entrada", render: (t: TurnoRow) => new Date(t.clockInAt).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) },
+    { key: "clockOutAt", label: "Salida", render: (t: TurnoRow) => t.clockOutAt ? new Date(t.clockOutAt).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }) : "—" },
+    { key: "regularHours", label: "Ord.", render: (t: TurnoRow) => Math.max(0, t.regularHours ?? 0) },
+    { key: "daytimeOvertimeHours", label: "HE Día", render: (t: TurnoRow) => (t.daytimeOvertimeHours ?? 0) > 0 ? (t.daytimeOvertimeHours ?? 0) : "—" },
+    { key: "nighttimeOvertimeHours", label: "HE Noc", render: (t: TurnoRow) => (t.nighttimeOvertimeHours ?? 0) > 0 ? (t.nighttimeOvertimeHours ?? 0) : "—" },
+    { key: "sundayOvertimeHours", label: "HE Dom/Fest Día", render: (t: TurnoRow) => (t.sundayOvertimeHours ?? 0) > 0 ? (t.sundayOvertimeHours ?? 0) : "—" },
+    { key: "nightSundayOvertimeHours", label: "HE Dom/Fest Noc", render: (t: TurnoRow) => (t.nightSundayOvertimeHours ?? 0) > 0 ? (t.nightSundayOvertimeHours ?? 0) : "—" },
+    { key: "nightSurchargeHours", label: "Rec. Noc", render: (t: TurnoRow) => (t.nightSurchargeHours ?? 0) > 0 ? (t.nightSurchargeHours ?? 0) : "—" },
+    { key: "sundaySurchargeHours", label: "Rec Dom/Fest Día", render: (t: TurnoRow) => (t.sundaySurchargeHours ?? 0) > 0 ? (t.sundaySurchargeHours ?? 0) : "—" },
+    { key: "nightSundaySurchargeHours", label: "Rec Dom/Fest Noc", render: (t: TurnoRow) => (t.nightSundaySurchargeHours ?? 0) > 0 ? (t.nightSundaySurchargeHours ?? 0) : "—" },
+    { key: "clockInLat", label: "Ubicación inicio", render: (t: TurnoRow) => t.clockInLat != null && t.clockInLng != null ? <a href={`https://www.google.com/maps?q=${t.clockInLat},${t.clockInLng}`} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline flex items-center gap-1"><HiLocationMarker className="h-3.5 w-3.5" />Mapa</a> : "—" },
+    { key: "clockOutLat", label: "Ubicación fin", render: (t: TurnoRow) => t.clockOutLat != null && t.clockOutLng != null ? <a href={`https://www.google.com/maps?q=${t.clockOutLat},${t.clockOutLng}`} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline flex items-center gap-1"><HiLocationMarker className="h-3.5 w-3.5" />Mapa</a> : "—" },
     { key: "startPhotoUrl", label: "Foto inicio", render: (t: TurnoRow) => t.startPhotoUrl ? <a href={t.startPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-bia-teal-light hover:underline text-xs">Ver</a> : "—" },
     { key: "endPhotoUrl", label: "Foto fin", render: (t: TurnoRow) => t.endPhotoUrl ? <a href={t.endPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-bia-teal-light hover:underline text-xs">Ver</a> : "—" },
-    { key: "estado", label: "Estado", render: (t: TurnoRow) => t.horaSalida ? <span className="badge-blue">FINALIZADO</span> : <span className="badge-green">ACTIVO</span> },
+    { key: "estado", label: "Estado", render: (t: TurnoRow) => t.clockOutAt ? <span className="badge-blue">FINALIZADO</span> : <span className="badge-green">ACTIVO</span> },
     { key: "acciones", label: "Acciones", render: (t: TurnoRow) => <button onClick={() => handleEliminarTurno(t.id)} className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs flex items-center gap-1"><HiTrash className="h-3 w-3" />Eliminar</button> },
   ];
 
@@ -489,23 +478,23 @@ export default function SupplyDashboardPage() {
             </div>
           )}
           <KPICards data={{ totalTecnicos: resumenEquipo.totalTecnicos, horasOrdinarias: resumenEquipo.totalHorasOrdinarias, totalHorasExtra: resumenEquipo.totalHorasExtra, totalRecargos: resumenEquipo.totalRecargos, totalDisponibilidades: resumenEquipo.totalDisponibilidades }} showTeamMetrics />
-          <GraficoHoras datos={detalleFiltrado.map((d) => ({ nombre: d.nombre.split(" ")[0], horasOrdinarias: d.horasOrdinarias, heDiurna: d.heDiurna, heNocturna: d.heNocturna, recargos: d.totalRecargos }))} titulo="Horas por operador" />
+          <GraficoHoras datos={detalleFiltrado.map((d) => ({ nombre: d.fullName.split(" ")[0], horasOrdinarias: d.regularHours, heDiurna: d.daytimeOvertimeHours, heNocturna: d.nighttimeOvertimeHours, recargos: d.totalRecargos }))} titulo="Horas por operador" />
           {detalleFiltrado.length === 0 ? (
             <div className="card text-center py-12 text-gray-500 dark:text-bia-muted">No hay registros para la zona seleccionada</div>
           ) : (
           <DataTable columns={[
-            { key: "nombre", label: "Nombre", sortable: true },
-            { key: "cedula", label: "Cedula" },
-            { key: "zona", label: "Zona", render: (d: DetalleUsuario) => getZonaLabel(d.zona) },
+            { key: "fullName", label: "Nombre", sortable: true },
+            { key: "documentNumber", label: "Cedula" },
+            { key: "zone", label: "Zona", render: (d: DetalleUsuario) => getZonaLabel(d.zone) },
             { key: "totalTurnos", label: "Turnos" },
-            { key: "horasOrdinarias", label: "Ordinarias" },
-            { key: "heDiurna", label: "HE Dia" },
-            { key: "heNocturna", label: "HE Noc" },
-            { key: "heDominical", label: "HE Dom/Fest Dia" },
-            { key: "heNoctDominical", label: "HE Dom/Fest Noc" },
-            { key: "recNocturno", label: "Rec Nocturno" },
-            { key: "recDominical", label: "Rec Dom/Fest Dia" },
-            { key: "recNoctDominical", label: "Rec Dom/Fest Noc" },
+            { key: "regularHours", label: "Ordinarias" },
+            { key: "daytimeOvertimeHours", label: "HE Dia" },
+            { key: "nighttimeOvertimeHours", label: "HE Noc" },
+            { key: "sundayOvertimeHours", label: "HE Dom/Fest Dia" },
+            { key: "nightSundayOvertimeHours", label: "HE Dom/Fest Noc" },
+            { key: "nightSurchargeHours", label: "Rec Nocturno" },
+            { key: "sundaySurchargeHours", label: "Rec Dom/Fest Dia" },
+            { key: "nightSundaySurchargeHours", label: "Rec Dom/Fest Noc" },
             { key: "totalHorasExtra", label: "Total HE" },
             { key: "totalRecargos", label: "Total Recargos" },
           ] as never} data={detalleFiltrado as never} searchable searchPlaceholder="Buscar operador..." />
@@ -540,10 +529,10 @@ export default function SupplyDashboardPage() {
           ) : (
             <DataTable
               columns={[
-                { key: "nombre", label: "Nombre", sortable: true },
-                { key: "cedula", label: "Cédula" },
-                { key: "fecha", label: "Fecha" },
-                { key: "valor", label: "Valor ($80.000/día)", render: (r: { valor: number }) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(r.valor) },
+                { key: "fullName", label: "Nombre", sortable: true },
+                { key: "documentNumber", label: "Cédula" },
+                { key: "date", label: "Fecha" },
+                { key: "amount", label: "Valor ($80.000/día)", render: (r: { amount: number }) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(r.amount) },
               ] as never}
               data={disponibilidadesList as never}
               searchable

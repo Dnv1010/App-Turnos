@@ -38,9 +38,9 @@ export async function GET(req: NextRequest) {
     const whereUser: Record<string, unknown> = { isActive: true };
     if (userId) whereUser.id = userId;
     if (rol && rol !== "ALL") whereUser.role = rol;
-    if (zona && zona !== "ALL") whereUser.zona = zona;
+    if (zona && zona !== "ALL") whereUser.zone = zona;
     if (profile.role === "COORDINADOR") {
-      whereUser.zona = profile.zona;
+      whereUser.zone = profile.zone;
     } else if (profile.role === "TECNICO") {
       whereUser.id = profile.id;
     }
@@ -52,35 +52,35 @@ export async function GET(req: NextRequest) {
     const userIds = usuarios.map((u) => u.id);
     if (userIds.length === 0) return NextResponse.json([]);
 
-    const fotos = await prisma.fotoRegistro.findMany({
+    const fotos = await prisma.tripRecord.findMany({
       where: {
-        tipo: "FORANEO",
-        estadoAprobacion: "APROBADA",
+        type: "FORANEO",
+        approvalStatus: "APROBADA",
         createdAt: { gte: fechaInicio, lte: fechaFin },
         userId: { in: userIds },
       },
-      include: { user: { select: { id: true, nombre: true, cedula: true } } },
+      include: { user: { select: { id: true, fullName: true, documentNumber: true } } },
     });
 
     const byUser = new Map<
       string,
-      { nombre: string; cedula: string; registros: { fecha: string; km: number }[] }
+      { fullName: string; documentNumber: string; registros: { date: string; km: number }[] }
     >();
     for (const f of fotos) {
       const km =
-        f.kmInicial != null && f.kmFinal != null && f.kmFinal > f.kmInicial
-          ? f.kmFinal - f.kmInicial
+        f.startKm != null && f.endKm != null && f.endKm > f.startKm
+          ? f.endKm - f.startKm
           : 0;
-      const fecha = dateKey(f.createdAt);
+      const date = dateKey(f.createdAt);
       if (!byUser.has(f.userId)) {
         byUser.set(f.userId, {
-          nombre: f.user.nombre,
-          cedula: f.user.cedula,
+          fullName: f.user.fullName,
+          documentNumber: f.user.documentNumber,
           registros: [],
         });
       }
       const entry = byUser.get(f.userId)!;
-      entry.registros.push({ fecha, km });
+      entry.registros.push({ date, km });
     }
 
     const lista = Array.from(byUser.entries()).map(([uid, entry]) => {
@@ -89,12 +89,12 @@ export async function GET(req: NextRequest) {
       const totalPagar = Math.round(totalKm * TARIFA_POR_KM);
       return {
         userId: uid,
-        nombre: entry.nombre,
-        cedula: entry.cedula,
+        fullName: entry.fullName,
+        documentNumber: entry.documentNumber,
         cantidadForaneos,
         totalKm,
         totalPagar,
-        fechas: entry.registros.map((r) => r.fecha),
+        dates: entry.registros.map((r) => r.date),
       };
     });
 

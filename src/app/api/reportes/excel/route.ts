@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import type { Zona, Prisma } from "@prisma/client";
+import type { Zone, Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
 
 const VALOR_DISPONIBILIDAD = 80000;
@@ -51,14 +51,14 @@ export async function GET(req: NextRequest) {
     const fechaInicio = new Date(Date.UTC(yi, mi - 1, di, 0, 0, 0));
     const fechaFin = new Date(Date.UTC(yf, mf - 1, df, 23, 59, 59));
 
-    const whereUser: { isActive: boolean; role: "TECNICO"; id?: string; zona?: string } = {
+    const whereUser: { isActive: boolean; role: "TECNICO"; id?: string; zone?: string } = {
       isActive: true,
       role: "TECNICO",
     };
     if (userId) whereUser.id = userId;
-    if (zona && zona !== "ALL") whereUser.zona = zona as Zona;
+    if (zona && zona !== "ALL") whereUser.zone = zona as Zone;
     if (profile.role === "COORDINADOR" || profile.role === "SUPPLY") {
-      whereUser.zona = profile.zona as Zona;
+      whereUser.zone = profile.zone as Zone;
     } else if (profile.role === "TECNICO") {
       whereUser.id = profile.id;
     }
@@ -85,32 +85,32 @@ export async function GET(req: NextRequest) {
     }
 
     const [turnos, mallaDisponibles, fotosForaneos] = await Promise.all([
-      prisma.turno.findMany({
+      prisma.shift.findMany({
         where: {
           userId: { in: userIds },
-          fecha: { gte: fechaInicio, lte: fechaFin },
-          horaSalida: { not: null },
+          date: { gte: fechaInicio, lte: fechaFin },
+          clockOutAt: { not: null },
         },
-        include: { user: { select: { nombre: true, cedula: true } } },
-        orderBy: [{ fecha: "asc" }, { horaEntrada: "asc" }],
+        include: { user: { select: { fullName: true, documentNumber: true } } },
+        orderBy: [{ date: "asc" }, { clockInAt: "asc" }],
       }),
-      prisma.mallaTurno.findMany({
+      prisma.shiftSchedule.findMany({
         where: {
-          tipo: "DISPONIBLE",
+          dayType: "DISPONIBLE",
           userId: { in: userIds },
-          fecha: { gte: fechaInicio, lte: fechaFin },
+          date: { gte: fechaInicio, lte: fechaFin },
         },
-        include: { user: { select: { nombre: true, cedula: true } } },
-        orderBy: [{ userId: "asc" }, { fecha: "asc" }],
+        include: { user: { select: { fullName: true, documentNumber: true } } },
+        orderBy: [{ userId: "asc" }, { date: "asc" }],
       }),
-      prisma.fotoRegistro.findMany({
+      prisma.tripRecord.findMany({
         where: {
-          tipo: "FORANEO",
-          estadoAprobacion: "APROBADA",
+          type: "FORANEO",
+          approvalStatus: "APROBADA",
           userId: { in: userIds },
           createdAt: { gte: fechaInicio, lte: fechaFin },
         },
-        include: { user: { select: { nombre: true, cedula: true } } },
+        include: { user: { select: { fullName: true, documentNumber: true } } },
       }),
     ]);
 
@@ -134,13 +134,13 @@ export async function GET(req: NextRequest) {
 
     turnos.forEach((t) => {
       const key = t.userId;
-      const totalHoras = t.horaSalida
-        ? Math.round(((t.horaSalida.getTime() - t.horaEntrada.getTime()) / (1000 * 60 * 60)) * 100) / 100
+      const totalHoras = t.clockOutAt
+        ? Math.round(((t.clockOutAt.getTime() - t.clockInAt.getTime()) / (1000 * 60 * 60)) * 100) / 100
         : 0;
       if (!resumenPorTecnico[key]) {
         resumenPorTecnico[key] = {
-          Nombre: t.user.nombre,
-          Cedula: t.user.cedula,
+          Nombre: t.user.fullName,
+          Cedula: t.user.documentNumber,
           "Total Turnos": 0,
           "Total Horas Trabajadas": 0,
           "Horas Ordinarias": 0,
@@ -157,16 +157,16 @@ export async function GET(req: NextRequest) {
       }
       resumenPorTecnico[key]["Total Turnos"] += 1;
       resumenPorTecnico[key]["Total Horas Trabajadas"] += totalHoras;
-      resumenPorTecnico[key]["Horas Ordinarias"] += Math.max(0, t.horasOrdinarias ?? 0);
-      resumenPorTecnico[key]["HE Diurna"] += t.heDiurna ?? 0;
-      resumenPorTecnico[key]["HE Nocturna"] += t.heNocturna ?? 0;
-      resumenPorTecnico[key]["HE Dom/Fest Diurna"] += t.heDominical ?? 0;
-      resumenPorTecnico[key]["HE Dom/Fest Nocturna"] += t.heNoctDominical ?? 0;
-      resumenPorTecnico[key]["Recargo Nocturno"] += t.recNocturno ?? 0;
-      resumenPorTecnico[key]["Recargo Dom/Fest Diurno"] += t.recDominical ?? 0;
-      resumenPorTecnico[key]["Recargo Dom/Fest Nocturno"] += t.recNoctDominical ?? 0;
-      resumenPorTecnico[key]["Total HE"] += (t.heDiurna ?? 0) + (t.heNocturna ?? 0) + (t.heDominical ?? 0) + (t.heNoctDominical ?? 0);
-      resumenPorTecnico[key]["Total Recargos"] += (t.recNocturno ?? 0) + (t.recDominical ?? 0) + (t.recNoctDominical ?? 0);
+      resumenPorTecnico[key]["Horas Ordinarias"] += Math.max(0, t.regularHours ?? 0);
+      resumenPorTecnico[key]["HE Diurna"] += t.daytimeOvertimeHours ?? 0;
+      resumenPorTecnico[key]["HE Nocturna"] += t.nighttimeOvertimeHours ?? 0;
+      resumenPorTecnico[key]["HE Dom/Fest Diurna"] += t.sundayOvertimeHours ?? 0;
+      resumenPorTecnico[key]["HE Dom/Fest Nocturna"] += t.nightSundayOvertimeHours ?? 0;
+      resumenPorTecnico[key]["Recargo Nocturno"] += t.nightSurchargeHours ?? 0;
+      resumenPorTecnico[key]["Recargo Dom/Fest Diurno"] += t.sundaySurchargeHours ?? 0;
+      resumenPorTecnico[key]["Recargo Dom/Fest Nocturno"] += t.nightSundaySurchargeHours ?? 0;
+      resumenPorTecnico[key]["Total HE"] += (t.daytimeOvertimeHours ?? 0) + (t.nighttimeOvertimeHours ?? 0) + (t.sundayOvertimeHours ?? 0) + (t.nightSundayOvertimeHours ?? 0);
+      resumenPorTecnico[key]["Total Recargos"] += (t.nightSurchargeHours ?? 0) + (t.sundaySurchargeHours ?? 0) + (t.nightSundaySurchargeHours ?? 0);
     });
 
     const dataResumen = Object.values(resumenPorTecnico).map((r) => ({
@@ -179,33 +179,33 @@ export async function GET(req: NextRequest) {
 
     // Hoja Turnos — detalle con columna Día
     const dataTurnos = turnos.map((t) => {
-      const totalHoras = t.horaSalida
-        ? Math.round(((t.horaSalida.getTime() - t.horaEntrada.getTime()) / (1000 * 60 * 60)) * 100) / 100
+      const totalHoras = t.clockOutAt
+        ? Math.round(((t.clockOutAt.getTime() - t.clockInAt.getTime()) / (1000 * 60 * 60)) * 100) / 100
         : 0;
       return {
-        Nombre: t.user.nombre,
-        Cedula: t.user.cedula,
-        Fecha: dateKey(t.fecha),
-        Día: diaSemana(t.fecha),
-        Entrada: timeColombia(t.horaEntrada),
-        Salida: t.horaSalida ? timeColombia(t.horaSalida) : "",
+        Nombre: t.user.fullName,
+        Cedula: t.user.documentNumber,
+        Fecha: dateKey(t.date),
+        Día: diaSemana(t.date),
+        Entrada: timeColombia(t.clockInAt),
+        Salida: t.clockOutAt ? timeColombia(t.clockOutAt) : "",
         "Total Horas": totalHoras,
-        "Horas Ordinarias": Math.max(0, t.horasOrdinarias ?? 0),
-        "HE Diurna": t.heDiurna ?? 0,
-        "HE Nocturna": t.heNocturna ?? 0,
-        "HE Dom/Fest Diurna": t.heDominical ?? 0,
-        "HE Dom/Fest Nocturna": t.heNoctDominical ?? 0,
-        "Recargo Nocturno": t.recNocturno ?? 0,
-        "Recargo Dom/Fest Diurno": t.recDominical ?? 0,
-        "Recargo Dom/Fest Nocturno": t.recNoctDominical ?? 0,
+        "Horas Ordinarias": Math.max(0, t.regularHours ?? 0),
+        "HE Diurna": t.daytimeOvertimeHours ?? 0,
+        "HE Nocturna": t.nighttimeOvertimeHours ?? 0,
+        "HE Dom/Fest Diurna": t.sundayOvertimeHours ?? 0,
+        "HE Dom/Fest Nocturna": t.nightSundayOvertimeHours ?? 0,
+        "Recargo Nocturno": t.nightSurchargeHours ?? 0,
+        "Recargo Dom/Fest Diurno": t.sundaySurchargeHours ?? 0,
+        "Recargo Dom/Fest Nocturno": t.nightSundaySurchargeHours ?? 0,
       };
     });
 
     // Hoja Disponibilidades
     const dataDisponibilidades = mallaDisponibles.map((m) => ({
-      Nombre: m.user.nombre,
-      Cedula: m.user.cedula,
-      Fecha: dateKey(m.fecha),
+      Nombre: m.user.fullName,
+      Cedula: m.user.documentNumber,
+      Fecha: dateKey(m.date),
       Valor: VALOR_DISPONIBILIDAD,
     }));
 
@@ -220,12 +220,12 @@ export async function GET(req: NextRequest) {
 
     fotosForaneos.forEach((f) => {
       const key = f.userId;
-      const km = f.kmInicial != null && f.kmFinal != null && f.kmFinal > f.kmInicial
-        ? f.kmFinal - f.kmInicial : 0;
+      const km = f.startKm != null && f.endKm != null && f.endKm > f.startKm
+        ? f.endKm - f.startKm : 0;
       if (!foraneosPorTecnico[key]) {
         foraneosPorTecnico[key] = {
-          Nombre: f.user.nombre,
-          Cedula: f.user.cedula,
+          Nombre: f.user.fullName,
+          Cedula: f.user.documentNumber,
           "Cantidad Foraneos": 0,
           "Total Km": 0,
           "Total a Pagar": 0,

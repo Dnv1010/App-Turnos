@@ -45,17 +45,17 @@ async function getLocationOptional(): Promise<{ lat: number; lng: number } | nul
 
 interface FotoRecord {
   id: string;
-  tipo: string;
+  type: string;
   driveUrl: string | null;
   driveUrlFinal?: string | null;
-  kmInicial: number | null;
-  kmFinal: number | null;
-  observaciones: string | null;
+  startKm: number | null;
+  endKm: number | null;
+  notes: string | null;
   createdAt: string;
-  latInicial?: number | null;
-  lngInicial?: number | null;
-  latFinal?: number | null;
-  lngFinal?: number | null;
+  startLat?: number | null;
+  startLng?: number | null;
+  endLat?: number | null;
+  endLng?: number | null;
 }
 
 export default function FotosPage() {
@@ -154,11 +154,11 @@ export default function FotosPage() {
         body: JSON.stringify({
           userId: profile?.id,
           base64Data: fotoBase64,
-          tipo: "FORANEO",
-          kmInicial: parseFloat(kmInicial),
-          observaciones: observaciones || undefined,
-          latInicial: location.lat,
-          lngInicial: location.lng,
+          type: "FORANEO",
+          startKm: parseFloat(kmInicial),
+          notes: observaciones || undefined,
+          startLat: location.lat,
+          startLng: location.lng,
         }),
       });
       if (res.ok) {
@@ -186,7 +186,7 @@ export default function FotosPage() {
       return;
     }
     const kmF = parseFloat(kmFinalPaso2);
-    const kmI = foraneoActivo.kmInicial ?? 0;
+    const kmI = foraneoActivo.startKm ?? 0;
     if (isNaN(kmF) || kmF <= kmI) {
       alert("El km final debe ser mayor que el km inicial (" + kmI + ").");
       return;
@@ -202,10 +202,10 @@ export default function FotosPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          kmFinal: kmF,
+          endKm: kmF,
           base64Data: pasoFinalFotoBase64,
-          latFinal: location.lat,
-          lngFinal: location.lng,
+          endLat: location.lat,
+          endLng: location.lng,
         }),
       });
       if (res.ok) {
@@ -235,8 +235,8 @@ export default function FotosPage() {
         body: JSON.stringify({
           userId: profile?.id,
           base64Data: fotoBase64,
-          tipo: "GENERAL",
-          observaciones: observaciones || undefined,
+          type: "GENERAL",
+          notes: observaciones || undefined,
         }),
       });
       if (res.ok) {
@@ -251,21 +251,21 @@ export default function FotosPage() {
   };
 
   const kmRecorridosPreviewPaso2 =
-    foraneoActivo?.kmInicial != null && kmFinalPaso2
-      ? Math.max(0, parseFloat(kmFinalPaso2) - foraneoActivo.kmInicial)
+    foraneoActivo?.startKm != null && kmFinalPaso2
+      ? Math.max(0, parseFloat(kmFinalPaso2) - foraneoActivo.startKm)
       : 0;
 
-  const fotosForaneo = historial.filter((f) => f.tipo === "FORANEO");
+  const fotosForaneo = historial.filter((f) => f.type === "FORANEO");
   const totalKm = fotosForaneo.reduce((sum, f) => {
-    if (f.kmInicial != null && f.kmFinal != null) return sum + Math.max(0, f.kmFinal - f.kmInicial);
+    if (f.startKm != null && f.endKm != null) return sum + Math.max(0, f.endKm - f.startKm);
     return sum;
   }, 0);
 
   const abrirEditar = (f: FotoRecord) => {
     setEditandoId(f.id);
-    setEditKmInicial(f.kmInicial != null ? String(f.kmInicial) : "");
-    setEditKmFinal(f.kmFinal != null ? String(f.kmFinal) : "");
-    setEditObservaciones(f.observaciones || "");
+    setEditKmInicial(f.startKm != null ? String(f.startKm) : "");
+    setEditKmFinal(f.endKm != null ? String(f.endKm) : "");
+    setEditObservaciones(f.notes || "");
   };
   const guardarEdicion = async () => {
     if (!editandoId) return;
@@ -275,9 +275,9 @@ export default function FotosPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          kmInicial: editKmInicial ? parseFloat(editKmInicial) : undefined,
-          kmFinal: editKmFinal ? parseFloat(editKmFinal) : undefined,
-          observaciones: editObservaciones || undefined,
+          startKm: editKmInicial ? parseFloat(editKmInicial) : undefined,
+          endKm: editKmFinal ? parseFloat(editKmFinal) : undefined,
+          notes: editObservaciones || undefined,
         }),
       });
       if (res.ok) {
@@ -335,7 +335,7 @@ export default function FotosPage() {
               <div className="card bg-orange-50 border border-orange-200">
                 <h3 className="text-lg font-semibold text-orange-900 mb-2">Foráneo activo</h3>
                 <p className="text-sm text-orange-800">
-                  Km inicial: <strong>{foraneoActivo.kmInicial}</strong> — Inicio:{" "}
+                  Km inicial: <strong>{foraneoActivo.startKm}</strong> — Inicio:{" "}
                   {new Date(foraneoActivo.createdAt).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}
                 </p>
                 {foraneoActivo.driveUrl && (
@@ -386,7 +386,7 @@ export default function FotosPage() {
                         value={kmFinalPaso2}
                         onChange={(e) => setKmFinalPaso2(e.target.value)}
                         className="input-field"
-                        placeholder={`Mayor que ${foraneoActivo.kmInicial ?? ""}`}
+                        placeholder={`Mayor que ${foraneoActivo.startKm ?? ""}`}
                       />
                     </div>
                     {kmRecorridosPreviewPaso2 > 0 && (
@@ -576,23 +576,23 @@ export default function FotosPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            foto.tipo === "FORANEO" ? "bg-orange-100 text-orange-700" :
-                            foto.tipo === "ENTRADA" ? "bg-green-100 text-green-700" :
-                            foto.tipo === "SALIDA" ? "bg-red-100 text-red-700" :
+                            foto.type === "FORANEO" ? "bg-orange-100 text-orange-700" :
+                            foto.type === "ENTRADA" ? "bg-green-100 text-green-700" :
+                            foto.type === "SALIDA" ? "bg-red-100 text-red-700" :
                             "bg-blue-100 text-blue-700"
                           }`}>
-                            {foto.tipo === "FORANEO" ? "Foráneo" : foto.tipo === "ENTRADA" ? "Entrada" : foto.tipo === "SALIDA" ? "Salida" : "General"}
+                            {foto.type === "FORANEO" ? "Foráneo" : foto.type === "ENTRADA" ? "Entrada" : foto.type === "SALIDA" ? "Salida" : "General"}
                           </span>
-                          {foto.tipo === "FORANEO" && (
+                          {foto.type === "FORANEO" && (
                             <span
                               className="text-xs"
                               title={
-                                (foto.latInicial != null && foto.lngInicial != null) || (foto.latFinal != null && foto.lngFinal != null)
+                                (foto.startLat != null && foto.startLng != null) || (foto.endLat != null && foto.endLng != null)
                                   ? "Registro con coordenadas GPS"
                                   : "Sin coordenadas GPS guardadas"
                               }
                             >
-                              {(foto.latInicial != null && foto.lngInicial != null) || (foto.latFinal != null && foto.lngFinal != null) ? (
+                              {(foto.startLat != null && foto.startLng != null) || (foto.endLat != null && foto.endLng != null) ? (
                                 <span className="text-green-700 dark:text-green-400">📍</span>
                               ) : (
                                 <span className="text-amber-700 dark:text-amber-400">⚠️ Sin GPS</span>
@@ -603,28 +603,28 @@ export default function FotosPage() {
                             {new Date(foto.createdAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                           </span>
                         </div>
-                        {foto.tipo === "FORANEO" && foto.kmInicial != null && foto.kmFinal != null && (
+                        {foto.type === "FORANEO" && foto.startKm != null && foto.endKm != null && (
                           <p className="text-sm text-gray-700">
-                            <strong>{Math.max(0, foto.kmFinal - foto.kmInicial).toFixed(1)} km</strong>
-                            <span className="text-gray-400"> ({foto.kmInicial} → {foto.kmFinal})</span>
+                            <strong>{Math.max(0, foto.endKm - foto.startKm).toFixed(1)} km</strong>
+                            <span className="text-gray-400"> ({foto.startKm} → {foto.endKm})</span>
                           </p>
                         )}
-                        {foto.observaciones && <p className="text-sm text-gray-500 mt-1">{foto.observaciones}</p>}
+                        {foto.notes && <p className="text-sm text-gray-500 mt-1">{foto.notes}</p>}
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         {foto.driveUrl && (
                           <a href={foto.driveUrl} target="_blank" rel="noopener noreferrer"
                             className="btn-secondary text-xs px-3 py-1.5 whitespace-nowrap">
-                            {foto.tipo === "FORANEO" && (foto as FotoRecord).driveUrlFinal ? "Foto inicial" : "Ver en Drive"}
+                            {foto.type === "FORANEO" && (foto as FotoRecord).driveUrlFinal ? "Foto inicial" : "Ver en Drive"}
                           </a>
                         )}
-                        {foto.tipo === "FORANEO" && (foto as FotoRecord).driveUrlFinal && (
+                        {foto.type === "FORANEO" && (foto as FotoRecord).driveUrlFinal && (
                           <a href={(foto as FotoRecord).driveUrlFinal!} target="_blank" rel="noopener noreferrer"
                             className="btn-secondary text-xs px-3 py-1.5 whitespace-nowrap">
                             Foto final
                           </a>
                         )}
-                        {foto.tipo === "FORANEO" && (
+                        {foto.type === "FORANEO" && (
                           <>
                             <button type="button" onClick={() => abrirEditar(foto)} className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg" title="Editar">
                               <HiPencil className="h-4 w-4" />

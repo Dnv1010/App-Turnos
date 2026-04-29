@@ -1,13 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { Zona } from "@prisma/client";
+import type { Zone } from "@prisma/client";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
 import { getInicioSemana, getFinSemana, getDayOfWeekColombia } from "@/lib/bia/calc-engine";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
 import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
-import { appendRow } from "@/lib/google-sheets";
 
 /** Convierte Date a fecha Colombia (UTC-5) como string YYYY-MM-DD */
 function dateKeyColombia(d: Date): string {
@@ -46,27 +45,19 @@ function isNocturnalEntradaColombia(horaEntrada: Date): boolean {
 
 /** Incluye turnos con fecha = día anterior y entrada nocturna que "pertenecen" al día siguiente en el filtro. */
 function turnoEnRangoFechaCalendario(
-  t: { fecha: Date; horaEntrada: Date },
+  t: { date: Date; clockInAt: Date },
   desde: string,
   hasta: string
 ): boolean {
   // CRÍTICO: Usar fecha Colombia, no UTC
-  const F = dateKeyColombia(new Date(t.fecha));
+  const F = dateKeyColombia(new Date(t.date));
   if (F >= desde && F <= hasta) return true;
   const siguiente = addDaysYmd(F, 1);
   return (
     siguiente >= desde &&
     siguiente <= hasta &&
-    isNocturnalEntradaColombia(new Date(t.horaEntrada))
+    isNocturnalEntradaColombia(new Date(t.clockInAt))
   );
-}
-
-/** Hora Colombia como HH:MM */
-function timeColombia(d: Date): string {
-  const colombia = new Date(d.getTime() - 5 * 60 * 60 * 1000);
-  const hh = String(colombia.getUTCHours()).padStart(2, "0");
-  const mm = String(colombia.getUTCMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
 }
 
 
@@ -90,17 +81,17 @@ export async function GET(req: NextRequest) {
   const hasta = searchParams.get("hasta") ?? searchParams.get("fin");
   const zonaParam = searchParams.get("zona");
 
-  let where: Record<string, unknown> = {};
+  const where: Record<string, unknown> = {};
 
   if (profile.role === "TECNICO") {
     where.userId = profile.id;
   } else if (profile.role === "COORDINADOR" || profile.role === "SUPPLY") {
     const useAllZonas = zonaParam === "ALL";
     const zona =
-      (useAllZonas ? undefined : (zonaParam || profile.zona)) as Zona | undefined;
+      (useAllZonas ? undefined : (zonaParam || profile.zone)) as Zone | undefined;
     const usersZona = await prisma.user.findMany({
       where: {
-        ...(zona ? { zona } : {}),
+        ...(zona ? { zone: zona } : {}),
         role: "TECNICO",
         isActive: true,
       },
@@ -116,16 +107,16 @@ export async function GET(req: NextRequest) {
   if (desde && hasta) {
     // Expandir rango para capturar turnos nocturnos del día anterior
     const desdeExpanded = addDaysYmd(desde, -1);
-    where.fecha = {
+    where.date = {
       gte: new Date(desdeExpanded + "T00:00:00.000Z"),
       lte: new Date(hasta + "T23:59:59.999Z"),
     };
   }
 
-  let turnos = await prisma.turno.findMany({
+  let turnos = await prisma.shift.findMany({
     where,
-    orderBy: [{ fecha: "desc" }, { horaEntrada: "desc" }],
-    include: { user: { select: { nombre: true, zona: true, cargo: true } } },
+    orderBy: [{ date: "desc" }, { clockInAt: "desc" }],
+    include: { user: { select: { fullName: true, zone: true, jobTitle: true } } },
   });
 
   // Filtrar por rango usando fecha Colombia
@@ -134,7 +125,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Excluir turnos cancelados
-  turnos = turnos.filter((t) => !t.observaciones?.startsWith("Cancelado"));
+  turnos = turnos.filter((t) => !t.notes?.startsWith("Cancelado"));
 
   return NextResponse.json(turnos);
 }
@@ -155,8 +146,8 @@ export async function POST(req: NextRequest) {
   const { userId, lat, lng, startPhotoUrl } = body;
   const uid = userId || profile.id;
 
-  const turnoAbierto = await prisma.turno.findFirst({
-    where: { userId: uid, horaSalida: null },
+  const turnoAbierto = await prisma.shift.findFirst({
+    where: { userId: uid, clockOutAt: null },
   });
 
   if (turnoAbierto) {
@@ -175,13 +166,13 @@ export async function POST(req: NextRequest) {
 
   // Verificar malla del día — bloquear si es estado no laboral
   console.log("[POST /turnos] Buscando malla para userId:", uid, "fecha:", fecha.toISOString());
-  const mallaHoy = await prisma.mallaTurno.findUnique({
-    where: { userId_fecha: { userId: uid, fecha } },
+  const mallaHoy = await prisma.shiftSchedule.findUnique({
+    where: { userId_date: { userId: uid, date: fecha } },
   });
 
   if (mallaHoy) {
-    console.log("[POST /turnos] Malla encontrada:", mallaHoy.valor, "tipo:", mallaHoy.tipo);
-    const valorMalla = (mallaHoy.valor ?? "").toLowerCase().trim();
+    console.log("[POST /turnos] Malla encontrada:", mallaHoy.shiftCode, "tipo:", mallaHoy.dayType);
+    const valorMalla = (mallaHoy.shiftCode ?? "").toLowerCase().trim();
     const estadosBloqueantes = [
       "descanso",
       "vacacion",
@@ -199,7 +190,7 @@ export async function POST(req: NextRequest) {
 
     if (estaBloqueado) {
       const fechaStr = fecha.toISOString().split("T")[0].split("-").reverse().join("/");
-      const estadoMostrar = mallaHoy.valor || "No laboral";
+      const estadoMostrar = mallaHoy.shiftCode || "No laboral";
 
       return NextResponse.json(
         {
@@ -213,14 +204,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const turno = await prisma.turno.create({
+  const turno = await prisma.shift.create({
     data: {
       userId: uid,
-      fecha,
-      diaSemana: getDiaSemana(fecha),
-      horaEntrada,
-      latEntrada: lat,
-      lngEntrada: lng,
+      date: fecha,
+      weekday: getDiaSemana(fecha),
+      clockInAt: horaEntrada,
+      clockInLat: lat,
+      clockInLng: lng,
       startPhotoUrl: startPhotoUrl || null,
     },
   });
@@ -249,45 +240,54 @@ export async function PATCH(req: NextRequest) {
     const { turnoId, lat, lng, endPhotoUrl } = body;
     if (!turnoId) return NextResponse.json({ error: "turnoId requerido" }, { status: 400 });
 
-    const turno = await prisma.turno.findUnique({ where: { id: turnoId } });
+    const turno = await prisma.shift.findUnique({ where: { id: turnoId } });
     if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
     if (turno.userId !== profile.id) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    if (turno.horaSalida) return NextResponse.json({ error: "Turno ya cerrado" }, { status: 400 });
+    if (turno.clockOutAt) return NextResponse.json({ error: "Turno ya cerrado" }, { status: 400 });
 
     const horaSalida = new Date();
 
-    const inicioSemana = getInicioSemana(turno.fecha);
-    const finSemana = getFinSemana(turno.fecha);
+    const inicioSemana = getInicioSemana(turno.date);
+    const finSemana = getFinSemana(turno.date);
 
     const [mallaDiaRow, festivosSemana, turnosSemana] = await Promise.all([
-      prisma.mallaTurno.findUnique({
-        where: { userId_fecha: { userId: turno.userId, fecha: turno.fecha } },
+      prisma.shiftSchedule.findUnique({
+        where: { userId_date: { userId: turno.userId, date: turno.date } },
       }),
-      prisma.festivo.findMany({
-        where: { fecha: { gte: inicioSemana, lte: finSemana } },
+      prisma.holiday.findMany({
+        where: { date: { gte: inicioSemana, lte: finSemana } },
       }),
-      prisma.turno.findMany({
+      prisma.shift.findMany({
         where: {
           userId: turno.userId,
-          fecha: { gte: inicioSemana, lte: finSemana },
-          horaSalida: { not: null },
+          date: { gte: inicioSemana, lte: finSemana },
+          clockOutAt: { not: null },
           id: { not: turnoId },
         },
-        select: { fecha: true, horasOrdinarias: true },
+        select: { date: true, regularHours: true },
       }),
     ]);
 
     // CRÍTICO: Usar dateKeyColombia para festivos
-    const holidaySet = new Set(festivosSemana.map((f) => dateKeyColombia(f.fecha)));
-    const esFestivo = holidaySet.has(dateKeyColombia(turno.fecha));
-    const weeklyOrdHours = sumWeeklyOrdHoursMonSat(turnosSemana);
+    const holidaySet = new Set(festivosSemana.map((f) => dateKeyColombia(f.date)));
+    const esFestivo = holidaySet.has(dateKeyColombia(turno.date));
+    const weeklyOrdHours = sumWeeklyOrdHoursMonSat(
+      turnosSemana.map((t) => ({ fecha: t.date, horasOrdinarias: t.regularHours ?? 0 }))
+    );
 
     type MallaRow = { tipo?: string | null; valor: string; horaInicio?: string | null; horaFin?: string | null };
-    const row = mallaDiaRow as MallaRow | null;
-    
+    const row = mallaDiaRow
+      ? ({
+          tipo: mallaDiaRow.dayType,
+          valor: mallaDiaRow.shiftCode,
+          horaInicio: mallaDiaRow.startTime,
+          horaFin: mallaDiaRow.endTime,
+        } as MallaRow)
+      : null;
+
     // Usar día de la semana en Colombia
-    const dowColombia = getDayOfWeekColombia(turno.fecha);
-    
+    const dowColombia = getDayOfWeekColombia(turno.date);
+
     const mallaDia = row
       ? {
           tipo: esFestivo ? "FESTIVO" : (row.tipo ?? "TRABAJO"),
@@ -307,50 +307,32 @@ export async function PATCH(req: NextRequest) {
             };
 
     const resultado = calcularHorasTurno(
-      { horaEntrada: turno.horaEntrada, horaSalida, fecha: turno.fecha },
+      { horaEntrada: turno.clockInAt, horaSalida, fecha: turno.date },
       mallaDia,
       holidaySet,
       weeklyOrdHours
     );
     const resultadoDb = resultadoToTurnoData(resultado);
 
-    const turnoActualizado = await prisma.turno.update({
+    const turnoActualizado = await prisma.shift.update({
       where: { id: turnoId },
       data: {
-        horaSalida,
-        latSalida: lat,
-        lngSalida: lng,
+        clockOutAt: horaSalida,
+        clockOutLat: lat,
+        clockOutLng: lng,
         endPhotoUrl: endPhotoUrl || null,
-        diaSemana: getDiaSemana(turno.fecha),
-        ...resultadoDb,
+        weekday: getDiaSemana(turno.date),
+        regularHours: resultadoDb.horasOrdinarias,
+        daytimeOvertimeHours: resultadoDb.heDiurna,
+        nighttimeOvertimeHours: resultadoDb.heNocturna,
+        sundayOvertimeHours: resultadoDb.heDominical,
+        nightSundayOvertimeHours: resultadoDb.heNoctDominical,
+        nightSurchargeHours: resultadoDb.recNocturno,
+        sundaySurchargeHours: resultadoDb.recDominical,
+        nightSundaySurchargeHours: resultadoDb.recNoctDominical,
       },
-      include: { user: { select: { nombre: true, cedula: true } } },
+      include: { user: { select: { fullName: true, documentNumber: true } } },
     });
-
-    const totalHoras =
-      Math.round(
-        ((turnoActualizado.horaSalida!.getTime() - turnoActualizado.horaEntrada.getTime()) /
-          (1000 * 60 * 60)) * 100
-      ) / 100;
-
-    appendRow("Turnos", [
-      turnoActualizado.user?.nombre ?? "",
-      turnoActualizado.user?.cedula ?? "",
-      dateKeyColombia(turnoActualizado.fecha),
-      timeColombia(turnoActualizado.horaEntrada),
-      timeColombia(turnoActualizado.horaSalida!),
-      totalHoras,
-      Math.max(0, turnoActualizado.horasOrdinarias ?? 0),
-      turnoActualizado.heDiurna ?? 0,
-      turnoActualizado.heNocturna ?? 0,
-      turnoActualizado.heDominical ?? 0,
-      turnoActualizado.heNoctDominical ?? 0,
-      turnoActualizado.recNocturno ?? 0,
-      turnoActualizado.recDominical ?? 0,
-      turnoActualizado.recNoctDominical ?? 0,
-    ]).catch((err) =>
-      console.error("[sheets] appendRow falló — turnoId:", turnoId, "userId:", turno.userId, "fecha:", dateKeyColombia(turno.fecha), err)
-    );
 
     return NextResponse.json(turnoActualizado);
   } catch (error: unknown) {

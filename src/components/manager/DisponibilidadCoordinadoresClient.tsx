@@ -7,18 +7,18 @@ import { parseResponseJson } from "@/lib/parseFetchJson";
 import { VALOR_DISPONIBILIDAD_COORDINADOR } from "@/lib/reporteDisponibilidadValor";
 import { getZonaLabel } from "@/lib/roleLabels";
 
-type CoordUser = { id: string; nombre: string; cedula: string; zona: string; role: string };
+type CoordUser = { id: string; fullName: string; documentNumber: string; zone: string; role: string };
 type DispoRow = {
   id: string;
-  fecha: string;
+  date: string;
   userId: string;
-  valor: string;
+  shiftCode: string;
   user: CoordUser;
 };
 type DispoTablaRow = {
   id: string;
-  fecha: string;
-  monto: number;
+  date: string;
+  amount: number;
   userId: string;
   user: CoordUser;
 };
@@ -89,7 +89,7 @@ export default function DisponibilidadCoordinadoresClient() {
     disponibilidades
       .filter((d) => d.userId === userId)
       .forEach((d) => {
-        const k = d.fecha.split("T")[0];
+        const k = d.date.split("T")[0];
         if (k) s.add(k);
       });
     return s;
@@ -114,7 +114,7 @@ export default function DisponibilidadCoordinadoresClient() {
       const res = await fetch("/api/disponibilidad-coordinadores", {
         method: marcar ? "POST" : "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, fechas: [ymd] }),
+        body: JSON.stringify({ userId, dates: [ymd] }),
       });
       const data = await parseResponseJson(res);
       if (!res.ok) throw new Error((data as { error?: string })?.error ?? "Error");
@@ -168,7 +168,7 @@ export default function DisponibilidadCoordinadoresClient() {
             <option value="">Seleccionar…</option>
             {coordinadores.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.nombre} ({getZonaLabel(c.zona)})
+                {c.fullName} ({getZonaLabel(c.zone)})
               </option>
             ))}
           </select>
@@ -263,7 +263,7 @@ export default function DisponibilidadCoordinadoresClient() {
               .filter((d) => d.userId === userId)
               .map((d) => (
                 <li key={d.id}>
-                  {format(parseISO(d.fecha.split("T")[0]), "EEEE d MMMM", { locale: es })}
+                  {format(parseISO(d.date.split("T")[0]), "EEEE d MMMM", { locale: es })}
                 </li>
               ))}
           </ul>
@@ -289,10 +289,10 @@ export default function DisponibilidadCoordinadoresClient() {
                   .map((d) => (
                     <tr key={d.id} className="border-b border-blue-100 dark:border-[#1A3060] last:border-0">
                       <td className="py-1 pr-4">
-                        {format(parseISO(d.fecha.split("T")[0]), "EEEE d MMMM", { locale: es })}
+                        {format(parseISO(d.date.split("T")[0]), "EEEE d MMMM", { locale: es })}
                       </td>
                       <td className="py-1 text-right font-semibold text-blue-700 dark:text-[#60A5FA]">
-                        ${d.monto.toLocaleString("es-CO")}
+                        ${d.amount.toLocaleString("es-CO")}
                       </td>
                     </tr>
                   ))}
