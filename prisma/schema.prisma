@@ -103,9 +103,8 @@ model ShiftSchedule {
 }
 
 model Holiday {
-  id    String   @id @default(cuid())
-  date  DateTime @unique @db.Date
-  name  String
+  id   String   @id @default(cuid())
+  date DateTime @unique @db.Date
 
   @@map("holidays")
   @@schema("App_turnos")

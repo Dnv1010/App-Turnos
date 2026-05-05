@@ -70,51 +70,27 @@ async function main() {
 
   const festivosColombia = [
     // 2026
-    { date: new Date("2026-01-01"), name: "Año Nuevo" },
-    { date: new Date("2026-01-12"), name: "Día de los Reyes Magos" },
-    { date: new Date("2026-03-23"), name: "Día de San José" },
-    { date: new Date("2026-04-02"), name: "Jueves Santo" },
-    { date: new Date("2026-04-03"), name: "Viernes Santo" },
-    { date: new Date("2026-05-01"), name: "Día del Trabajo" },
-    { date: new Date("2026-05-18"), name: "Ascensión del Señor" },
-    { date: new Date("2026-06-08"), name: "Corpus Christi" },
-    { date: new Date("2026-06-15"), name: "Sagrado Corazón de Jesús" },
-    { date: new Date("2026-06-29"), name: "San Pedro y San Pablo" },
-    { date: new Date("2026-07-20"), name: "Día de la Independencia" },
-    { date: new Date("2026-08-07"), name: "Batalla de Boyacá" },
-    { date: new Date("2026-08-17"), name: "Asunción de la Virgen" },
-    { date: new Date("2026-10-12"), name: "Día de la Raza" },
-    { date: new Date("2026-11-02"), name: "Todos los Santos" },
-    { date: new Date("2026-11-16"), name: "Independencia de Cartagena" },
-    { date: new Date("2026-12-08"), name: "Inmaculada Concepción" },
-    { date: new Date("2026-12-25"), name: "Navidad" },
+    new Date("2026-01-01"), new Date("2026-01-12"), new Date("2026-03-23"),
+    new Date("2026-04-02"), new Date("2026-04-03"), new Date("2026-05-01"),
+    new Date("2026-05-18"), new Date("2026-06-08"), new Date("2026-06-15"),
+    new Date("2026-06-29"), new Date("2026-07-20"), new Date("2026-08-07"),
+    new Date("2026-08-17"), new Date("2026-10-12"), new Date("2026-11-02"),
+    new Date("2026-11-16"), new Date("2026-12-08"), new Date("2026-12-25"),
     // 2027
-    { date: new Date("2027-01-01"), name: "Año Nuevo" },
-    { date: new Date("2027-01-11"), name: "Día de los Reyes Magos" },
-    { date: new Date("2027-03-22"), name: "Día de San José" },
-    { date: new Date("2027-03-25"), name: "Jueves Santo" },
-    { date: new Date("2027-03-26"), name: "Viernes Santo" },
-    { date: new Date("2027-05-01"), name: "Día del Trabajo" },
-    { date: new Date("2027-05-10"), name: "Ascensión del Señor" },
-    { date: new Date("2027-05-31"), name: "Corpus Christi" },
-    { date: new Date("2027-06-07"), name: "Sagrado Corazón de Jesús" },
-    { date: new Date("2027-07-05"), name: "San Pedro y San Pablo" },
-    { date: new Date("2027-07-20"), name: "Día de la Independencia" },
-    { date: new Date("2027-08-07"), name: "Batalla de Boyacá" },
-    { date: new Date("2027-08-16"), name: "Asunción de la Virgen" },
-    { date: new Date("2027-10-18"), name: "Día de la Raza" },
-    { date: new Date("2027-11-01"), name: "Todos los Santos" },
-    { date: new Date("2027-11-15"), name: "Independencia de Cartagena" },
-    { date: new Date("2027-12-08"), name: "Inmaculada Concepción" },
-    { date: new Date("2027-12-25"), name: "Navidad" },
+    new Date("2027-01-01"), new Date("2027-01-11"), new Date("2027-03-22"),
+    new Date("2027-03-25"), new Date("2027-03-26"), new Date("2027-05-01"),
+    new Date("2027-05-10"), new Date("2027-05-31"), new Date("2027-06-07"),
+    new Date("2027-07-05"), new Date("2027-07-20"), new Date("2027-08-07"),
+    new Date("2027-08-16"), new Date("2027-10-18"), new Date("2027-11-01"),
+    new Date("2027-11-15"), new Date("2027-12-08"), new Date("2027-12-25"),
   ];
 
   let countFestivos = 0;
-  for (const f of festivosColombia) {
+  for (const date of festivosColombia) {
     await prisma.holiday.upsert({
-      where: { date: f.date },
+      where: { date },
       update: {},
-      create: f,
+      create: { date },
     });
     countFestivos++;
   }
