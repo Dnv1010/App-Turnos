@@ -27,7 +27,7 @@ export async function GET(_req: NextRequest, context: Ctx) {
       shiftsIncluded: {
         include: {
           shift: {
-            include: { user: { select: { fullName: true, documentNumber: true } } },
+            include: { user: { select: { fullName: true, documentNumber: true, role: true } } },
           },
         },
       },
@@ -45,13 +45,6 @@ export async function GET(_req: NextRequest, context: Ctx) {
           },
         },
       },
-      coordinatorShiftsIncluded: {
-        include: {
-          coordinatorShift: {
-            include: { user: { select: { fullName: true, documentNumber: true, role: true } } },
-          },
-        },
-      },
     },
   });
 
@@ -63,7 +56,11 @@ export async function GET(_req: NextRequest, context: Ctx) {
     return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
   }
 
-  const turnos = reporte.shiftsIncluded.map((rt) => ({
+  // Separar shifts técnicos y de coordinador por shiftType
+  const turnosRaw = reporte.shiftsIncluded.filter((rt) => rt.shift.shiftType === "TECHNICAL");
+  const turnosCoordRaw = reporte.shiftsIncluded.filter((rt) => rt.shift.shiftType === "COORDINATOR");
+
+  const turnos = turnosRaw.map((rt) => ({
     fecha: rt.shift.date,
     horaEntrada: rt.shift.clockInAt,
     horaSalida: rt.shift.clockOutAt,
@@ -80,6 +77,7 @@ export async function GET(_req: NextRequest, context: Ctx) {
       cedula: rt.shift.user.documentNumber,
     },
   }));
+
   const fotosForaneos = reporte.tripsIncluded.map((rf) => ({
     createdAt: rf.tripRecord.createdAt,
     kmInicial: rf.tripRecord.startKm,
@@ -89,6 +87,7 @@ export async function GET(_req: NextRequest, context: Ctx) {
       cedula: rf.tripRecord.user.documentNumber,
     },
   }));
+
   const disponibilidades = reporte.availabilitiesIncluded.map((rd) => ({
     fecha: rd.shiftSchedule.date,
     valor: rd.shiftSchedule.shiftCode,
@@ -98,23 +97,24 @@ export async function GET(_req: NextRequest, context: Ctx) {
       role: rd.shiftSchedule.user.role,
     },
   }));
-  const turnosCoordinador = reporte.coordinatorShiftsIncluded.map((r) => ({
-    fecha: r.coordinatorShift.date,
-    horaEntrada: r.coordinatorShift.clockInAt,
-    horaSalida: r.coordinatorShift.clockOutAt,
-    codigoOrden: r.coordinatorShift.orderCode,
-    horasOrdinarias: r.coordinatorShift.regularHours,
-    heDiurna: r.coordinatorShift.daytimeOvertimeHours,
-    heNocturna: r.coordinatorShift.nighttimeOvertimeHours,
-    heDominical: r.coordinatorShift.sundayOvertimeHours,
-    heNoctDominical: r.coordinatorShift.nightSundayOvertimeHours,
-    recNocturno: r.coordinatorShift.nightSurchargeHours,
-    recDominical: r.coordinatorShift.sundaySurchargeHours,
-    recNoctDominical: r.coordinatorShift.nightSundaySurchargeHours,
+
+  const turnosCoordinador = turnosCoordRaw.map((r) => ({
+    fecha: r.shift.date,
+    horaEntrada: r.shift.clockInAt,
+    horaSalida: r.shift.clockOutAt,
+    codigoOrden: r.shift.orderCode ?? "",
+    horasOrdinarias: r.shift.regularHours,
+    heDiurna: r.shift.daytimeOvertimeHours,
+    heNocturna: r.shift.nighttimeOvertimeHours,
+    heDominical: r.shift.sundayOvertimeHours,
+    heNoctDominical: r.shift.nightSundayOvertimeHours,
+    recNocturno: r.shift.nightSurchargeHours,
+    recDominical: r.shift.sundaySurchargeHours,
+    recNoctDominical: r.shift.nightSundaySurchargeHours,
     user: {
-      nombre: r.coordinatorShift.user.fullName,
-      cedula: r.coordinatorShift.user.documentNumber,
-      role: r.coordinatorShift.user.role,
+      nombre: r.shift.user.fullName,
+      cedula: r.shift.user.documentNumber,
+      role: r.shift.user.role,
     },
   }));
 

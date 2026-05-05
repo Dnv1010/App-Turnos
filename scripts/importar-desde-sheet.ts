@@ -647,8 +647,8 @@ async function importarTurnosCoordinador() {
     const { user, fechaDate, fechaNorm, horaEntrada, horaSalida, codigoOrden, nota, ubicE, ubicS } = row;
 
     try {
-      const existe = await prisma.coordinatorShift.findFirst({
-        where: { userId: user.id, date: fechaDate },
+      const existe = await prisma.shift.findFirst({
+        where: { userId: user.id, date: fechaDate, shiftType: "COORDINATOR" },
       });
       if (existe) {
         console.log(`   ⏭ Ya existe: ${user.fullName} ${fechaNorm}`);
@@ -660,9 +660,10 @@ async function importarTurnosCoordinador() {
       const finSemana = getFinSemana(fechaDate);
       const weekKey = `${user.id}|${inicioSemana.toISOString()}`;
 
-      const dbSemana = await prisma.coordinatorShift.findMany({
+      const dbSemana = await prisma.shift.findMany({
         where: {
           userId: user.id,
+          shiftType: "COORDINATOR",
           date: { gte: inicioSemana, lte: finSemana },
           clockOutAt: { not: null },
         },
@@ -693,14 +694,15 @@ async function importarTurnosCoordinador() {
       const coordE = parsearCoordenada(ubicE);
       const coordS = parsearCoordenada(ubicS);
 
-      await prisma.coordinatorShift.create({
+      await prisma.shift.create({
         data: {
           userId: user.id,
           date: fechaDate,
+          shiftType: "COORDINATOR",
           clockInAt: horaEntrada,
           clockOutAt: horaSalida,
           orderCode: codigoOrden,
-          note: nota,
+          notes: nota,
           clockInLat: coordE ? coordE[0] : null,
           clockInLng: coordE ? coordE[1] : null,
           clockOutLat: coordS ? coordS[0] : null,

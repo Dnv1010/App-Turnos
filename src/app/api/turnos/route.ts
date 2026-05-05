@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
   const uid = userId || profile.id;
 
   const turnoAbierto = await prisma.shift.findFirst({
-    where: { userId: uid, clockOutAt: null },
+    where: { userId: uid, shiftType: "TECHNICAL", clockOutAt: null },
   });
 
   if (turnoAbierto) {

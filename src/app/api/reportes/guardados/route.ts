@@ -41,12 +41,25 @@ export async function GET(req: NextRequest) {
           shiftsIncluded: true,
           tripsIncluded: true,
           availabilitiesIncluded: true,
-          coordinatorShiftsIncluded: true,
         },
       },
     },
     orderBy: { createdAt: "desc" },
   });
+
+  // Contar turnos de coordinador por reporte en una sola query
+  const reportIds = reportesRaw.map((r) => r.id);
+  const coordCountsRaw = reportIds.length
+    ? await prisma.$queryRaw<{ report_id: string; cnt: number }[]>`
+        SELECT rs.report_id, COUNT(*)::int AS cnt
+        FROM "App_turnos"."report_shifts" rs
+        JOIN "App_turnos"."shifts" s ON s.id = rs.shift_id
+        WHERE s.shift_type = 'COORDINATOR'
+        AND rs.report_id = ANY(${reportIds})
+        GROUP BY rs.report_id
+      `
+    : [];
+  const coordCountMap = new Map(coordCountsRaw.map((r) => [r.report_id, r.cnt]));
 
   const reportes = reportesRaw.map((r) => ({
     id: r.id,
@@ -58,10 +71,10 @@ export async function GET(req: NextRequest) {
     createdAt: r.createdAt.toISOString(),
     createdByUser: { fullName: r.createdByUser.fullName },
     _count: {
-      turnosIncluidos: r._count.shiftsIncluded,
+      turnosIncluidos: r._count.shiftsIncluded - (coordCountMap.get(r.id) ?? 0),
       foraneosIncluidos: r._count.tripsIncluded,
       disponibilidadesIncluidas: r._count.availabilitiesIncluded,
-      turnosCoordinadorIncluidos: r._count.coordinatorShiftsIncluded,
+      turnosCoordinadorIncluidos: coordCountMap.get(r.id) ?? 0,
     },
   }));
 
@@ -202,7 +215,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (turnoCoordinadorIds.length > 0) {
-    const okC = await prisma.coordinatorShift.count({
+    const okC = await prisma.shift.count({
       where: { id: { in: turnoCoordinadorIds }, ...whereTurnosCoord },
     });
     if (okC !== turnoCoordinadorIds.length) {
@@ -218,6 +231,9 @@ export async function POST(req: NextRequest) {
 
   const zonaGuardar = zonaPersistidaParaCrear(auth.profile, body.zone ?? null);
 
+  // Todos los shifts (técnicos + coordinadores) van en la misma relación shiftsIncluded
+  const allShiftIds = [...turnoIds, ...turnoCoordinadorIds];
+
   try {
     const reporteRaw = await prisma.report.create({
       data: {
@@ -227,16 +243,13 @@ export async function POST(req: NextRequest) {
         createdBy: auth.profile.id,
         zone: zonaGuardar,
         shiftsIncluded: {
-          create: turnoIds.map((shiftId) => ({ shiftId })),
+          create: allShiftIds.map((shiftId) => ({ shiftId })),
         },
         tripsIncluded: {
           create: foraneoIds.map((tripRecordId) => ({ tripRecordId })),
         },
         availabilitiesIncluded: {
           create: disponibilidadIds.map((shiftScheduleId) => ({ shiftScheduleId })),
-        },
-        coordinatorShiftsIncluded: {
-          create: turnoCoordinadorIds.map((coordinatorShiftId) => ({ coordinatorShiftId })),
         },
       },
       include: {
@@ -245,7 +258,6 @@ export async function POST(req: NextRequest) {
             shiftsIncluded: true,
             tripsIncluded: true,
             availabilitiesIncluded: true,
-            coordinatorShiftsIncluded: true,
           },
         },
       },
@@ -260,10 +272,10 @@ export async function POST(req: NextRequest) {
       zone: reporteRaw.zone,
       createdAt: reporteRaw.createdAt.toISOString(),
       _count: {
-        turnosIncluidos: reporteRaw._count.shiftsIncluded,
+        turnosIncluidos: turnoIds.length,
         foraneosIncluidos: reporteRaw._count.tripsIncluded,
         disponibilidadesIncluidas: reporteRaw._count.availabilitiesIncluded,
-        turnosCoordinadorIncluidos: reporteRaw._count.coordinatorShiftsIncluded,
+        turnosCoordinadorIncluidos: turnoCoordinadorIds.length,
       },
     };
 
