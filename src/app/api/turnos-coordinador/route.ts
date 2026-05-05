@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   const userIdParam = searchParams.get("userId");
   const zona = searchParams.get("zona");
 
-  const where: Record<string, unknown> = {};
+  const where: Record<string, unknown> = { shiftType: "COORDINATOR" };
 
   if (ROLES_FICHAJE.has(role)) {
     where.userId = profile.id;
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
     if (rango) where.date = rango;
   }
 
-  const turnos = await prisma.coordinatorShift.findMany({
+  const turnos = await prisma.shift.findMany({
     where,
     include: {
       user: { select: { fullName: true, documentNumber: true, zone: true, role: true } },
@@ -89,8 +89,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "orderCode es obligatorio" }, { status: 400 });
   }
 
-  const turnoAbierto = await prisma.coordinatorShift.findFirst({
-    where: { userId: profile.id, clockOutAt: null },
+  const turnoAbierto = await prisma.shift.findFirst({
+    where: { userId: profile.id, shiftType: "COORDINATOR", clockOutAt: null },
   });
   if (turnoAbierto) {
     return NextResponse.json({ error: "Ya tienes un turno abierto" }, { status: 400 });
@@ -102,10 +102,11 @@ export async function POST(req: NextRequest) {
     Date.UTC(ahoraColombia.getUTCFullYear(), ahoraColombia.getUTCMonth(), ahoraColombia.getUTCDate())
   );
 
-  const turno = await prisma.coordinatorShift.create({
+  const turno = await prisma.shift.create({
     data: {
       userId: profile.id,
       date: fecha,
+      shiftType: "COORDINATOR",
       clockInAt: horaEntrada,
       orderCode,
       clockInLat: body.lat ?? null,

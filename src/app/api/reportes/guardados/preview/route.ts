@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
         })
       : [],
     coordUserIds.length
-      ? prisma.coordinatorShift.findMany({
+      ? prisma.shift.findMany({
           where: whereTurnosCoordinadorDisponiblesParaReporte(fechaInicio, fechaFin, coordUserIds),
           include: { user: { select: { fullName: true, documentNumber: true, zone: true, role: true } } },
           orderBy: [{ date: "asc" }, { clockInAt: "asc" }],

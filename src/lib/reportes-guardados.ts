@@ -126,7 +126,7 @@ export function whereDisponibilidadesMallaCombinadaParaReporte(
   return { OR: or };
 }
 
-const turnoCoordHeRecargoOr: Prisma.CoordinatorShiftWhereInput = {
+const turnoCoordHeRecargoOr: Prisma.ShiftWhereInput = {
   OR: [
     { daytimeOvertimeHours: { gt: 0 } },
     { nighttimeOvertimeHours: { gt: 0 } },
@@ -142,8 +142,9 @@ export function whereTurnosCoordinadorDisponiblesParaReporte(
   fechaInicio: Date,
   fechaFin: Date,
   userIds: string[]
-): Prisma.CoordinatorShiftWhereInput {
+): Prisma.ShiftWhereInput {
   return {
+    shiftType: "COORDINATOR",
     userId: { in: userIds },
     date: { gte: fechaInicio, lte: fechaFin },
     clockOutAt: { not: null },

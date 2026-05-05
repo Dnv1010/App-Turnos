@@ -56,10 +56,11 @@ async function main() {
   });
   console.log("[TripRecord] OK —", trip ? `type=${trip.type} status=${trip.approvalStatus}` : "ninguno");
 
-  const coordShift = await prisma.coordinatorShift.findFirst({
-    select: { id: true, date: true, clockInAt: true, orderCode: true, note: true, regularHours: true },
+  const coordShift = await prisma.shift.findFirst({
+    where: { shiftType: "COORDINATOR" },
+    select: { id: true, date: true, clockInAt: true, orderCode: true, notes: true, regularHours: true },
   });
-  console.log("[CoordinatorShift] OK —", coordShift ? `${coordShift.date.toISOString().slice(0, 10)} order=${coordShift.orderCode}` : "ninguno");
+  console.log("[Shift/Coordinator] OK —", coordShift ? `${coordShift.date.toISOString().slice(0, 10)} order=${coordShift.orderCode}` : "ninguno");
 
   const report = await prisma.report.findFirst({
     select: { id: true, name: true, startDate: true, endDate: true, createdBy: true, zone: true },
@@ -75,8 +76,11 @@ async function main() {
   const reportAvailability = await prisma.reportAvailability.findFirst({ select: { id: true, reportId: true, shiftScheduleId: true } });
   console.log("[ReportAvailability] OK —", reportAvailability ? "1 row" : "ninguno");
 
-  const reportCoordShift = await prisma.reportCoordinatorShift.findFirst({ select: { id: true, reportId: true, coordinatorShiftId: true } });
-  console.log("[ReportCoordinatorShift] OK —", reportCoordShift ? "1 row" : "ninguno");
+  const reportCoordShift = await prisma.reportShift.findFirst({
+    where: { shift: { shiftType: "COORDINATOR" } },
+    select: { id: true, reportId: true, shiftId: true },
+  });
+  console.log("[ReportShift/Coordinator] OK —", reportCoordShift ? "1 row" : "ninguno");
 
   const sub = await prisma.pushSubscription.findFirst({ select: { id: true, userId: true, endpoint: true, createdAt: true } });
   console.log("[PushSubscription] OK —", sub ? "1 row" : "ninguno");

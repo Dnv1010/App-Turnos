@@ -30,7 +30,6 @@ model User {
   pushSubscriptions PushSubscription[]
   reportsCreated    Report[]           @relation("ReportesCreados")
   shifts            Shift[]
-  coordinatorShifts CoordinatorShift[]
 
   @@map("users")
   @@schema("App_turnos")
@@ -40,6 +39,7 @@ model Shift {
   id                         String        @id @default(cuid())
   userId                     String        @map("user_id")
   date                       DateTime      @db.Date
+  shiftType                  ShiftType     @default(TECHNICAL) @map("shift_type")
   weekday                    String?
   clockInAt                  DateTime      @map("clock_in_at")
   clockOutAt                 DateTime?     @map("clock_out_at")
@@ -58,6 +58,7 @@ model Shift {
   sundaySurchargeHours       Float         @default(0) @map("sunday_surcharge_hours")
   nightSundaySurchargeHours  Float         @default(0) @map("night_sunday_surcharge_hours")
   notes                      String?
+  orderCode                  String?       @map("order_code")
   workdayAlertSentAt         DateTime?     @map("workday_alert_sent_at")
   createdAt                  DateTime      @default(now()) @map("created_at")
   updatedAt                  DateTime      @updatedAt @map("updated_at")
@@ -65,6 +66,7 @@ model Shift {
   user                       User          @relation(fields: [userId], references: [id])
 
   @@index([userId, date])
+  @@index([userId, clockOutAt])
   @@map("shifts")
   @@schema("App_turnos")
 }
@@ -151,18 +153,17 @@ model TripRecord {
 }
 
 model Report {
-  id                          String                    @id @default(cuid())
-  name                        String
-  startDate                   DateTime                  @db.Date @map("start_date")
-  endDate                     DateTime                  @db.Date @map("end_date")
-  createdBy                   String                    @map("created_by")
-  zone                        String?
-  createdAt                   DateTime                  @default(now()) @map("created_at")
-  createdByUser               User                      @relation("ReportesCreados", fields: [createdBy], references: [id])
-  availabilitiesIncluded      ReportAvailability[]
-  tripsIncluded               ReportTrip[]
-  shiftsIncluded              ReportShift[]
-  coordinatorShiftsIncluded   ReportCoordinatorShift[]
+  id                     String               @id @default(cuid())
+  name                   String
+  startDate              DateTime             @db.Date @map("start_date")
+  endDate                DateTime             @db.Date @map("end_date")
+  createdBy              String               @map("created_by")
+  zone                   String?
+  createdAt              DateTime             @default(now()) @map("created_at")
+  createdByUser          User                 @relation("ReportesCreados", fields: [createdBy], references: [id])
+  availabilitiesIncluded ReportAvailability[]
+  tripsIncluded          ReportTrip[]
+  shiftsIncluded         ReportShift[]
 
   @@index([zone])
   @@index([createdAt])
@@ -206,47 +207,6 @@ model ReportAvailability {
   @@schema("App_turnos")
 }
 
-model CoordinatorShift {
-  id                         String                    @id @default(cuid())
-  userId                     String                    @map("user_id")
-  date                       DateTime                  @db.Date
-  clockInAt                  DateTime                  @map("clock_in_at")
-  clockOutAt                 DateTime?                 @map("clock_out_at")
-  orderCode                  String                    @map("order_code")
-  note                       String?
-  regularHours               Float                     @default(0) @map("regular_hours")
-  daytimeOvertimeHours       Float                     @default(0) @map("daytime_overtime_hours")
-  nighttimeOvertimeHours     Float                     @default(0) @map("nighttime_overtime_hours")
-  sundayOvertimeHours        Float                     @default(0) @map("sunday_overtime_hours")
-  nightSundayOvertimeHours   Float                     @default(0) @map("night_sunday_overtime_hours")
-  nightSurchargeHours        Float                     @default(0) @map("night_surcharge_hours")
-  sundaySurchargeHours       Float                     @default(0) @map("sunday_surcharge_hours")
-  nightSundaySurchargeHours  Float                     @default(0) @map("night_sunday_surcharge_hours")
-  clockInLat                 Float?                    @map("clock_in_lat")
-  clockInLng                 Float?                    @map("clock_in_lng")
-  clockOutLat                Float?                    @map("clock_out_lat")
-  clockOutLng                Float?                    @map("clock_out_lng")
-  createdAt                  DateTime                  @default(now()) @map("created_at")
-  updatedAt                  DateTime                  @updatedAt @map("updated_at")
-  reports                    ReportCoordinatorShift[]
-  user                       User                      @relation(fields: [userId], references: [id])
-
-  @@index([userId, date])
-  @@map("coordinator_shifts")
-  @@schema("App_turnos")
-}
-
-model ReportCoordinatorShift {
-  id                  String           @id @default(cuid())
-  reportId            String           @map("report_id")
-  coordinatorShiftId  String           @map("coordinator_shift_id")
-  report              Report           @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  coordinatorShift    CoordinatorShift @relation(fields: [coordinatorShiftId], references: [id], onDelete: Cascade)
-
-  @@unique([reportId, coordinatorShiftId])
-  @@map("report_coordinator_shifts")
-  @@schema("App_turnos")
-}
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model entregas {
@@ -450,6 +410,13 @@ enum DayType {
   INCAPACITADO
   VACACIONES
   MEDIO_CUMPLE
+
+  @@schema("App_turnos")
+}
+
+enum ShiftType {
+  TECHNICAL
+  COORDINATOR
 
   @@schema("App_turnos")
 }

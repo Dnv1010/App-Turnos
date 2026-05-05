@@ -35,12 +35,15 @@ export async function PATCH(req: NextRequest, context: Ctx) {
     body = {};
   }
 
-  const turno = await prisma.coordinatorShift.findUnique({
+  const turno = await prisma.shift.findUnique({
     where: { id },
     include: { user: { select: { fullName: true, documentNumber: true, id: true } } },
   });
 
   if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
+  if (turno.shiftType !== "COORDINATOR") {
+    return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
+  }
 
   const role = profile.role;
   const isOwner = turno.userId === profile.id;
@@ -59,7 +62,7 @@ export async function PATCH(req: NextRequest, context: Ctx) {
     const horaSalida = new Date();
     const horasData = await computeHorasAlCerrarTurnoCoordinador(turno.clockInAt, horaSalida);
 
-    const actualizado = await prisma.coordinatorShift.update({
+    const actualizado = await prisma.shift.update({
       where: { id },
       data: {
         clockOutAt: horaSalida,
@@ -98,9 +101,9 @@ export async function PATCH(req: NextRequest, context: Ctx) {
   const orderCode =
     typeof body.orderCode === "string" && body.orderCode.trim()
       ? body.orderCode.trim()
-      : turno.orderCode;
+      : turno.orderCode ?? "";
 
-  const note = body.note !== undefined ? (body.note === null ? null : String(body.note)) : turno.note;
+  const notes = body.note !== undefined ? (body.note === null ? null : String(body.note)) : turno.notes;
 
   let horasBlock: {
     horasOrdinarias: number;
@@ -125,13 +128,13 @@ export async function PATCH(req: NextRequest, context: Ctx) {
     horasBlock = await computeHorasAlCerrarTurnoCoordinador(entrada, salida);
   }
 
-  const actualizado = await prisma.coordinatorShift.update({
+  const actualizado = await prisma.shift.update({
     where: { id },
     data: {
       clockInAt: entrada,
       clockOutAt: salida,
       orderCode,
-      note,
+      notes,
       regularHours: horasBlock.horasOrdinarias,
       daytimeOvertimeHours: horasBlock.heDiurna,
       nighttimeOvertimeHours: horasBlock.heNocturna,
@@ -162,14 +165,16 @@ export async function DELETE(_req: NextRequest, context: Ctx) {
 
   const { id } = await context.params;
 
-  const turno = await prisma.coordinatorShift.findUnique({
+  const turno = await prisma.shift.findUnique({
     where: { id },
     include: { user: { select: { documentNumber: true, fullName: true } } },
   });
 
-  if (!turno) return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
+  if (!turno || turno.shiftType !== "COORDINATOR") {
+    return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
+  }
 
-  await prisma.coordinatorShift.delete({ where: { id } });
+  await prisma.shift.delete({ where: { id } });
 
   return NextResponse.json({ ok: true, mensaje: "Turno eliminado" });
 }
