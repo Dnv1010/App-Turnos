@@ -54,7 +54,13 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  let user = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  } catch {
+    // Cookie de sesión malformada o error de refresh — tratar como no autenticado
+  }
 
   const pathname = request.nextUrl.pathname
 
