@@ -63,7 +63,13 @@ export default function CoordinadorMallaPage() {
     const res = await fetch(`/api/usuarios?zona=${profile?.zone}&role=TECNICO`);
     const data = await parseResponseJson<{ tecnicos?: Tecnico[] }>(res);
     const raw = data?.tecnicos || [];
-    setTecnicos(raw.filter((t) => (t.jobTitle || "TECNICO") !== "ALMACENISTA"));
+    // COSTA: el líder gestiona también almacenistas de su zona en la malla.
+    // Otras zonas: almacenistas siguen siendo gestionados por SUPPLY (filtrados).
+    setTecnicos(
+      profile?.zone === "COSTA"
+        ? raw
+        : raw.filter((t) => (t.jobTitle || "TECNICO") !== "ALMACENISTA")
+    );
   }, [profile?.zone]);
 
   const cargarMalla = useCallback(async (userId: string, autoPrecarga = true) => {

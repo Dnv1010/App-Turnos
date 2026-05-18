@@ -464,3 +464,42 @@ html.dark td:empty::after,
 html.dark td span.text-gray-300 {
   color: #4a5568 !important;
 }
+
+/* ============ TABLAS: header de columnas fijo + scroll solo en la tabla ============
+   El navbar y el sidebar ya se mantienen estáticos vía el layout. Aquí:
+   - El <thead> queda sticky en el tope de su contenedor de tabla.
+   - Los wrappers de scroll horizontal alrededor de una tabla ganan altura
+     máxima y scroll vertical interno, así solo la tabla se mueve.
+*/
+
+table thead {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+table thead,
+table thead tr,
+table thead th {
+  background-color: #f9fafb;
+}
+
+html.dark table thead,
+html.dark table thead tr,
+html.dark table thead th {
+  background-color: #162035 !important;
+}
+
+.overflow-x-auto:has(> table),
+.overflow-auto:has(> table) {
+  max-height: calc(100vh - 14rem);
+  overflow-y: auto;
+}
+
+/* En pantallas chicas, dejamos un poco más de espacio para la tabla. */
+@media (max-width: 640px) {
+  .overflow-x-auto:has(> table),
+  .overflow-auto:has(> table) {
+    max-height: calc(100vh - 10rem);
+  }
+}

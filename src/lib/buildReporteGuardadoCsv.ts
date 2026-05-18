@@ -38,6 +38,21 @@ function totalHorasTrabajadasTurno(t: {
   return Math.round(sum * 100) / 100;
 }
 
+/** Suma de HE (diurna + nocturna + dominical/festiva diurna + nocturna). */
+function sumHE(t: {
+  heDiurna: number;
+  heNocturna: number;
+  heDominical: number;
+  heNoctDominical: number;
+}): number {
+  return (
+    (t.heDiurna ?? 0) +
+    (t.heNocturna ?? 0) +
+    (t.heDominical ?? 0) +
+    (t.heNoctDominical ?? 0)
+  );
+}
+
 export type TurnoCsvRow = {
   fecha: Date;
   horaEntrada: Date;
@@ -111,6 +126,10 @@ const TURNOS_COORD_HEADERS = [
 
 /**
  * CSV por secciones: TURNOS, TURNOS COORDINADORES, FORÁNEOS, DISPONIBILIDADES.
+ *
+ * REPORTE FINAL = solo novedades:
+ * - Secciones TURNOS y TURNOS COORDINADORES: solo filas con HE > 0.
+ * - FORÁNEOS y DISPONIBILIDADES no se filtran.
  */
 export function buildReporteGuardadoCsvString(
   turnos: TurnoCsvRow[],
@@ -120,9 +139,13 @@ export function buildReporteGuardadoCsvString(
 ): string {
   const parts: string[] = [];
 
+  // Filtrar a solo fechas con HE > 0 (novedades).
+  const turnosConHE = turnos.filter((t) => sumHE(t) > 0);
+  const turnosCoordinadorConHE = turnosCoordinador.filter((t) => sumHE(t) > 0);
+
   parts.push("TURNOS");
   parts.push(TURNOS_HEADERS.map(escapeCsvCell).join(","));
-  for (const t of turnos) {
+  for (const t of turnosConHE) {
     parts.push(
       [
         t.user.cedula ?? "",
@@ -149,7 +172,7 @@ export function buildReporteGuardadoCsvString(
   parts.push("");
   parts.push("TURNOS COORDINADORES");
   parts.push(TURNOS_COORD_HEADERS.map(escapeCsvCell).join(","));
-  for (const t of turnosCoordinador) {
+  for (const t of turnosCoordinadorConHE) {
     parts.push(
       [
         t.user.cedula ?? "",
