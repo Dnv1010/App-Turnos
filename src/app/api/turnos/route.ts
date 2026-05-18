@@ -250,7 +250,7 @@ export async function PATCH(req: NextRequest) {
     const inicioSemana = getInicioSemana(turno.date);
     const finSemana = getFinSemana(turno.date);
 
-    const [mallaDiaRow, festivosSemana, turnosSemana] = await Promise.all([
+    const [mallaDiaRow, festivosSemana, turnosSemana, turnosMismoDia] = await Promise.all([
       prisma.shiftSchedule.findUnique({
         where: { userId_date: { userId: turno.userId, date: turno.date } },
       }),
@@ -266,7 +266,21 @@ export async function PATCH(req: NextRequest) {
         },
         select: { date: true, regularHours: true },
       }),
+      // Detectar 2da+ apertura del mismo día (TECHNICAL, cerrado, no cancelado, anterior a este).
+      prisma.shift.findFirst({
+        where: {
+          userId: turno.userId,
+          shiftType: "TECHNICAL",
+          date: turno.date,
+          clockOutAt: { not: null },
+          clockInAt: { lt: turno.clockInAt },
+          id: { not: turnoId },
+          NOT: { notes: { startsWith: "Cancelado" } },
+        },
+        select: { id: true },
+      }),
     ]);
+    const esTurnoAdicional = !!turnosMismoDia;
 
     // CRÍTICO: Usar dateKeyColombia para festivos
     const holidaySet = new Set(festivosSemana.map((f) => dateKeyColombia(f.date)));
@@ -310,7 +324,8 @@ export async function PATCH(req: NextRequest) {
       { horaEntrada: turno.clockInAt, horaSalida, fecha: turno.date },
       mallaDia,
       holidaySet,
-      weeklyOrdHours
+      weeklyOrdHours,
+      esTurnoAdicional
     );
     const resultadoDb = resultadoToTurnoData(resultado);
 
