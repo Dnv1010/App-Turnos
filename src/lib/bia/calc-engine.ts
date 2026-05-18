@@ -295,7 +295,8 @@ function calcMinutes(
   totalMin: number,
   jornadaMin: number,
   holidaySet: Set<string>,
-  weeklyOrdHoursLt44: boolean
+  weeklyOrdHoursLt44: boolean,
+  esTurnoAdicional: boolean = false
 ): CalcMinutesResult {
   let heDiurna = 0;
   let heNocturna = 0;
@@ -311,8 +312,10 @@ function calcMinutes(
     const isDiurna = mod >= DIURNA_START && mod < DIURNA_END;
     const dow = getDayOfWeekColombia(t);
     const isMinuteDomFestivo = dow === 0 || holidaySet.has(dateKeyColombia(t));
-    const minuteApplyRecargo = isMinuteDomFestivo && weeklyOrdHoursLt44;
-    const withinOrd = jornadaMin > 0 && m < jornadaMin;
+    // En aperturas adicionales del mismo día: NUNCA recargo, todo va a HE.
+    const minuteApplyRecargo =
+      !esTurnoAdicional && isMinuteDomFestivo && weeklyOrdHoursLt44;
+    const withinOrd = !esTurnoAdicional && jornadaMin > 0 && m < jornadaMin;
 
     if (isMinuteDomFestivo) {
       if (minuteApplyRecargo) {
@@ -332,9 +335,9 @@ function calcMinutes(
     }
   }
 
-  // Umbral 0.5h: aplica solo a HE de días hábiles.
-  // Festivos/dominicales y recargos se pagan desde el primer minuto.
-  if (heDiurna + heNocturna < 30) {
+  // Umbral 0.5h: aplica solo a HE de días hábiles del turno principal.
+  // Festivos/dominicales, recargos y aperturas adicionales se pagan desde el primer minuto.
+  if (!esTurnoAdicional && heDiurna + heNocturna < 30) {
     heDiurna = 0;
     heNocturna = 0;
   }
@@ -395,7 +398,8 @@ export function calcularTurno(
   turno: TurnoData,
   resumenSemanal: ResumenSemanal,
   mallaVal?: string | null,
-  holidaySet?: Set<string>
+  holidaySet?: Set<string>,
+  esTurnoAdicional: boolean = false
 ): ResultadoCalculo {
   const resultado: ResultadoCalculo = {
     horasOrdinarias: 0, heDiurna: 0, heNocturna: 0, heDominical: 0,
@@ -408,7 +412,11 @@ export function calcularTurno(
   let jornadaMin: number;
   let ordinariasPagadasMin: number;
 
-  if (mallaVal !== undefined && holidaySet !== undefined) {
+  // Apertura adicional del mismo día: las horas no son ordinarias, todo va a HE.
+  if (esTurnoAdicional) {
+    jornadaMin = 0;
+    ordinariasPagadasMin = 0;
+  } else if (mallaVal !== undefined && holidaySet !== undefined) {
     jornadaMin = esDomFestivo ? 0 : getJornadaMinutes(turno.fecha, mallaVal, holidaySet);
     ordinariasPagadasMin = esDomFestivo ? 0 : getOrdinaryMinutes(turno.fecha, mallaVal, holidaySet);
   } else {
@@ -418,7 +426,14 @@ export function calcularTurno(
   }
 
   const efectivoHolidaySet = holidaySet ?? new Set<string>();
-  const r = calcMinutes(turno.horaEntrada, totalMin, jornadaMin, efectivoHolidaySet, resumenSemanal.aplicaRegla44h);
+  const r = calcMinutes(
+    turno.horaEntrada,
+    totalMin,
+    jornadaMin,
+    efectivoHolidaySet,
+    resumenSemanal.aplicaRegla44h,
+    esTurnoAdicional
+  );
 
   resultado.horasOrdinarias = minutosAHoras(Math.min(ordinariasPagadasMin, totalMin));
 
