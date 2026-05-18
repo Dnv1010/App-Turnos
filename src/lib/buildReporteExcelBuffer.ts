@@ -82,6 +82,21 @@ function totalHorasTrabajadasCoord(t: TurnoCoordinadorExportRow): number {
   return Math.round(sum * 100) / 100;
 }
 
+/** Suma de HE (diurna + nocturna + dominical/festiva diurna + nocturna). */
+function sumHE(t: {
+  heDiurna: number;
+  heNocturna: number;
+  heDominical: number;
+  heNoctDominical: number;
+}): number {
+  return (
+    (t.heDiurna ?? 0) +
+    (t.heNocturna ?? 0) +
+    (t.heDominical ?? 0) +
+    (t.heNoctDominical ?? 0)
+  );
+}
+
 function rowTurnoCoordExcel(t: TurnoCoordinadorExportRow) {
   return {
     "Cédula": t.user.cedula ?? "",
@@ -106,6 +121,11 @@ function rowTurnoCoordExcel(t: TurnoCoordinadorExportRow) {
 
 /**
  * Excel reporte guardado: Resumen, Turnos, Turnos Coordinadores, Foráneos, Disponibilidades.
+ *
+ * REPORTE FINAL = solo novedades:
+ * - Hoja "Turnos" y "Turnos Coordinadores": solo filas con HE > 0.
+ * - Hoja "Resumen": solo técnicos con HE total > 0.
+ * - Foráneos y Disponibilidades no se filtran (son novedades independientes).
  */
 export function buildReporteGuardadoExcelBuffer(
   turnos: TurnoRow[],
@@ -114,7 +134,11 @@ export function buildReporteGuardadoExcelBuffer(
   disponibilidades: MallaDispRow[],
   filenameBase: string
 ): { buffer: Buffer; filename: string } {
-  const dataTurnos = turnos.map((t) => ({
+  // Filtrar a solo fechas con HE > 0 (novedades).
+  const turnosConHE = turnos.filter((t) => sumHE(t) > 0);
+  const turnosCoordinadorConHE = turnosCoordinador.filter((t) => sumHE(t) > 0);
+
+  const dataTurnos = turnosConHE.map((t) => ({
     "Cédula": t.user.cedula ?? "",
     Nombre: t.user.nombre ?? "",
     Mes: getMesEspanol(t.fecha),
@@ -133,7 +157,7 @@ export function buildReporteGuardadoExcelBuffer(
     "Recargo dominical o festivo nocturno": t.recNoctDominical ?? 0,
   }));
 
-  const dataTurnosCoord = turnosCoordinador.map((t) => rowTurnoCoordExcel(t));
+  const dataTurnosCoord = turnosCoordinadorConHE.map((t) => rowTurnoCoordExcel(t));
 
   const foraneosPorTecnico: Record<
     string,
@@ -182,7 +206,7 @@ export function buildReporteGuardadoExcelBuffer(
     }
   > = {};
 
-  turnos.forEach((t) => {
+  turnosConHE.forEach((t) => {
     const key = `${t.user.nombre}|${t.user.cedula ?? ""}`;
     if (!resumenPorTecnico[key]) {
       resumenPorTecnico[key] = {
@@ -200,11 +224,14 @@ export function buildReporteGuardadoExcelBuffer(
       (t.recNocturno ?? 0) + (t.recDominical ?? 0) + (t.recNoctDominical ?? 0);
   });
 
-  const dataResumen = Object.values(resumenPorTecnico).map((r) => ({
-    ...r,
-    "Total HE": Math.round(r["Total HE"] * 100) / 100,
-    "Total Recargos": Math.round(r["Total Recargos"] * 100) / 100,
-  }));
+  // Resumen: solo técnicos con HE > 0 (ya garantizado por turnosConHE pero defensivo).
+  const dataResumen = Object.values(resumenPorTecnico)
+    .filter((r) => r["Total HE"] > 0)
+    .map((r) => ({
+      ...r,
+      "Total HE": Math.round(r["Total HE"] * 100) / 100,
+      "Total Recargos": Math.round(r["Total Recargos"] * 100) / 100,
+    }));
 
   const dataDisponibilidades = disponibilidades.map((d) => {
     const valor = valorDisponibilidadMallaPorRol(d.user.role);

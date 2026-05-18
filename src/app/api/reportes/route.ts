@@ -131,6 +131,15 @@ export async function GET(req: NextRequest) {
       turnosPorSemana.get(key)!.push(t);
     }
 
+    // Pre-agrupar por día (Colombia) para detectar aperturas adicionales del mismo día.
+    // El turno con clockInAt más temprano del día es el "principal"; los demás son adicionales (= HE).
+    const turnosPorDia = new Map<string, typeof user.shifts>();
+    for (const t of user.shifts) {
+      const key = dateKeyColombia(t.date);
+      if (!turnosPorDia.has(key)) turnosPorDia.set(key, []);
+      turnosPorDia.get(key)!.push(t);
+    }
+
     const turnosConMalla = user.shifts.map((t) => {
       const mallaVal = mallaGetter(t.date);
       const inicioSemana = getInicioSemana(t.date);
@@ -148,6 +157,14 @@ export async function GET(req: NextRequest) {
         aplicaRegla44h: weeklyOrdParaRegla44 < 44,
       };
       const totalHoras = (t.clockOutAt!.getTime() - t.clockInAt.getTime()) / (1000 * 60 * 60);
+      // ¿Existe otro turno del mismo día con clockInAt anterior y no cancelado?
+      const turnosMismoDia = turnosPorDia.get(dateKeyColombia(t.date)) ?? [];
+      const esTurnoAdicional = turnosMismoDia.some(
+        (otro) =>
+          otro.id !== t.id &&
+          otro.clockInAt.getTime() < t.clockInAt.getTime() &&
+          !otro.notes?.startsWith("Cancelado")
+      );
       const resultado = calcularTurno(
         {
           fecha: t.date,
@@ -159,7 +176,8 @@ export async function GET(req: NextRequest) {
         },
         resumenSemanal,
         mallaVal,
-        holidaySet
+        holidaySet,
+        esTurnoAdicional
       );
       const alerts = checkMallaAlerts(t.id, user.email ?? "", user.fullName, t.date, mallaVal, holidaySet.has(dateKeyColombia(t.date)), totalHoras);
       alerts.forEach((a) => alertasMalla.push({ userId: user.id, fullName: user.fullName, mensaje: a.detalle, tipo: a.tipo }));

@@ -31,16 +31,27 @@ export function whereTurnosDisponiblesParaReporte(
   };
 }
 
+/**
+ * Foráneos disponibles para incluir en un reporte.
+ *
+ * IMPORTANTE: la selección NO depende del rango de fechas, sino del estado
+ * "no reportado" (`reports: { none: {} }`). El rango se mantiene como referencia
+ * visual en la UI, pero todo foráneo APROBADO y aún no incluido en un reporte
+ * debe aparecer, sin importar su `createdAt`. Esto evita que foráneos cargados
+ * después del corte queden fuera de los reportes siguientes.
+ *
+ * Los parámetros `fechaInicio`/`fechaFin` se conservan por compatibilidad de
+ * firma pero ya no se aplican al where.
+ */
 export function whereForaneosDisponiblesParaReporte(
-  fechaInicio: Date,
-  fechaFin: Date,
+  _fechaInicio: Date,
+  _fechaFin: Date,
   userIds: string[]
 ): Prisma.TripRecordWhereInput {
   return {
     type: "FORANEO",
     approvalStatus: "APROBADA",
     userId: { in: userIds },
-    createdAt: { gte: fechaInicio, lte: fechaFin },
     reports: { none: {} },
   };
 }

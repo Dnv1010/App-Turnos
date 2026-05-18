@@ -37,7 +37,7 @@ export async function POST() {
       const inicioSemana = getInicioSemana(turno.date);
       const finSemana = getFinSemana(turno.date);
 
-      const [mallaDiaRow, festivosSemana, turnosSemana] = await Promise.all([
+      const [mallaDiaRow, festivosSemana, turnosSemana, turnoPrevioMismoDia] = await Promise.all([
         prisma.shiftSchedule.findUnique({
           where: { userId_date: { userId: turno.userId, date: turno.date } },
         }),
@@ -53,7 +53,21 @@ export async function POST() {
           },
           select: { date: true, regularHours: true },
         }),
+        // Detectar si este turno es una apertura adicional del mismo día (otro turno cerrado con entrada anterior).
+        prisma.shift.findFirst({
+          where: {
+            userId: turno.userId,
+            shiftType: "TECHNICAL",
+            date: turno.date,
+            clockOutAt: { not: null },
+            clockInAt: { lt: turno.clockInAt },
+            id: { not: turno.id },
+            NOT: { notes: { startsWith: "Cancelado" } },
+          },
+          select: { id: true },
+        }),
       ]);
+      const esTurnoAdicional = !!turnoPrevioMismoDia;
 
       const holidaySet = new Set(festivosSemana.map((f) => dateKey(f.date)));
       const esFestivo = holidaySet.has(dateKey(turno.date));
@@ -92,7 +106,8 @@ export async function POST() {
         { horaEntrada: turno.clockInAt, horaSalida: turno.clockOutAt!, fecha: turno.date },
         mallaDia,
         holidaySet,
-        weeklyOrdHours
+        weeklyOrdHours,
+        esTurnoAdicional
       );
       const resultadoDb = resultadoToTurnoData(resultado);
 
