@@ -6,6 +6,7 @@ import { getUserProfile } from "@/lib/auth-supabase";
 import { calcularTurno, getInicioSemana, checkMallaAlerts, dateKeyColombia } from "@/lib/bia/calc-engine";
 import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
 import { valorDisponibilidadMallaPorRol } from "@/lib/reporteDisponibilidadValor";
+import { rangoDateExpandidoUtc, turnoEnRangoFechaCalendario } from "@/lib/turnoRangoColombia";
 
 /**
  * FIX: Día de la semana para fechas @db.Date (midnight UTC = día de calendario).
@@ -46,25 +47,32 @@ export async function GET(req: NextRequest) {
 
   const whereUser: Record<string, unknown> = { isActive: true };
   if (userId) whereUser.id = userId;
-  if (rol && rol !== "ALL") whereUser.role = rol;
-  if (
-    profile.role === "COORDINADOR" ||
-    profile.role === "MANAGER" ||
-    profile.role === "ADMIN" ||
-    profile.role === "SUPPLY"
-  ) {
-    whereUser.role = "TECNICO";
+  if (rol && rol !== "ALL") {
+    whereUser.role = rol;
+  } else {
+    // Excluir PENDIENTE por defecto (usuarios sin rol asignado).
+    whereUser.role = { in: ["TECNICO", "COORDINADOR", "COORDINADOR_INTERIOR", "MANAGER", "ADMIN", "SUPPLY"] };
   }
-  if (profile.role === "COORDINADOR") {
+  if (profile.role === "TECNICO") {
+    whereUser.id = profile.id;
+  } else if (profile.role === "COORDINADOR") {
     whereUser.zone = profile.zone;
   } else if (profile.role === "SUPPLY") {
     if (zona && zona !== "ALL") whereUser.zone = zona;
-  } else if (profile.role === "TECNICO") {
-    whereUser.id = profile.id;
   } else if (zona && zona !== "ALL") {
     whereUser.zone = zona;
   }
 
+  // Validar formato YYYY-MM-DD
+  const ymdRe = /^\d{4}-\d{2}-\d{2}$/;
+  if (!ymdRe.test(inicio) || !ymdRe.test(fin)) {
+    return NextResponse.json({ error: "Formato de fecha inválido (YYYY-MM-DD)" }, { status: 400 });
+  }
+
+  // Rango expandido -1 día para capturar turnos nocturnos que cruzaron medianoche.
+  // El filtrado fino por fecha Colombia se hace en memoria con turnoEnRangoFechaCalendario.
+  const rangoFechaShifts = rangoDateExpandidoUtc(inicio, fin);
+  // Rango UTC sin expansión para malla/disponibilidades/foráneos (no cruzan medianoche).
   const [yi, mi, di] = inicio.split("-").map(Number);
   const [yf, mf, df] = fin.split("-").map(Number);
   const fechaInicio = new Date(Date.UTC(yi!, mi! - 1, di!, 0, 0, 0));
@@ -76,7 +84,7 @@ export async function GET(req: NextRequest) {
       id: true, fullName: true, documentNumber: true, email: true, zone: true, role: true,
       shifts: {
         where: {
-          date: { gte: fechaInicio, lte: fechaFin },
+          date: rangoFechaShifts,
           clockOutAt: { not: null },
           OR: [
             { notes: null },
@@ -123,9 +131,15 @@ export async function GET(req: NextRequest) {
   const detalle = usuarios.map((user) => {
     const mallaGetter = (fecha: Date) => mallaMap.get(`${user.id}|${dateKeyColombia(fecha)}`) ?? null;
 
+    // Filtrar turnos por fecha Colombia: la query trajo -1 día para capturar
+    // turnos nocturnos que cruzaron medianoche; descartamos los que no aplican.
+    const shiftsEnRango = user.shifts.filter((t) =>
+      turnoEnRangoFechaCalendario(t, inicio, fin)
+    );
+
     // Pre-agrupar por semana para evitar O(n²): filter dentro de map
     const turnosPorSemana = new Map<number, typeof user.shifts>();
-    for (const t of user.shifts) {
+    for (const t of shiftsEnRango) {
       const key = getInicioSemana(t.date).getTime();
       if (!turnosPorSemana.has(key)) turnosPorSemana.set(key, []);
       turnosPorSemana.get(key)!.push(t);
@@ -134,13 +148,13 @@ export async function GET(req: NextRequest) {
     // Pre-agrupar por día (Colombia) para detectar aperturas adicionales del mismo día.
     // El turno con clockInAt más temprano del día es el "principal"; los demás son adicionales (= HE).
     const turnosPorDia = new Map<string, typeof user.shifts>();
-    for (const t of user.shifts) {
+    for (const t of shiftsEnRango) {
       const key = dateKeyColombia(t.date);
       if (!turnosPorDia.has(key)) turnosPorDia.set(key, []);
       turnosPorDia.get(key)!.push(t);
     }
 
-    const turnosConMalla = user.shifts.map((t) => {
+    const turnosConMalla = shiftsEnRango.map((t) => {
       const mallaVal = mallaGetter(t.date);
       const inicioSemana = getInicioSemana(t.date);
       const turnosSemana = turnosPorSemana.get(inicioSemana.getTime()) ?? [];
