@@ -5,12 +5,17 @@ import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import type { Zone, Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
+import {
+  rangoDateExpandidoUtc,
+  turnoEnRangoFechaCalendario,
+  dateKeyColombia,
+} from "@/lib/turnoRangoColombia";
 
 const VALOR_DISPONIBILIDAD = 80000;
 const TARIFA_KM_FORANEO = 1100;
 
 function dateKey(d: Date): string {
-  return d.toISOString().split("T")[0];
+  return dateKeyColombia(d);
 }
 
 function timeColombia(d: Date): string {
@@ -41,30 +46,42 @@ export async function GET(req: NextRequest) {
     const hasta = searchParams.get("hasta");
     const userId = searchParams.get("userId");
     const zona = searchParams.get("zona");
+    const rol = searchParams.get("rol");
 
     if (!desde || !hasta) {
       return NextResponse.json({ error: "Parametros desde y hasta requeridos" }, { status: 400 });
     }
 
+    // Validar formato YYYY-MM-DD
+    const ymdRe = /^\d{4}-\d{2}-\d{2}$/;
+    if (!ymdRe.test(desde) || !ymdRe.test(hasta)) {
+      return NextResponse.json({ error: "Formato de fecha inválido (YYYY-MM-DD)" }, { status: 400 });
+    }
+
+    // Rango expandido -1 día para capturar turnos nocturnos que cruzaron medianoche
+    const rangoFecha = rangoDateExpandidoUtc(desde, hasta);
+    // Rango UTC para createdAt de TripRecord y date de ShiftSchedule
     const [yi, mi, di] = desde.split("-").map(Number);
     const [yf, mf, df] = hasta.split("-").map(Number);
     const fechaInicio = new Date(Date.UTC(yi, mi - 1, di, 0, 0, 0));
     const fechaFin = new Date(Date.UTC(yf, mf - 1, df, 23, 59, 59));
 
-    const whereUser: { isActive: boolean; role: "TECNICO"; id?: string; zone?: string } = {
-      isActive: true,
-      role: "TECNICO",
-    };
+    const whereUser: Prisma.UserWhereInput = { isActive: true };
     if (userId) whereUser.id = userId;
+    if (rol && rol !== "ALL") {
+      whereUser.role = rol as Prisma.UserWhereInput["role"];
+    } else {
+      whereUser.role = { in: ["TECNICO", "COORDINADOR", "COORDINADOR_INTERIOR", "MANAGER", "ADMIN", "SUPPLY"] };
+    }
     if (zona && zona !== "ALL") whereUser.zone = zona as Zone;
-    if (profile.role === "COORDINADOR" || profile.role === "SUPPLY") {
-      whereUser.zone = profile.zone as Zone;
-    } else if (profile.role === "TECNICO") {
+    if (profile.role === "TECNICO") {
       whereUser.id = profile.id;
+    } else if (profile.role === "COORDINADOR" || profile.role === "SUPPLY") {
+      whereUser.zone = profile.zone as Zone;
     }
 
     const usuarios = await prisma.user.findMany({
-      where: whereUser as unknown as Prisma.UserWhereInput,
+      where: whereUser,
       select: { id: true },
     });
     const userIds = usuarios.map((u) => u.id);
@@ -84,12 +101,16 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const [turnos, mallaDisponibles, fotosForaneos] = await Promise.all([
+    const [turnosRaw, mallaDisponibles, fotosForaneos] = await Promise.all([
       prisma.shift.findMany({
         where: {
           userId: { in: userIds },
-          date: { gte: fechaInicio, lte: fechaFin },
+          date: rangoFecha,
           clockOutAt: { not: null },
+          OR: [
+            { notes: null },
+            { notes: { not: { startsWith: "Cancelado" } } },
+          ],
         },
         include: { user: { select: { fullName: true, documentNumber: true } } },
         orderBy: [{ date: "asc" }, { clockInAt: "asc" }],
@@ -113,6 +134,10 @@ export async function GET(req: NextRequest) {
         include: { user: { select: { fullName: true, documentNumber: true } } },
       }),
     ]);
+
+    // Filtrar turnos por fecha Colombia: descarta turnos del día anterior
+    // que NO cruzaron medianoche (la query trajo -1 día por seguridad).
+    const turnos = turnosRaw.filter((t) => turnoEnRangoFechaCalendario(t, desde, hasta));
 
     // Hoja Resumen — una fila por técnico con totales
     const resumenPorTecnico: Record<string, {
