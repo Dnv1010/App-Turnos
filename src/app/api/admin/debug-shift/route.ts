@@ -92,10 +92,17 @@ export async function GET(req: NextRequest) {
 
       return {
         id: s.id,
-        date: s.date.toISOString(),
-        dateColombiaYmd: new Date(s.date.getTime() - 5 * 60 * 60 * 1000)
-          .toISOString()
-          .split("T")[0],
+        // RAW: cómo viene de la BD
+        date_iso: s.date.toISOString(),
+        date_getUTCDate: s.date.getUTCDate(),
+        date_getUTCMonth_1based: s.date.getUTCMonth() + 1,
+        date_getUTCHours: s.date.getUTCHours(),
+        date_getUTCMinutes: s.date.getUTCMinutes(),
+        // CÓMO LO MUESTRA EL EXCEL (formatFechaDDMMYYYY usa getUTC*)
+        excelFechaMostraria: `${String(s.date.getUTCDate()).padStart(2, "0")}/${String(s.date.getUTCMonth() + 1).padStart(2, "0")}/${s.date.getUTCFullYear()}`,
+        // Día Colombia derivado del clockInAt (la fuente real)
+        clockInAt_diaColombia: s.clockInAt
+          .toLocaleDateString("en-CA", { timeZone: "America/Bogota" }),
         shiftType: s.shiftType,
         clockInAt: s.clockInAt.toISOString(),
         clockOutAt: s.clockOutAt?.toISOString() ?? null,
