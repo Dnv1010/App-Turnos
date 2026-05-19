@@ -56,6 +56,7 @@ const navItems: NavItem[] = [
   { label: "Malla de Turnos", href: "/supply/malla", icon: HiCalendar, roles: ["SUPPLY"] },
   { label: "Mi Turno", href: "/coordinador-interior", icon: HiClock, roles: ["COORDINADOR_INTERIOR"] },
   { label: "Reportes", href: "/manager/reportes/guardados", icon: HiDocumentReport, roles: ["MANAGER"] },
+  { label: "Malla técnicos", href: "/manager/malla", icon: HiCalendar, roles: ["MANAGER", "ADMIN"] },
   { label: "Turnos coordinadores", href: "/manager/turnos-coordinadores", icon: HiClock, roles: ["MANAGER"] },
   {
     label: "Disp. coordinadores",
