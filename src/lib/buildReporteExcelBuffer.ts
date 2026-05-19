@@ -97,6 +97,32 @@ function sumHE(t: {
   );
 }
 
+/** Suma de recargos (nocturno + dominical/festivo diurno + nocturno). */
+function sumRecargos(t: {
+  recNocturno: number;
+  recDominical: number;
+  recNoctDominical: number;
+}): number {
+  return (
+    (t.recNocturno ?? 0) +
+    (t.recDominical ?? 0) +
+    (t.recNoctDominical ?? 0)
+  );
+}
+
+/** Turno con novedad de pago (HE o recargo > 0). */
+function tieneNovedad(t: {
+  heDiurna: number;
+  heNocturna: number;
+  heDominical: number;
+  heNoctDominical: number;
+  recNocturno: number;
+  recDominical: number;
+  recNoctDominical: number;
+}): boolean {
+  return sumHE(t) > 0 || sumRecargos(t) > 0;
+}
+
 function rowTurnoCoordExcel(t: TurnoCoordinadorExportRow) {
   return {
     "Cédula": t.user.cedula ?? "",
@@ -122,9 +148,10 @@ function rowTurnoCoordExcel(t: TurnoCoordinadorExportRow) {
 /**
  * Excel reporte guardado: Resumen, Turnos, Turnos Coordinadores, Foráneos, Disponibilidades.
  *
- * REPORTE FINAL = solo novedades:
- * - Hoja "Turnos" y "Turnos Coordinadores": solo filas con HE > 0.
- * - Hoja "Resumen": solo técnicos con HE total > 0.
+ * REPORTE FINAL = solo novedades de pago:
+ * - Hoja "Turnos" y "Turnos Coordinadores": filas con HE > 0 O recargos > 0.
+ *   (los coordinadores típicamente solo generan recargos, no HE).
+ * - Hoja "Resumen": técnicos con alguna novedad (HE o recargo).
  * - Foráneos y Disponibilidades no se filtran (son novedades independientes).
  */
 export function buildReporteGuardadoExcelBuffer(
@@ -134,9 +161,9 @@ export function buildReporteGuardadoExcelBuffer(
   disponibilidades: MallaDispRow[],
   filenameBase: string
 ): { buffer: Buffer; filename: string } {
-  // Filtrar a solo fechas con HE > 0 (novedades).
-  const turnosConHE = turnos.filter((t) => sumHE(t) > 0);
-  const turnosCoordinadorConHE = turnosCoordinador.filter((t) => sumHE(t) > 0);
+  // Filtrar a turnos con novedad (HE o recargo > 0).
+  const turnosConHE = turnos.filter(tieneNovedad);
+  const turnosCoordinadorConHE = turnosCoordinador.filter(tieneNovedad);
 
   const dataTurnos = turnosConHE.map((t) => ({
     "Cédula": t.user.cedula ?? "",
@@ -224,9 +251,9 @@ export function buildReporteGuardadoExcelBuffer(
       (t.recNocturno ?? 0) + (t.recDominical ?? 0) + (t.recNoctDominical ?? 0);
   });
 
-  // Resumen: solo técnicos con HE > 0 (ya garantizado por turnosConHE pero defensivo).
+  // Resumen: técnicos con alguna novedad (HE o recargo).
   const dataResumen = Object.values(resumenPorTecnico)
-    .filter((r) => r["Total HE"] > 0)
+    .filter((r) => r["Total HE"] > 0 || r["Total Recargos"] > 0)
     .map((r) => ({
       ...r,
       "Total HE": Math.round(r["Total HE"] * 100) / 100,

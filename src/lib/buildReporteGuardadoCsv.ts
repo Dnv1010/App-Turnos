@@ -53,6 +53,28 @@ function sumHE(t: {
   );
 }
 
+/** Suma de recargos. */
+function sumRecargos(t: {
+  recNocturno: number;
+  recDominical: number;
+  recNoctDominical: number;
+}): number {
+  return (t.recNocturno ?? 0) + (t.recDominical ?? 0) + (t.recNoctDominical ?? 0);
+}
+
+/** Turno con alguna novedad de pago (HE o recargo > 0). */
+function tieneNovedad(t: {
+  heDiurna: number;
+  heNocturna: number;
+  heDominical: number;
+  heNoctDominical: number;
+  recNocturno: number;
+  recDominical: number;
+  recNoctDominical: number;
+}): boolean {
+  return sumHE(t) > 0 || sumRecargos(t) > 0;
+}
+
 export type TurnoCsvRow = {
   fecha: Date;
   horaEntrada: Date;
@@ -127,8 +149,9 @@ const TURNOS_COORD_HEADERS = [
 /**
  * CSV por secciones: TURNOS, TURNOS COORDINADORES, FORÁNEOS, DISPONIBILIDADES.
  *
- * REPORTE FINAL = solo novedades:
- * - Secciones TURNOS y TURNOS COORDINADORES: solo filas con HE > 0.
+ * REPORTE FINAL = solo novedades de pago:
+ * - Secciones TURNOS y TURNOS COORDINADORES: filas con HE > 0 O recargos > 0.
+ *   (los coordinadores típicamente solo generan recargos, no HE).
  * - FORÁNEOS y DISPONIBILIDADES no se filtran.
  */
 export function buildReporteGuardadoCsvString(
@@ -139,9 +162,9 @@ export function buildReporteGuardadoCsvString(
 ): string {
   const parts: string[] = [];
 
-  // Filtrar a solo fechas con HE > 0 (novedades).
-  const turnosConHE = turnos.filter((t) => sumHE(t) > 0);
-  const turnosCoordinadorConHE = turnosCoordinador.filter((t) => sumHE(t) > 0);
+  // Filtrar a turnos con novedad (HE o recargo > 0).
+  const turnosConHE = turnos.filter(tieneNovedad);
+  const turnosCoordinadorConHE = turnosCoordinador.filter(tieneNovedad);
 
   parts.push("TURNOS");
   parts.push(TURNOS_HEADERS.map(escapeCsvCell).join(","));
