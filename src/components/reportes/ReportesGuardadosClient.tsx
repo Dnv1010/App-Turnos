@@ -496,7 +496,7 @@ export default function ReportesGuardadosClient() {
                             />
                           </td>
                           <td className="p-2">{t.user.fullName}</td>
-                          <td className="p-2">{format(parseISO(t.date), "dd/MM/yyyy")}</td>
+                          <td className="p-2">{new Date(t.clockInAt).toLocaleDateString("en-GB", { timeZone: "America/Bogota" })}</td>
                           <td className="p-2 text-right font-mono">{totalHE(t).toFixed(2)}</td>
                           <td className="p-2 text-right font-mono">{totalRecargos(t).toFixed(2)}</td>
                         </tr>
@@ -575,10 +575,10 @@ export default function ReportesGuardadosClient() {
                           <td className="p-2">{t.user.fullName}</td>
                           <td className="p-2">{getRoleLabel(t.user.role)}</td>
                           <td className="p-2 capitalize">
-                            {format(parseISO(t.date.split("T")[0]), "LLLL", { locale: es })}
+                            {new Date(t.clockInAt).toLocaleDateString("es-CO", { timeZone: "America/Bogota", month: "long" })}
                           </td>
-                          <td className="p-2">{format(parseISO(t.date.split("T")[0]), "d", { locale: es })}</td>
-                          <td className="p-2">{format(parseISO(t.date.split("T")[0]), "dd/MM/yyyy", { locale: es })}</td>
+                          <td className="p-2">{new Date(t.clockInAt).toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "numeric" })}</td>
+                          <td className="p-2">{new Date(t.clockInAt).toLocaleDateString("en-GB", { timeZone: "America/Bogota" })}</td>
                           <td className="p-2 font-mono">{t.orderCode}</td>
                           <td className="p-2 whitespace-nowrap">
                             {new Date(t.clockInAt).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
