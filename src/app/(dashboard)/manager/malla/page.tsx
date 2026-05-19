@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { format, startOfWeek, addDays, addWeeks } from "date-fns";
+import { format, startOfWeek, addDays } from "date-fns";
 import { es } from "date-fns/locale";
-import { HiChevronLeft, HiChevronRight, HiCalendar } from "react-icons/hi";
+import { HiCalendar } from "react-icons/hi";
 import { parseResponseJson } from "@/lib/parseFetchJson";
 import { getZonaLabel } from "@/lib/roleLabels";
 
@@ -24,21 +24,20 @@ interface TecnicoMalla {
   malla: Record<string, MallaCelda>;
 }
 
-interface SemanaInfo {
-  inicio: string;
-  fin: string;
+interface RangoInfo {
+  desde: string;
+  hasta: string;
   dias: string[];
   festivos: Record<string, string>;
 }
 
 interface RespuestaMalla {
-  semana: SemanaInfo;
+  rango: RangoInfo;
   tecnicos: TecnicoMalla[];
 }
 
-const DIAS_LABEL = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+const DIAS_LABEL_CORTO = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
-/** Estilo por tipo de día. Devuelve clases tailwind. */
 function estiloCelda(celda: MallaCelda | undefined, esFestivo: boolean): {
   bg: string;
   text: string;
@@ -67,7 +66,6 @@ function estiloCelda(celda: MallaCelda | undefined, esFestivo: boolean): {
     case "MEDIO_CUMPLE":
       return { bg: "bg-orange-100 dark:bg-orange-900/40", text: "text-orange-800 dark:text-orange-200", contenido: "M/C" };
     default:
-      // TRABAJO o cualquier código de turno
       return {
         bg: esFestivo
           ? "bg-amber-100 dark:bg-amber-900/40"
@@ -78,27 +76,39 @@ function estiloCelda(celda: MallaCelda | undefined, esFestivo: boolean): {
   }
 }
 
-function lunesDeLaSemana(fecha: Date): Date {
-  return startOfWeek(fecha, { weekStartsOn: 1 });
-}
-
 function ymd(d: Date): string {
   return format(d, "yyyy-MM-dd");
 }
 
+/** Día de semana del YYYY-MM-DD interpretado como midnight UTC. 0=Dom, 1=Lun ... */
+function dowDeYmd(ymdStr: string): number {
+  const [y, m, d] = ymdStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
 export default function ManagerMallaPage() {
-  const [inicioSemana, setInicioSemana] = useState<Date>(lunesDeLaSemana(new Date()));
+  // Por defecto: semana actual (lunes a domingo).
+  const hoy = new Date();
+  const lunes = startOfWeek(hoy, { weekStartsOn: 1 });
+  const [desde, setDesde] = useState<string>(ymd(lunes));
+  const [hasta, setHasta] = useState<string>(ymd(addDays(lunes, 6)));
   const [zona, setZona] = useState<Filtro>("ALL");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<RespuestaMalla | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
+    if (!desde || !hasta) return;
+    if (hasta < desde) {
+      setError("La fecha 'hasta' debe ser mayor o igual a 'desde'");
+      setData(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(
-        `/api/manager/malla-semanal?inicio=${ymd(inicioSemana)}&zona=${zona}`
+        `/api/manager/malla-semanal?desde=${desde}&hasta=${hasta}&zona=${zona}`
       );
       const parsed = await parseResponseJson<RespuestaMalla | { error?: string }>(res);
       if (!res.ok) {
@@ -114,7 +124,7 @@ export default function ManagerMallaPage() {
     } finally {
       setLoading(false);
     }
-  }, [inicioSemana, zona]);
+  }, [desde, hasta, zona]);
 
   useEffect(() => {
     void cargar();
@@ -131,70 +141,94 @@ export default function ManagerMallaPage() {
     return grupos;
   }, [data]);
 
-  function semanaAnterior() {
-    setInicioSemana((d) => addWeeks(d, -1));
+  function ajustarPreset(preset: "semana" | "mes" | "mesAnterior") {
+    const ahora = new Date();
+    if (preset === "semana") {
+      const l = startOfWeek(ahora, { weekStartsOn: 1 });
+      setDesde(ymd(l));
+      setHasta(ymd(addDays(l, 6)));
+    } else if (preset === "mes") {
+      const inicio = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+      const fin = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0);
+      setDesde(ymd(inicio));
+      setHasta(ymd(fin));
+    } else {
+      const inicio = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
+      const fin = new Date(ahora.getFullYear(), ahora.getMonth(), 0);
+      setDesde(ymd(inicio));
+      setHasta(ymd(fin));
+    }
   }
-  function semanaSiguiente() {
-    setInicioSemana((d) => addWeeks(d, 1));
-  }
-  function irHoy() {
-    setInicioSemana(lunesDeLaSemana(new Date()));
-  }
-
-  const finSemana = useMemo(() => addDays(inicioSemana, 6), [inicioSemana]);
 
   return (
     <div className="space-y-4 sm:space-y-6">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-          Malla semanal — Técnicos
+          Malla de turnos — Técnicos
         </h1>
         <p className="text-sm text-gray-600 dark:text-[#A0AEC0] mt-1">
-          Visualización de turnos asignados por semana. Filas: técnicos. Columnas: días Lun-Dom.
+          Visualización por rango de fechas. Filas: técnicos. Columnas: días del rango.
         </p>
       </div>
 
       {/* Controles */}
-      <div className="bg-white dark:bg-[#1A2340] border border-gray-200 dark:border-[#3A4565] rounded-lg p-3 sm:p-4 flex flex-wrap gap-3 items-center">
-        <button
-          onClick={semanaAnterior}
-          className="p-2 rounded hover:bg-gray-100 dark:hover:bg-[#243052]"
-          aria-label="Semana anterior"
-        >
-          <HiChevronLeft className="w-5 h-5" />
-        </button>
-        <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 font-medium">
-          <HiCalendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-          <span>
-            {format(inicioSemana, "d 'de' LLL", { locale: es })} —{" "}
-            {format(finSemana, "d 'de' LLL yyyy", { locale: es })}
-          </span>
+      <div className="bg-white dark:bg-[#1A2340] border border-gray-200 dark:border-[#3A4565] rounded-lg p-3 sm:p-4 flex flex-wrap gap-3 items-end">
+        <div className="flex items-end gap-2">
+          <HiCalendar className="w-5 h-5 mb-2 text-blue-600 dark:text-blue-400 shrink-0" />
+          <div>
+            <label className="block text-xs text-gray-600 dark:text-[#A0AEC0] mb-1">Desde</label>
+            <input
+              type="date"
+              value={desde}
+              onChange={(e) => setDesde(e.target.value)}
+              className="border border-gray-300 dark:border-[#3A4565] rounded px-2 py-1.5 text-sm bg-white dark:bg-[#162035] dark:text-white"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 dark:text-[#A0AEC0] mb-1">Hasta</label>
+            <input
+              type="date"
+              value={hasta}
+              onChange={(e) => setHasta(e.target.value)}
+              className="border border-gray-300 dark:border-[#3A4565] rounded px-2 py-1.5 text-sm bg-white dark:bg-[#162035] dark:text-white"
+            />
+          </div>
         </div>
-        <button
-          onClick={semanaSiguiente}
-          className="p-2 rounded hover:bg-gray-100 dark:hover:bg-[#243052]"
-          aria-label="Semana siguiente"
-        >
-          <HiChevronRight className="w-5 h-5" />
-        </button>
-        <button
-          onClick={irHoy}
-          className="px-3 py-1.5 rounded border border-gray-300 dark:border-[#3A4565] text-sm hover:bg-gray-50 dark:hover:bg-[#243052]"
-        >
-          Hoy
-        </button>
 
-        <div className="ml-auto flex items-center gap-2">
-          <label className="text-sm text-gray-600 dark:text-[#A0AEC0]">Zona:</label>
-          <select
-            value={zona}
-            onChange={(e) => setZona(e.target.value as Filtro)}
-            className="border border-gray-300 dark:border-[#3A4565] rounded px-2 py-1 text-sm bg-white dark:bg-[#162035] dark:text-white"
+        <div className="flex items-end gap-2">
+          <button
+            onClick={() => ajustarPreset("semana")}
+            className="px-3 py-1.5 rounded border border-gray-300 dark:border-[#3A4565] text-sm hover:bg-gray-50 dark:hover:bg-[#243052]"
           >
-            <option value="ALL">Todas (Bogotá + Costa)</option>
-            <option value="BOGOTA">Bogotá</option>
-            <option value="COSTA">Costa</option>
-          </select>
+            Esta semana
+          </button>
+          <button
+            onClick={() => ajustarPreset("mes")}
+            className="px-3 py-1.5 rounded border border-gray-300 dark:border-[#3A4565] text-sm hover:bg-gray-50 dark:hover:bg-[#243052]"
+          >
+            Este mes
+          </button>
+          <button
+            onClick={() => ajustarPreset("mesAnterior")}
+            className="px-3 py-1.5 rounded border border-gray-300 dark:border-[#3A4565] text-sm hover:bg-gray-50 dark:hover:bg-[#243052]"
+          >
+            Mes anterior
+          </button>
+        </div>
+
+        <div className="ml-auto flex items-end gap-2">
+          <div>
+            <label className="block text-xs text-gray-600 dark:text-[#A0AEC0] mb-1">Zona</label>
+            <select
+              value={zona}
+              onChange={(e) => setZona(e.target.value as Filtro)}
+              className="border border-gray-300 dark:border-[#3A4565] rounded px-2 py-1.5 text-sm bg-white dark:bg-[#162035] dark:text-white"
+            >
+              <option value="ALL">Todas (Bogotá + Costa)</option>
+              <option value="BOGOTA">Bogotá</option>
+              <option value="COSTA">Costa</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -209,7 +243,6 @@ export default function ManagerMallaPage() {
         <Leyenda color="bg-amber-100 dark:bg-amber-900/40" label="Festivo" />
       </div>
 
-      {/* Estado */}
       {loading && (
         <div className="text-center py-10 text-gray-500 dark:text-[#A0AEC0]">Cargando malla…</div>
       )}
@@ -219,7 +252,6 @@ export default function ManagerMallaPage() {
         </div>
       )}
 
-      {/* Tablas por zona */}
       {!loading && !error && data && (
         <>
           {(["BOGOTA", "COSTA"] as Zona[])
@@ -229,7 +261,7 @@ export default function ManagerMallaPage() {
                 key={z}
                 zona={z}
                 tecnicos={tecnicosPorZona[z]}
-                semana={data.semana}
+                rango={data.rango}
               />
             ))}
         </>
@@ -250,11 +282,11 @@ function Leyenda({ color, label }: { color: string; label: string }) {
 function TablaZona({
   zona,
   tecnicos,
-  semana,
+  rango,
 }: {
   zona: Zona;
   tecnicos: TecnicoMalla[];
-  semana: SemanaInfo;
+  rango: RangoInfo;
 }) {
   return (
     <div className="space-y-2">
@@ -273,17 +305,18 @@ function TablaZona({
                 <th className="text-left p-2 border-r border-gray-200 dark:border-[#3A4565] sticky left-0 bg-gray-50 dark:bg-[#162035] z-10 min-w-[180px]">
                   Técnico
                 </th>
-                {semana.dias.map((dia, i) => {
-                  const esFestivo = !!semana.festivos[dia];
+                {rango.dias.map((dia) => {
+                  const esFestivo = !!rango.festivos[dia];
+                  const dow = dowDeYmd(dia);
                   return (
                     <th
                       key={dia}
                       className={`text-center p-2 border-r border-gray-200 dark:border-[#3A4565] last:border-r-0 min-w-[60px] ${
                         esFestivo ? "bg-amber-50 dark:bg-amber-900/20" : ""
-                      }`}
-                      title={esFestivo ? semana.festivos[dia] : undefined}
+                      } ${dow === 0 ? "bg-red-50/30 dark:bg-red-900/10" : ""}`}
+                      title={esFestivo ? rango.festivos[dia] : undefined}
                     >
-                      <div className="font-medium">{DIAS_LABEL[i]}</div>
+                      <div className="font-medium">{DIAS_LABEL_CORTO[dow]}</div>
                       <div className="text-[10px] text-gray-500 dark:text-[#A0AEC0]">
                         {dia.slice(8, 10)}/{dia.slice(5, 7)}
                       </div>
@@ -303,8 +336,8 @@ function TablaZona({
                       </div>
                     )}
                   </td>
-                  {semana.dias.map((dia) => {
-                    const esFestivo = !!semana.festivos[dia];
+                  {rango.dias.map((dia) => {
+                    const esFestivo = !!rango.festivos[dia];
                     const celda = t.malla[dia];
                     const { bg, text, contenido } = estiloCelda(celda, esFestivo);
                     return (
@@ -315,7 +348,7 @@ function TablaZona({
                           celda
                             ? `${celda.dayType ?? "TRABAJO"} — ${celda.shiftCode || "(sin código)"}`
                             : esFestivo
-                              ? `Festivo: ${semana.festivos[dia]}`
+                              ? `Festivo: ${rango.festivos[dia]}`
                               : "Sin malla asignada"
                         }
                       >
