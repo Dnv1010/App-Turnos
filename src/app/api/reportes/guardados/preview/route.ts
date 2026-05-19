@@ -17,6 +17,7 @@ import {
   whereTurnosCoordinadorDisponiblesParaReporte,
   whereTurnosDisponiblesParaReporte,
 } from "@/lib/reportes-guardados";
+import { rangoDateExpandidoUtc, turnoEnRangoFechaCalendario } from "@/lib/turnoRangoColombia";
 
 export async function GET(req: NextRequest) {
   const supabase = await createServerSupabase();
@@ -43,6 +44,9 @@ export async function GET(req: NextRequest) {
   }
 
   const { fechaInicio, fechaFin } = rango;
+  // Rango expandido -1 día para capturar turnos que cruzaron medianoche
+  // (ej: sábado 22:00 → domingo 06:00 — shift.date = sábado).
+  const rangoExpandido = rangoDateExpandidoUtc(desde, hasta);
   const userIds = await getUserIdsTecnicosParaReporte(auth.profile, zona);
   const coordUserIds = await getUserIdsCoordinadoresParaReporte(auth.profile, zona);
 
@@ -53,10 +57,10 @@ export async function GET(req: NextRequest) {
     coordUserIds
   );
 
-  const [turnos, foraneos, disponibilidades, turnosCoordinador] = await Promise.all([
+  const [turnosRaw, foraneos, disponibilidades, turnosCoordinadorRaw] = await Promise.all([
     userIds.length
       ? prisma.shift.findMany({
-          where: whereTurnosDisponiblesParaReporte(fechaInicio, fechaFin, userIds),
+          where: whereTurnosDisponiblesParaReporte(rangoExpandido.gte, rangoExpandido.lte, userIds),
           include: { user: { select: { fullName: true, documentNumber: true, zone: true } } },
           orderBy: [{ date: "asc" }, { clockInAt: "asc" }],
         })
@@ -77,12 +81,19 @@ export async function GET(req: NextRequest) {
       : [],
     coordUserIds.length
       ? prisma.shift.findMany({
-          where: whereTurnosCoordinadorDisponiblesParaReporte(fechaInicio, fechaFin, coordUserIds),
+          where: whereTurnosCoordinadorDisponiblesParaReporte(rangoExpandido.gte, rangoExpandido.lte, coordUserIds),
           include: { user: { select: { fullName: true, documentNumber: true, zone: true, role: true } } },
           orderBy: [{ date: "asc" }, { clockInAt: "asc" }],
         })
       : [],
   ]);
+
+  // Filtrar por fecha Colombia: la query trajo -1 día para capturar turnos
+  // que cruzaron medianoche; descartamos los que realmente no aplican al rango.
+  const turnos = turnosRaw.filter((t) => turnoEnRangoFechaCalendario(t, desde, hasta));
+  const turnosCoordinador = turnosCoordinadorRaw.filter((t) =>
+    turnoEnRangoFechaCalendario(t, desde, hasta)
+  );
 
   return NextResponse.json({
     turnos: turnos.map((t) => ({

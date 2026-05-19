@@ -18,6 +18,7 @@ import {
   whereTurnosCoordinadorDisponiblesParaReporte,
   whereTurnosDisponiblesParaReporte,
 } from "@/lib/reportes-guardados";
+import { rangoDateExpandidoUtc } from "@/lib/turnoRangoColombia";
 
 export async function GET(req: NextRequest) {
   const supabase = await createServerSupabase();
@@ -161,7 +162,10 @@ export async function POST(req: NextRequest) {
   }
 
   const { fechaInicio, fechaFin } = rango;
-  const whereTurnos = whereTurnosDisponiblesParaReporte(fechaInicio, fechaFin, userIds);
+  // Rango expandido -1 día para validar turnos que cruzaron medianoche.
+  // Consistente con el preview que también trae rango expandido.
+  const rangoExpandido = rangoDateExpandidoUtc(desde, hasta);
+  const whereTurnos = whereTurnosDisponiblesParaReporte(rangoExpandido.gte, rangoExpandido.lte, userIds);
   const whereForaneos = whereForaneosDisponiblesParaReporte(fechaInicio, fechaFin, userIds);
   const whereMallaDisp = whereDisponibilidadesMallaCombinadaParaReporte(
     fechaInicio,
@@ -170,8 +174,8 @@ export async function POST(req: NextRequest) {
     coordUserIds
   );
   const whereTurnosCoord = whereTurnosCoordinadorDisponiblesParaReporte(
-    fechaInicio,
-    fechaFin,
+    rangoExpandido.gte,
+    rangoExpandido.lte,
     coordUserIds
   );
 
