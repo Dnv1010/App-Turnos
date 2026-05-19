@@ -145,13 +145,13 @@ export async function GET(req: NextRequest) {
         : Promise.resolve([]),
       prisma.holiday.findMany({
         where: { date: { gte: fechaInicioExp, lte: fechaFinExp } },
-        select: { date: true, name: true },
+        select: { date: true },
       }),
     ]);
 
     const festivosMap: Record<string, string> = {};
     for (const f of festivos) {
-      festivosMap[ymd(f.date)] = f.name;
+      festivosMap[ymd(f.date)] = "Festivo";
     }
 
     const mallaPorUserDia = new Map<
