@@ -282,9 +282,10 @@ export async function PATCH(req: NextRequest) {
     ]);
     const esTurnoAdicional = !!turnosMismoDia;
 
-    // CRÍTICO: Usar dateKeyColombia para festivos
+    // CRÍTICO: día Colombia se deriva del clockInAt (UTC real), NO de turno.date
+    // que puede estar desincronizado por timezone de Postgres.
     const holidaySet = new Set(festivosSemana.map((f) => dateKeyColombia(f.date)));
-    const esFestivo = holidaySet.has(dateKeyColombia(turno.date));
+    const esFestivo = holidaySet.has(dateKeyColombia(turno.clockInAt));
     const weeklyOrdHours = sumWeeklyOrdHoursMonSat(
       turnosSemana.map((t) => ({ fecha: t.date, horasOrdinarias: t.regularHours ?? 0 }))
     );
@@ -299,8 +300,8 @@ export async function PATCH(req: NextRequest) {
         } as MallaRow)
       : null;
 
-    // Usar día de la semana en Colombia
-    const dowColombia = getDayOfWeekColombia(turno.date);
+    // Día de la semana derivado del clockInAt (UTC real), no del turno.date.
+    const dowColombia = getDayOfWeekColombia(turno.clockInAt);
 
     const mallaDia = row
       ? {

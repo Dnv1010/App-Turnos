@@ -145,11 +145,12 @@ export async function GET(req: NextRequest) {
       turnosPorSemana.get(key)!.push(t);
     }
 
-    // Pre-agrupar por día (Colombia) para detectar aperturas adicionales del mismo día.
-    // El turno con clockInAt más temprano del día es el "principal"; los demás son adicionales (= HE).
+    // Pre-agrupar por día (Colombia, derivado del clockInAt UTC) para detectar
+    // aperturas adicionales del mismo día. El turno con clockInAt más temprano
+    // del día es el "principal"; los demás son adicionales (= HE).
     const turnosPorDia = new Map<string, typeof user.shifts>();
     for (const t of shiftsEnRango) {
-      const key = dateKeyColombia(t.date);
+      const key = dateKeyColombia(t.clockInAt);
       if (!turnosPorDia.has(key)) turnosPorDia.set(key, []);
       turnosPorDia.get(key)!.push(t);
     }
@@ -171,8 +172,8 @@ export async function GET(req: NextRequest) {
         aplicaRegla44h: weeklyOrdParaRegla44 < 44,
       };
       const totalHoras = (t.clockOutAt!.getTime() - t.clockInAt.getTime()) / (1000 * 60 * 60);
-      // ¿Existe otro turno del mismo día con clockInAt anterior y no cancelado?
-      const turnosMismoDia = turnosPorDia.get(dateKeyColombia(t.date)) ?? [];
+      // ¿Existe otro turno del mismo día (Colombia) con clockInAt anterior y no cancelado?
+      const turnosMismoDia = turnosPorDia.get(dateKeyColombia(t.clockInAt)) ?? [];
       const esTurnoAdicional = turnosMismoDia.some(
         (otro) =>
           otro.id !== t.id &&
@@ -184,16 +185,17 @@ export async function GET(req: NextRequest) {
           fecha: t.date,
           horaEntrada: t.clockInAt,
           horaSalida: t.clockOutAt!,
-          esFestivo: holidaySet.has(dateKeyColombia(t.date)),
-          // FIX: usar getDayOfWeekColombia corregida que respeta midnight UTC
-          esDomingo: getDayOfWeekColombia(t.date) === 0,
+          // Día Colombia derivado del clockInAt (UTC real). El shift.date puede
+          // estar desincronizado por timezone Postgres.
+          esFestivo: holidaySet.has(dateKeyColombia(t.clockInAt)),
+          esDomingo: getDayOfWeekColombia(t.clockInAt) === 0,
         },
         resumenSemanal,
         mallaVal,
         holidaySet,
         esTurnoAdicional
       );
-      const alerts = checkMallaAlerts(t.id, user.email ?? "", user.fullName, t.date, mallaVal, holidaySet.has(dateKeyColombia(t.date)), totalHoras);
+      const alerts = checkMallaAlerts(t.id, user.email ?? "", user.fullName, t.date, mallaVal, holidaySet.has(dateKeyColombia(t.clockInAt)), totalHoras);
       alerts.forEach((a) => alertasMalla.push({ userId: user.id, fullName: user.fullName, mensaje: a.detalle, tipo: a.tipo }));
 
       return {

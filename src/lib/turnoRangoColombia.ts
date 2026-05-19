@@ -1,14 +1,13 @@
 /**
  * Utilidades para filtrar turnos por rango de fecha en zona Colombia (UTC-5).
  *
- * Problema que resuelve: `Shift.date` se guarda como midnight UTC del día Colombia
- * del clockInAt. Un turno que empieza sábado 22:00 (Colombia) y termina domingo
- * tiene `date = sábado` aunque la mayor parte sea trabajo dominical. Un filtro
- * ingenuo `date >= domingo` pierde ese turno.
+ * Problema que resuelve: `Shift.date` (@db.Date) puede estar desincronizado por
+ * timezone de Postgres (si la sesión está en UTC-5, midnight UTC se trunca al
+ * día anterior). Solución: derivar el día Colombia del `clockInAt` (timestamp
+ * UTC real), no del campo `date`.
  *
- * Estrategia: expandir el rango -1 día en la query SQL y filtrar luego en memoria
- * incluyendo turnos del día anterior cuya entrada haya sido nocturna (cruzaron
- * medianoche). Mismo enfoque que usa /api/turnos.
+ * Estrategia: query SQL con rango expandido (-1 y +1 día) y filtrar luego en
+ * memoria por `dateKeyColombia(clockInAt)`.
  */
 
 /** Convierte Date a fecha Colombia (UTC-5) como string YYYY-MM-DD. */
@@ -48,31 +47,29 @@ export function isNocturnalEntradaColombia(horaEntrada: Date): boolean {
 
 /**
  * Devuelve el `where` de Prisma para `date` que captura turnos del rango Colombia,
- * incluyendo turnos cuyo `date` es 1 día antes y cruzaron medianoche.
+ * con margen de ±1 día para tolerar shifts cuyo `date` esté desincronizado por
+ * timezone Postgres o que hayan cruzado medianoche.
  */
 export function rangoDateExpandidoUtc(desde: string, hasta: string): { gte: Date; lte: Date } {
   const desdeExpanded = addDaysYmd(desde, -1);
+  const hastaExpanded = addDaysYmd(hasta, 1);
   return {
     gte: new Date(desdeExpanded + "T00:00:00.000Z"),
-    lte: new Date(hasta + "T23:59:59.999Z"),
+    lte: new Date(hastaExpanded + "T23:59:59.999Z"),
   };
 }
 
 /**
  * Decide si un turno cae dentro del rango Colombia [desde, hasta] (YYYY-MM-DD inclusivo).
- * Incluye turnos cuyo `date` es 1 día anterior pero la entrada fue nocturna.
+ *
+ * El día Colombia se deriva del `clockInAt` (timestamp UTC real), NO del campo
+ * `date` que puede estar desincronizado por timezone Postgres.
  */
 export function turnoEnRangoFechaCalendario(
-  t: { date: Date; clockInAt: Date },
+  t: { clockInAt: Date },
   desde: string,
   hasta: string
 ): boolean {
-  const F = dateKeyColombia(new Date(t.date));
-  if (F >= desde && F <= hasta) return true;
-  const siguiente = addDaysYmd(F, 1);
-  return (
-    siguiente >= desde &&
-    siguiente <= hasta &&
-    isNocturnalEntradaColombia(new Date(t.clockInAt))
-  );
+  const F = dateKeyColombia(t.clockInAt);
+  return F >= desde && F <= hasta;
 }

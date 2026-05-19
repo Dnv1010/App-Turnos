@@ -21,8 +21,13 @@ export async function GET(req: NextRequest) {
   const profile = await getUserProfile(user.email!);
   if (!profile) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
-  if (profile.role !== "ADMIN" && profile.role !== "MANAGER") {
-    return NextResponse.json({ error: "Solo ADMIN/MANAGER" }, { status: 403 });
+  if (
+    profile.role !== "ADMIN" &&
+    profile.role !== "MANAGER" &&
+    profile.role !== "COORDINADOR" &&
+    profile.role !== "SUPPLY"
+  ) {
+    return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
   }
 
   const { searchParams } = new URL(req.url);

@@ -1,4 +1,11 @@
-/** Formato de fechas/horas para exportación de reportes guardados (fecha turno @db.Date = calendario UTC). */
+/**
+ * Formato de fechas/horas para exportación de reportes guardados.
+ *
+ * IMPORTANTE: pasar el `clockInAt` (timestamp UTC real del fichaje), NO el
+ * campo `shift.date` (@db.Date), que puede estar desincronizado por timezone
+ * de Postgres. Estas funciones derivan el día Colombia desde el momento real.
+ */
+import { dateKeyColombia } from "@/lib/turnoRangoColombia";
 
 const MESES = [
   "Enero",
@@ -17,21 +24,29 @@ const MESES = [
 
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
-/** Fecha de turno/malla almacenada como @db.Date (medianoche UTC = día de calendario). */
-export function getMesEspanol(fecha: Date): string {
-  return MESES[fecha.getUTCMonth()];
+/** Derivar [year, month1Based, day] del día Colombia del momento (clockInAt). */
+function ymdColombia(momento: Date): [number, number, number] {
+  const ymd = dateKeyColombia(momento); // "2026-05-17"
+  const [y, m, d] = ymd.split("-").map(Number);
+  return [y, m, d];
 }
 
-export function getDiaEspanol(fecha: Date): string {
-  const dow = new Date(Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate())).getUTCDay();
+export function getMesEspanol(momento: Date): string {
+  const [, m] = ymdColombia(momento);
+  return MESES[m - 1];
+}
+
+export function getDiaEspanol(momento: Date): string {
+  const [y, m, d] = ymdColombia(momento);
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   return DIAS[dow];
 }
 
-export function formatFechaDDMMYYYY(fecha: Date): string {
-  const dd = String(fecha.getUTCDate()).padStart(2, "0");
-  const mm = String(fecha.getUTCMonth() + 1).padStart(2, "0");
-  const yyyy = fecha.getUTCFullYear();
-  return `${dd}/${mm}/${yyyy}`;
+export function formatFechaDDMMYYYY(momento: Date): string {
+  const [y, m, d] = ymdColombia(momento);
+  const dd = String(d).padStart(2, "0");
+  const mm = String(m).padStart(2, "0");
+  return `${dd}/${mm}/${y}`;
 }
 
 /** Hora en zona America/Bogota (entrada/salida de turno). */

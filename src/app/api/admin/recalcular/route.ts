@@ -5,13 +5,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getUserProfile } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import { getInicioSemana, getFinSemana } from "@/lib/bia/calc-engine";
-import { getDay } from "date-fns";
+import { getInicioSemana, getFinSemana, getDayOfWeekColombia, dateKeyColombia } from "@/lib/bia/calc-engine";
 import { calcularHorasTurno, resultadoToTurnoData } from "@/lib/calcularHoras";
 import { sumWeeklyOrdHoursMonSat } from "@/lib/weeklyOrdHours";
 
+/** Día Colombia (YYYY-MM-DD) — para midnight UTC devuelve el día sin offset. */
 function dateKey(d: Date): string {
-  return d.toISOString().split("T")[0];
+  return dateKeyColombia(d);
 }
 
 function addDays(d: Date, n: number): Date {
@@ -126,7 +126,8 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Index: shifts por userId|dateKey (para detectar esTurnoAdicional) y por userId|inicioSemana (para weeklyOrdHours).
+  // Index: shifts por userId|díaColombia (derivado del clockInAt UTC real, no
+  // del campo date que puede estar desincronizado por timezone Postgres).
   const shiftsPorUserDay = new Map<
     string,
     Array<typeof shiftsContext[number]>
@@ -136,15 +137,19 @@ export async function POST(req: NextRequest) {
     Array<{ id: string; date: Date; regularHours: number }>
   >();
   for (const s of shiftsContext) {
-    const dayKey = `${s.userId}|${dateKey(s.date)}`;
+    const colombiaYmd = dateKeyColombia(s.clockInAt);
+    const dayKey = `${s.userId}|${colombiaYmd}`;
     if (!shiftsPorUserDay.has(dayKey)) shiftsPorUserDay.set(dayKey, []);
     shiftsPorUserDay.get(dayKey)!.push(s);
 
-    const weekKey = `${s.userId}|${getInicioSemana(s.date).getTime()}`;
+    // Inicio de semana derivado del día Colombia, no del s.date.
+    const [yy, mm, dd] = colombiaYmd.split("-").map(Number);
+    const colombiaDateUtc = new Date(Date.UTC(yy, mm - 1, dd));
+    const weekKey = `${s.userId}|${getInicioSemana(colombiaDateUtc).getTime()}`;
     if (!shiftsPorUserWeek.has(weekKey)) shiftsPorUserWeek.set(weekKey, []);
     shiftsPorUserWeek.get(weekKey)!.push({
       id: s.id,
-      date: s.date,
+      date: colombiaDateUtc,
       regularHours: s.regularHours,
     });
   }
@@ -168,12 +173,17 @@ export async function POST(req: NextRequest) {
 
   for (const turno of turnosUpdate) {
     try {
-      const tDateKey = dateKey(turno.date);
+      // Día Colombia derivado del clockInAt (UTC real). El turno.date puede
+      // estar desincronizado por timezone Postgres.
+      const tDateKey = dateKeyColombia(turno.clockInAt);
       const mallaDiaRow = mallaMap.get(`${turno.userId}|${tDateKey}`) ?? null;
       const esFestivo = holidayKeys.has(tDateKey);
 
       // weeklyOrdHours: turnos cerrados misma semana, OTRO id.
-      const weekKey = `${turno.userId}|${getInicioSemana(turno.date).getTime()}`;
+      // Inicio de semana derivado del día Colombia (clockInAt), no del campo date.
+      const [yy, mm, dd] = tDateKey.split("-").map(Number);
+      const turnoColombiaDateUtc = new Date(Date.UTC(yy, mm - 1, dd));
+      const weekKey = `${turno.userId}|${getInicioSemana(turnoColombiaDateUtc).getTime()}`;
       const turnosSemana = (shiftsPorUserWeek.get(weekKey) ?? []).filter(
         (s) => s.id !== turno.id
       );
@@ -199,6 +209,8 @@ export async function POST(req: NextRequest) {
             horaFin: mallaDiaRow.endTime,
           }
         : null;
+      // Día de la semana Colombia derivado del clockInAt (UTC real).
+      const dowColombia = getDayOfWeekColombia(turno.clockInAt);
       const mallaDia = row
         ? {
             tipo: esFestivo ? "FESTIVO" : (row.tipo ?? "TRABAJO"),
@@ -208,17 +220,18 @@ export async function POST(req: NextRequest) {
           }
         : esFestivo
           ? { tipo: "FESTIVO" as const, valor: null, horaInicio: null, horaFin: null }
-          : getDay(turno.date) === 0
+          : dowColombia === 0
             ? { tipo: "DESCANSO" as const, valor: null, horaInicio: null, horaFin: null }
             : {
                 tipo: "TRABAJO" as const,
                 valor: "Trabajo",
                 horaInicio: "08:00",
-                horaFin: getDay(turno.date) === 6 ? "12:00" : "17:00",
+                horaFin: dowColombia === 6 ? "12:00" : "17:00",
               };
 
       const resultado = calcularHorasTurno(
-        { horaEntrada: turno.clockInAt, horaSalida: turno.clockOutAt!, fecha: turno.date },
+        // fecha: día Colombia midnight UTC derivado del clockInAt (no usar turno.date).
+        { horaEntrada: turno.clockInAt, horaSalida: turno.clockOutAt!, fecha: turnoColombiaDateUtc },
         mallaDia,
         holidayKeys,
         weeklyOrdHours,

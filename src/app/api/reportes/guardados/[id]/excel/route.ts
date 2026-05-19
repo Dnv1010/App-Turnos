@@ -71,7 +71,10 @@ export async function GET(_req: NextRequest, context: Ctx) {
   const turnosCoordRaw = reporte.shiftsIncluded.filter((rt) => rt.shift.shiftType === "COORDINATOR");
 
   const turnos = turnosRaw.map((rt) => ({
-    fecha: rt.shift.date,
+    // Derivamos el día Colombia desde clockInAt (no desde shift.date que puede
+    // estar desincronizado por timezone de Postgres). Pasamos clockInAt como `fecha`
+    // para que las funciones de formato lo conviertan a día Colombia.
+    fecha: rt.shift.clockInAt,
     horaEntrada: rt.shift.clockInAt,
     horaSalida: rt.shift.clockOutAt,
     horasOrdinarias: rt.shift.regularHours,
@@ -109,7 +112,7 @@ export async function GET(_req: NextRequest, context: Ctx) {
   }));
 
   const turnosCoordinador = turnosCoordRaw.map((r) => ({
-    fecha: r.shift.date,
+    fecha: r.shift.clockInAt,
     horaEntrada: r.shift.clockInAt,
     horaSalida: r.shift.clockOutAt,
     codigoOrden: r.shift.orderCode ?? "",
